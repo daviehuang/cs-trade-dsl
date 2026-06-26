@@ -13,7 +13,7 @@ const model = RULES.model;
 
 // 导入注册表：加载被引用的模块库（生产中由 Rule Bundle API 按 ref 拉取+缓存）
 const IMPORTS = {};
-for (const f of ["commonFx.json"]) {
+for (const f of ["commonFx.json", "commonParty.json"]) {
   const lib = JSON.parse(readFileSync(join(here, "..", f), "utf8"));
   IMPORTS[`${lib.ruleSetId}@${lib.version}`] = lib;
 }

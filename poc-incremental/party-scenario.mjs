@@ -6,8 +6,9 @@ import { createSession } from "./src/incremental.js";
 import { makeFxService } from "./src/fx-service.js";
 
 const J = (f) => JSON.parse(readFileSync(new URL(f, import.meta.url)));
-const rules = J("./lc-rules.json"), data = J("./lc-data.json"), fx = J("./commonFx.json");
-const imports = { [`${fx.ruleSetId}@${fx.version}`]: fx };
+const rules = J("./lc-rules.json"), data = J("./lc-data.json");
+const fx = J("./commonFx.json"), party = J("./commonParty.json");
+const imports = { [`${fx.ruleSetId}@${fx.version}`]: fx, [`${party.ruleSetId}@${party.version}`]: party };
 
 const s = createSession(rules, data, { resolve: makeFxService({ delay: 30 }), imports });
 await s.idle();

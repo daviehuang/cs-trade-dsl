@@ -15,6 +15,27 @@ export function createSession(ruleSet, data, opts = {}) {
 
   const model = ruleSet.model;
   const rootType = model.root;
+
+  // ── 跨 RuleSet 导入：类型库（共享节点类型 + 规则 + uses + context，扁平命名空间）
+  //    与模块库（modules，按 as 别名）。生产中由 Rule Bundle API 按 ref 拉取并缓存。
+  const importRegistry = opts.imports || {};
+  const importedNodes = {}, importedRules = [], importedUses = [], importedModules = {};
+  let importedContext = {};
+  for (const imp of (ruleSet.imports || [])) {
+    const lib = importRegistry[imp.ref];
+    if (!lib) throw new Error("未找到导入(ref): " + imp.ref);
+    Object.assign(importedNodes, lib.nodes || {});        // 共享节点类型（Party / BankParty…）
+    if (lib.rules) importedRules.push(...lib.rules);       // 类型自带的通用校验随类型一起来
+    if (lib.uses) importedUses.push(...lib.uses);          // 库可声明模块挂载
+    Object.assign(importedContext, lib.context || {});
+    if (imp.as) importedModules[imp.as] = lib.modules || {};  // 模块库（按别名）
+  }
+  // 有效模型/规则 = 导入 + 本地（本地同名覆盖导入；冲突治理见 lint TODO）
+  const mergedNodes = { ...importedNodes, ...model.nodes };
+  const allRules = [...importedRules, ...(ruleSet.rules || [])];
+  const allUses = [...importedUses, ...(ruleSet.uses || [])];
+  const mergedContext = { ...importedContext, ...(ruleSet.context || {}) };
+
   const cells = new Map();
   const dirty = new Set();
   let CURRENT = null;
@@ -26,7 +47,7 @@ export function createSession(ruleSet, data, opts = {}) {
   const ser = (o) => JSON.stringify(o, (_, v) => (v instanceof Decimal ? fmt(v) : v));
 
   // ── 类型系统：继承(extends) + 抽象(abstract) + 具名槽位(slots) ──
-  function nodeDef(type) { const d = model.nodes[type]; if (!d) throw new Error("未知节点类型: " + type); return d; }
+  function nodeDef(type) { const d = mergedNodes[type]; if (!d) throw new Error("未知节点类型: " + type); return d; }
   function typeChain(type) { const ch = []; let t = type; while (t) { ch.unshift(t); t = nodeDef(t).extends; } return ch; } // [基类…自身]
   function isA(type, ancestor) { let t = type; while (t) { if (t === ancestor) return true; t = nodeDef(t).extends; } return false; }
   // 沿继承链合并字段（子类可覆盖基类同名字段）
@@ -125,9 +146,9 @@ export function createSession(ruleSet, data, opts = {}) {
   function addInputCell(path, field, type, raw) {
     cells.set(path + "." + field, { id: path + "." + field, kind: "input", nodePath: path, type, state: "resolved", value: coerce(type, raw), deps: new Set(), dependents: new Set() });
   }
-  // 规则按 scope 类型分组（建子树 cell 时复用）
+  // 规则按 scope 类型分组（建子树 cell 时复用）；allRules = 导入类型库规则 + 本地规则
   const rulesByScope = new Map();
-  for (const rule of ruleSet.rules) {
+  for (const rule of allRules) {
     if (rule.enabled === false) continue;
     const sc = rule.scope || rootType;
     if (!rulesByScope.has(sc)) rulesByScope.set(sc, []);
@@ -174,21 +195,13 @@ export function createSession(ruleSet, data, opts = {}) {
   for (const node of nodes.values()) buildNodeCells(node.path, node.type);
 
   // ── 环境上下文 cells：context 映射在 root 作用域求值（如 baseCcy ← root.baseCcy）──
-  for (const [key, expr] of Object.entries(ruleSet.context || {})) {
+  for (const [key, expr] of Object.entries(mergedContext)) {
     const id = "__ctx." + key;
     cells.set(id, { id, kind: "computed", nodePath: "__ctx", deps: new Set(), dependents: new Set(), state: "stale", value: null,
       cases: [{ whenExpr: null, compute: () => evaluate(expr, ctxFor("root")).value }], fallback: null });
   }
 
-  // ── 跨 RuleSet imports：按 ref(id@version) 解析模块库，命名空间别名 ──
-  // opts.imports: { "commonFx@1.0.0": <ruleSetObj>, ... }（生产中由 Rule Bundle API 拉取+缓存）
-  const importRegistry = opts.imports || {};
-  const importedModules = {};                  // alias → { moduleId → moduleDef }
-  for (const imp of (ruleSet.imports || [])) {
-    const lib = importRegistry[imp.ref];
-    if (!lib) throw new Error("未找到导入(ref): " + imp.ref);
-    importedModules[imp.as] = lib.modules || {};
-  }
+  // ── 跨 RuleSet 模块库解析（importedModules / importRegistry 已在顶部按 ref 解析）──
   function resolveModule(ref) {
     if (ref.includes(".")) {                   // 导入模块：alias.moduleId
       const [alias, modId] = ref.split(".");
@@ -250,9 +263,9 @@ export function createSession(ruleSet, data, opts = {}) {
   // 为单个新节点实例化其类型（含继承）匹配的全部 use 模块（动态增子时复用同一套初始化逻辑）
   function instantiateUsesForNode(path) {
     const type = nodes.get(path).type;
-    for (const use of (ruleSet.uses || [])) if (isA(type, use.on)) instantiateUseOnHost(use, path);
+    for (const use of allUses) if (isA(type, use.on)) instantiateUseOnHost(use, path);
   }
-  for (const use of (ruleSet.uses || [])) instantiateUse(use);
+  for (const use of allUses) instantiateUse(use);
 
   // ── 重算单个 cell ──
   function recompute(cell) {

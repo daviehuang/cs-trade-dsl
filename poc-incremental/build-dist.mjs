@@ -52,3 +52,10 @@ writeFileSync(join(here, "rules/commonFx.rules.js"),
   `// 模块库产物（生产中由 Rule Bundle API 下发：fetch('/rulesets/commonFx@1.0.0')）\nwindow.COMMON_FX = ${commonFx};\n`);
 writeFileSync(join(here, "rules/commonFx.json"), commonFx);
 console.log("✅ rules/commonFx.rules.js + commonFx.json（模块库）");
+
+// 类型库作为独立产物导出（被 lcSettlement import：Party/Customer/Bank 节点类型 + 通用校验）
+const commonParty = read("commonParty.json");
+writeFileSync(join(here, "rules/commonParty.rules.js"),
+  `// 类型库产物（生产中由 Rule Bundle API 下发：fetch('/rulesets/commonParty@1.0.0')）\nwindow.COMMON_PARTY = ${commonParty};\n`);
+writeFileSync(join(here, "rules/commonParty.json"), commonParty);
+console.log("✅ rules/commonParty.rules.js + commonParty.json（类型库）");

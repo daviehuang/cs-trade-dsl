@@ -32,6 +32,7 @@
 - [ ] 模块机制其余工程化：模块内 pipeline、模块 cell 随宿主增删的回收、lint（位置无关性强制等）
 - [ ] 动态 scope —— 大部分被 `when`/`cases` 覆盖；排序/聚合选取的残余场景待评估
 - [x] **节点类型继承 + 抽象基类 + 具名槽位(slots)**：`Party`(abstract) ← `CustomerParty`/`BankParty`，`extends` 沿链合并字段、`scope`/`uses.on` 按 `is-a` 分发、`slots` 具名单子节点（applicant/beneficiary/各 Bank），已在增量引擎实现并实测（`party-scenario.mjs`：基类校验全员、子类型校验隔离、跨槽位表达式、字段隔离）
+- [x] **类型库 import（共享节点类型 + 规则跨 RuleSet 复用）**：import 机制从只搬运 `modules` 扩展为也合并 `nodes`/`rules`/`uses`/`context`（类型库扁平命名空间、模块库按别名）。`commonParty.json`（Party/Customer/Bank + 通用校验）抽成独立文件，被 `lcSettlement` import；业务专有的跨方规则（reimbVsAdvising）留在业务 RuleSet。已实测（run/party-scenario + Angular/BFF 全绿）
 - [ ] 继承/槽位的 **JSON Schema 形式化** 与 lint（抽象类不可实例化、slots 目标须具体子类型）
 - [ ] 数据加载能否恢复override状态
 

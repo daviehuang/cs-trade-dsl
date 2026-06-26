@@ -1,0 +1,52 @@
+// 类型库产物（生产中由 Rule Bundle API 下发：fetch('/rulesets/commonParty@1.0.0')）
+window.COMMON_PARTY = {
+  "ruleSetId": "commonParty",
+  "version": "1.0.0",
+  "description": "公共当事方类型库：Party 抽象基类 + Customer/Bank 子类型 + 通用校验。独立版本、独立治理，被各业务 RuleSet import（applicant/beneficiary/各类银行均复用此处定义）。",
+
+  "nodes": {
+    "Party": {
+      "abstract": true,
+      "fields": {
+        "name":    { "type": "string" },
+        "address": { "type": "string" },
+        "country": { "type": "string" }
+      }
+    },
+    "CustomerParty": {
+      "extends": "Party",
+      "fields": {
+        "taxId":         { "type": "string" },
+        "contactPerson": { "type": "string" }
+      }
+    },
+    "BankParty": {
+      "extends": "Party",
+      "fields": {
+        "bic":     { "type": "string" },
+        "account": { "type": "string" }
+      }
+    }
+  },
+
+  "rules": [
+    { "id": "partyName", "type": "validation", "scope": "Party", "trigger": "after-calc",
+      "expr": "len(name) > 0", "severity": "error", "code": "E_PARTY_NAME",
+      "message": "当事方名称必填" },
+    { "id": "partyCountry", "type": "validation", "scope": "Party", "trigger": "after-calc",
+      "expr": "len(country) > 0", "severity": "error", "code": "E_PARTY_COUNTRY",
+      "message": "当事方国家必填" },
+
+    { "id": "custTaxId", "type": "validation", "scope": "CustomerParty", "trigger": "after-calc",
+      "expr": "len(taxId) > 0", "severity": "error", "code": "E_CUST_TAX",
+      "message": "客户税号必填" },
+
+    { "id": "bankBicReq", "type": "validation", "scope": "BankParty", "trigger": "after-calc",
+      "expr": "len(bic) > 0", "severity": "error", "code": "E_BANK_BIC_REQ",
+      "message": "银行 BIC/SWIFT 必填" },
+    { "id": "bankBicFmt", "type": "validation", "scope": "BankParty", "trigger": "after-calc",
+      "expr": "len(bic) == 0 || in(len(bic), 8, 11)", "severity": "error", "code": "E_BANK_BIC_FMT",
+      "message": "BIC 长度应为 8 或 11 位" }
+  ]
+}
+;

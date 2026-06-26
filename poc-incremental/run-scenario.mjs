@@ -6,7 +6,11 @@ import { makeFxService } from "./src/fx-service.js";
 const rules = JSON.parse(readFileSync(new URL("./lc-rules.json", import.meta.url)));
 const data = JSON.parse(readFileSync(new URL("./lc-data.json", import.meta.url)));
 const commonFx = JSON.parse(readFileSync(new URL("./commonFx.json", import.meta.url)));
-const imports = { [`${commonFx.ruleSetId}@${commonFx.version}`]: commonFx };
+const commonParty = JSON.parse(readFileSync(new URL("./commonParty.json", import.meta.url)));
+const imports = {
+  [`${commonFx.ruleSetId}@${commonFx.version}`]: commonFx,
+  [`${commonParty.ruleSetId}@${commonParty.version}`]: commonParty,
+};
 
 let log = [];
 const session = createSession(rules, data, { resolve: makeFxService({ delay: 200 }), imports, onLog: (e) => log.push(e) });

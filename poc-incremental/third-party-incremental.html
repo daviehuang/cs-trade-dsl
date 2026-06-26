@@ -134,6 +134,7 @@
 
 <script src="dist/unified-dsl-incremental.js"></script>
 <script src="rules/commonFx.rules.js"></script>      <!-- 模块库（被规则集 import） -->
+<script src="rules/commonParty.rules.js"></script>   <!-- 类型库：Party/Customer/Bank 节点类型 + 通用校验 -->
 <script src="rules/lcSettlement.rules.js"></script>
 <script>
   document.getElementById("ver").textContent = UnifiedDSL.version;
@@ -347,7 +348,10 @@
   }
 
   // 导入注册表：规则集 import 的模块库（生产中由 Rule Bundle API 按 ref 拉取）
-  const IMPORTS = { [window.COMMON_FX.ruleSetId + "@" + window.COMMON_FX.version]: window.COMMON_FX };
+  const IMPORTS = {
+    [window.COMMON_FX.ruleSetId + "@" + window.COMMON_FX.version]: window.COMMON_FX,
+    [window.COMMON_PARTY.ruleSetId + "@" + window.COMMON_PARTY.version]: window.COMMON_PARTY,
+  };
   // 所有声明就绪后再创建会话
   session = UnifiedDSL.createSession(window.LC_RULES, data, { resolve: myFxApi, imports: IMPORTS, onUpdate: (s)=>{ renderView(s); if(document.getElementById("modal").classList.contains("on")) refreshModel(); }, onLog: appendLog });
   renderView(session.getState());
