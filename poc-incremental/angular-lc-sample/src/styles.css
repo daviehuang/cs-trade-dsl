@@ -1,0 +1,11 @@
+/* 全局基础样式 + 中台校验结果（经 [innerHTML] 注入，组件局部样式不可达，故放全局）。 */
+html, body { margin: 0; padding: 0; }
+
+.bff-ok { color: #1c8a4e; font-weight: bold; font-size: 14px; }
+.bff-bad { color: #c0392b; font-weight: bold; font-size: 14px; }
+.bff-bad code { background: #eef2f8; padding: 1px 5px; border-radius: 4px; }
+.bff-bad .hint, .bff-ok + .hint, .hint { color: #8893a3; font-size: 12px; margin-top: 6px; }
+
+table.dv { width: 100%; border-collapse: collapse; margin-top: 9px; font-size: 12px; }
+table.dv th, table.dv td { border: 1px solid #ecd6d6; padding: 4px 8px; text-align: left; font-family: Consolas, monospace; }
+table.dv th { background: #fbf0f0; color: #a23; font-family: inherit; }

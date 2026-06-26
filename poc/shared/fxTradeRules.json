@@ -1,0 +1,61 @@
+{
+  "ruleSetId": "fxTradeRules",
+  "version": "1.4.0",
+  "schemaVersion": "1.0",
+  "status": "active",
+  "model": {
+    "root": "Transaction",
+    "nodes": {
+      "Transaction": {
+        "fields": {
+          "limit": { "type": "decimal" },
+          "maxCharge": { "type": "decimal" },
+          "taxRate": { "type": "decimal" },
+          "tier": { "type": "string" },
+          "status": { "type": "string" },
+          "total": { "type": "decimal", "computed": true }
+        },
+        "children": { "name": "children", "node": "TradeLine" }
+      },
+      "TradeLine": {
+        "fields": {
+          "amount": { "type": "decimal" },
+          "rate": { "type": "decimal" },
+          "charge": { "type": "decimal", "computed": true },
+          "fee": { "type": "decimal", "computed": true }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "functionId": "calcFee", "version": "1.3.0",
+      "signature": { "params": { "base": "decimal" }, "returns": "decimal" },
+      "purity": "pure", "determinism": "deterministic"
+    }
+  ],
+  "rules": [
+    { "id": "calcCharge", "type": "formula", "scope": "TradeLine", "trigger": "calc",
+      "target": "charge", "expr": "amount * rate" },
+
+    { "id": "feeCalc", "type": "function", "scope": "TradeLine", "trigger": "calc",
+      "function": "calcFee", "functionVersion": "1.3.0", "params": { "base": "charge" }, "target": "fee" },
+
+    { "id": "totalPipeline", "type": "pipeline", "scope": "Transaction", "trigger": "calc",
+      "target": "total",
+      "steps": [
+        { "expr": "sum(children.charge) + sum(children.fee)" },
+        { "expr": "value * (1 + root.taxRate)" },
+        { "expr": "round(value, 2)" }
+      ] },
+
+    { "id": "chargeCeiling", "type": "validation", "scope": "TradeLine", "trigger": "after-calc",
+      "expr": "charge <= root.maxCharge", "severity": "error", "code": "E_CHARGE_CEILING",
+      "message": "单笔费用 {charge} 超过上限 {root.maxCharge}" },
+
+    { "id": "limitCheck", "type": "validation", "scope": "Transaction", "trigger": "on-submit",
+      "when": "status == \"active\"",
+      "expr": "total <= limit", "severity": "error", "code": "E_LIMIT_EXCEEDED",
+      "message": "合计 {total} 超过额度 {limit}" }
+  ]
+}

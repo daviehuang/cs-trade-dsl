@@ -1,0 +1,10 @@
+{
+  "name": "unified-dsl-poc-js",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "统一业务规则 DSL —— JS 内核 PoC（代表 UI + BFF 运行时）",
+  "dependencies": {
+    "decimal.js": "^10.4.3"
+  }
+}

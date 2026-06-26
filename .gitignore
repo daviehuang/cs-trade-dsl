@@ -1,0 +1,13 @@
+# 依赖
+node_modules/
+
+# 构建产物 / 缓存
+dist/
+out-tsc/
+.angular/
+*.tsbuildinfo
+
+# 日志 / 系统文件
+*.log
+.DS_Store
+Thumbs.db

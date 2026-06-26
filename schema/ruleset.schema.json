@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unified-dsl/schema/ruleset.schema.json",
+  "title": "Unified Business Rule DSL - RuleSet",
+  "description": "统一业务规则 DSL 的发布单元 RuleSet。配套规范见 unified_dsl_schema.md。",
+  "type": "object",
+  "required": ["ruleSetId", "version", "schemaVersion", "status", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "ruleSetId": { "$ref": "#/$defs/identifier" },
+    "version": { "$ref": "#/$defs/semver" },
+    "schemaVersion": { "type": "string" },
+    "status": {
+      "enum": ["draft", "staged", "canary", "active", "deprecated", "archived"]
+    },
+    "effectiveFrom": { "type": "string", "format": "date-time" },
+    "model": { "$ref": "#/$defs/model" },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/rule" }
+    },
+    "functions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/functionDescriptor" }
+    },
+    "dataSources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dataSource" }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "author": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "hash": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "fieldType": {
+      "enum": ["string", "int", "decimal", "boolean", "date", "datetime", "enum"]
+    },
+    "trigger": {
+      "enum": ["on-change", "before-calc", "calc", "after-calc", "on-submit"]
+    },
+    "model": {
+      "type": "object",
+      "required": ["root", "nodes"],
+      "additionalProperties": false,
+      "properties": {
+        "root": { "$ref": "#/$defs/identifier" },
+        "nodes": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/node" }
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["fields"],
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["type"],
+            "additionalProperties": false,
+            "properties": {
+              "type": { "$ref": "#/$defs/fieldType" },
+              "computed": { "type": "boolean" },
+              "external": { "type": "boolean" },
+              "overridable": { "type": "boolean" }
+            }
+          }
+        },
+        "children": {
+          "oneOf": [
+            { "$ref": "#/$defs/childCollection" },
+            { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/childCollection" } }
+          ]
+        }
+      }
+    },
+    "childCollection": {
+      "type": "object",
+      "required": ["name", "node"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "node": { "$ref": "#/$defs/identifier" }
+      }
+    },
+    "ruleCommon": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "type": { "enum": ["validation", "formula", "function", "pipeline", "resolver"] },
+        "scope": { "type": "string" },
+        "trigger": { "$ref": "#/$defs/trigger" },
+        "when": { "type": "string" },
+        "enabled": { "type": "boolean", "default": true },
+        "description": { "type": "string" }
+      }
+    },
+    "rule": {
+      "allOf": [{ "$ref": "#/$defs/ruleCommon" }],
+      "oneOf": [
+        { "$ref": "#/$defs/validationRule" },
+        { "$ref": "#/$defs/formulaRule" },
+        { "$ref": "#/$defs/functionRule" },
+        { "$ref": "#/$defs/pipelineRule" },
+        { "$ref": "#/$defs/resolverRule" }
+      ]
+    },
+    "validationRule": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "validation" },
+        "expr": { "type": "string" },
+        "severity": { "enum": ["error", "warning", "info"], "default": "error" },
+        "message": { "type": "string" },
+        "code": { "type": "string" }
+      },
+      "required": ["type", "expr"]
+    },
+    "formulaRule": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "formula" },
+        "target": { "type": "string" },
+        "expr": { "type": "string" },
+        "when": { "type": "string" },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["when", "expr"],
+            "additionalProperties": false,
+            "properties": { "when": { "type": "string" }, "expr": { "type": "string" } }
+          }
+        },
+        "fallback": { "enum": ["input"] }
+      },
+      "required": ["type", "target"]
+    },
+    "functionRule": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "function" },
+        "function": { "$ref": "#/$defs/identifier" },
+        "functionVersion": { "$ref": "#/$defs/semver" },
+        "params": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "target": { "type": "string" }
+      },
+      "required": ["type", "function"]
+    },
+    "pipelineRule": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "pipeline" },
+        "target": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step" }
+        }
+      },
+      "required": ["type", "target", "steps"]
+    },
+    "step": {
+      "type": "object",
+      "oneOf": [
+        {
+          "required": ["function"],
+          "additionalProperties": false,
+          "properties": {
+            "function": { "$ref": "#/$defs/identifier" },
+            "version": { "$ref": "#/$defs/semver" },
+            "params": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        },
+        {
+          "required": ["expr"],
+          "additionalProperties": false,
+          "properties": {
+            "expr": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "resolverRule": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "resolver" },
+        "source": { "$ref": "#/$defs/identifier" },
+        "target": { "type": "string" },
+        "key": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "string" }
+        },
+        "pin": { "type": "boolean", "default": true },
+        "fallback": { "enum": ["none", "last-known", "block"], "default": "last-known" }
+      },
+      "required": ["type", "source", "target", "key"]
+    },
+    "dataSource": {
+      "type": "object",
+      "required": ["sourceId", "version", "returns", "keySchema", "authority"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "$ref": "#/$defs/identifier" },
+        "version": { "$ref": "#/$defs/semver" },
+        "returns": { "$ref": "#/$defs/fieldType" },
+        "keySchema": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/fieldType" }
+        },
+        "authority": { "enum": ["server", "client", "external"] },
+        "cachePolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ttlSeconds": { "type": "integer", "minimum": 0 },
+            "scope": { "type": "string" }
+          }
+        },
+        "tolerance": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": { "enum": ["absolute", "relative"] },
+            "value": { "type": "string" }
+          }
+        }
+      }
+    },
+    "functionDescriptor": {
+      "type": "object",
+      "required": ["functionId", "version", "signature", "purity", "determinism"],
+      "additionalProperties": false,
+      "properties": {
+        "functionId": { "$ref": "#/$defs/identifier" },
+        "version": { "$ref": "#/$defs/semver" },
+        "signature": {
+          "type": "object",
+          "required": ["returns"],
+          "additionalProperties": false,
+          "properties": {
+            "params": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/fieldType" }
+            },
+            "returns": { "$ref": "#/$defs/fieldType" }
+          }
+        },
+        "purity": { "enum": ["pure"] },
+        "determinism": { "enum": ["deterministic"] }
+      }
+    }
+  }
+}

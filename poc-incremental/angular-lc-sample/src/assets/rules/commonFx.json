@@ -1,0 +1,27 @@
+{
+  "ruleSetId": "commonFx",
+  "version": "1.0.0",
+  "description": "公共汇率换算模块库（独立版本、独立治理；被各产品 RuleSet import）",
+  "dataSources": [
+    { "sourceId": "fxRateService", "version": "1.0.0", "returns": "decimal",
+      "keySchema": { "from": "string", "to": "string", "valueDate": "date" },
+      "authority": "server", "tolerance": { "type": "relative", "value": "0.0005" } }
+  ],
+  "modules": {
+    "fxConvert": {
+      "moduleId": "fxConvert", "version": "1.0.0",
+      "inputs": { "amount": "decimal", "fromCcy": "string", "toCcy": "string" },
+      "context": [ "valueDate" ],
+      "fields": {
+        "rate": { "type": "decimal", "external": true },
+        "conv": { "type": "decimal", "computed": true }
+      },
+      "rules": [
+        { "id": "rate", "type": "resolver", "target": "rate", "source": "fxRateService",
+          "key": { "from": "fromCcy", "to": "toCcy", "valueDate": "ctx.valueDate" } },
+        { "id": "conv", "type": "formula", "target": "conv", "expr": "amount * rate" }
+      ],
+      "outputs": [ "conv", "rate" ]
+    }
+  }
+}

@@ -1,0 +1,8 @@
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #eef1f7;
+  color: #1f2733;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}

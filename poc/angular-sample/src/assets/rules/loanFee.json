@@ -1,0 +1,28 @@
+{
+  "ruleSetId": "loanFee",
+  "version": "1.0.0",
+  "schemaVersion": "1.0",
+  "status": "active",
+  "model": {
+    "root": "Loan",
+    "nodes": {
+      "Loan": {
+        "fields": {
+          "principal": { "type": "decimal" },
+          "feeRate": { "type": "decimal" },
+          "maxPrincipal": { "type": "decimal" },
+          "status": { "type": "string" },
+          "fee": { "type": "decimal", "computed": true },
+          "total": { "type": "decimal", "computed": true }
+        }
+      }
+    }
+  },
+  "rules": [
+    { "id": "calcFee", "type": "formula", "scope": "Loan", "trigger": "calc", "target": "fee", "expr": "principal * feeRate" },
+    { "id": "calcTotal", "type": "formula", "scope": "Loan", "trigger": "calc", "target": "total", "expr": "round(principal + fee, 2)" },
+    { "id": "principalLimit", "type": "validation", "scope": "Loan", "trigger": "after-calc",
+      "expr": "principal <= maxPrincipal", "severity": "error", "code": "E_PRINCIPAL",
+      "message": "本金 {principal} 超过上限 {maxPrincipal}" }
+  ]
+}

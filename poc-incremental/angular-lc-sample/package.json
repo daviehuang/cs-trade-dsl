@@ -1,0 +1,28 @@
+{
+  "name": "dsl-angular-lc-sample",
+  "version": "0.1.0",
+  "description": "Angular 示例：按 lc-rules.json 规格接入【增量引擎】——运行时加载 RuleSet + 模块库，多层嵌套、异步汇率、可覆盖/条件计算、中台篡改校验",
+  "scripts": {
+    "start": "ng serve --open",
+    "build": "ng build"
+  },
+  "dependencies": {
+    "@angular/common": "^17.3.0",
+    "@angular/compiler": "^17.3.0",
+    "@angular/core": "^17.3.0",
+    "@angular/forms": "^17.3.0",
+    "@angular/platform-browser": "^17.3.0",
+    "@angular/platform-browser-dynamic": "^17.3.0",
+    "@angular/router": "^17.3.0",
+    "decimal.js": "^10.4.3",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0",
+    "zone.js": "~0.14.3"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^17.3.0",
+    "@angular/cli": "^17.3.0",
+    "@angular/compiler-cli": "^17.3.0",
+    "typescript": "~5.4.0"
+  }
+}

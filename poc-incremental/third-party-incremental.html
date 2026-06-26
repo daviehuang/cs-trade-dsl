@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GlobalTrade Bank · 信用证结算（第三方系统 · 多层嵌套）</title>
+<!--
+  第三方系统页面。接入增量引擎三步：
+    ① <script src="dist/unified-dsl-incremental.js">       全局 UnifiedDSL
+    ② 运行时加载规则（这里 <script src>；生产用 fetch Rule Bundle API）
+    ③ UnifiedDSL.createSession(ruleSet, data, { resolve, onUpdate, onLog })
+  本例为【任意深度】结构：信用证 → 收费组 → 收费明细（3 层）+ 付费分支。
+  改一条最深的明细，只重算它那条链（看右侧引擎事件）。
+-->
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#f3f5f9;color:#1c2430;font-family:"Segoe UI","Microsoft YaHei",sans-serif}
+  .top{background:#0b3d6b;color:#fff;padding:13px 26px;display:flex;align-items:center;gap:10px}
+  .top b{font-size:16px}.top .tag{font-size:11px;background:#1d5e96;padding:3px 9px;border-radius:10px}
+  .wrap{max-width:1180px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:1fr 390px;gap:15px}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr}}
+  .panel{background:#fff;border:1px solid #e1e6ee;border-radius:9px;padding:15px;margin-bottom:13px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  h3{margin:0 0 11px;font-size:12px;color:#5a6677;text-transform:uppercase;letter-spacing:.04em}
+  .hdr{display:flex;gap:13px;flex-wrap:wrap}label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7688}
+  input,select{padding:6px 8px;border:1px solid #c8d0dc;border-radius:6px;font-size:13px;font-family:Consolas,monospace;background:#fff;color:#1c2430}
+  input:focus,select:focus{outline:none;border-color:#0b6bc2}
+  .group{border:1px solid #e6ebf2;border-radius:8px;margin-bottom:10px}
+  .group-h{display:flex;justify-content:space-between;align-items:center;padding:8px 11px;background:#f6f8fc;border-bottom:1px solid #e6ebf2;font-size:13px}
+  .group-h b{color:#34465c}.sub{font-family:Consolas,monospace;color:#0b6bc2}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:#8893a3;font-weight:500;padding:5px 9px;font-size:11px}
+  td{padding:4px 9px;border-top:1px solid #f0f3f8}td input{width:96px}td.cell{font-family:Consolas,monospace}
+  .s-ok{color:#0b6bc2}.s-pending{color:#c2790b}.s-error{color:#c0392b}
+  .flash{animation:fl .6s ease}@keyframes fl{0%{background:#fff6da}100%{background:transparent}}
+  .totals{display:flex;gap:26px;flex-wrap:wrap;font-family:Consolas,monospace}.totals .k{display:block;font-size:11px;color:#8893a3;font-family:inherit}
+  .totals .net{font-size:24px;color:#0b6bc2}.totals .v{font-size:15px;color:#34465c}
+  #status{font-size:12px;padding:5px 11px;border-radius:8px;margin-left:6px}
+  #status.pending{background:#fdf0d5;color:#a86609}#status.settled{background:#e3f5ea;color:#1c8a4e}
+  ul{list-style:none;padding:0;margin:8px 0 0}li{padding:5px 0;font-size:13px}li.ok{color:#1c8a4e}li.bad{color:#c0392b}li.warn{color:#c2790b}
+  .pin{font-family:Consolas,monospace;font-size:11px;color:#6b7688;padding:2px 0}.pin b{color:#1c2430}.dim{color:#9aa3b2}
+  #log{height:560px;overflow:auto;font-family:Consolas,monospace;font-size:12px;line-height:1.5}
+  #log>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lg-fetch{color:#0b6bc2}.lg-res{color:#1c8a4e}.lg-pend{color:#c2790b}.lg-err{color:#c0392b}.lg-calc{color:#7a8499}.lg-div{color:#aab2bf;margin:4px 0 2px}
+  .hint{color:#8893a3;font-size:12px;margin-top:8px}.hint b{color:#3b4658}code{background:#eef2f8;padding:1px 5px;border-radius:4px}
+  button{background:#eef3fb;border:1px solid #c8d4e6;color:#0b6bc2;border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;margin-left:6px}
+  button:hover{background:#e0eaf8;border-color:#0b6bc2}button.x{color:#b03030;border-color:#e6c8c8;background:#fbf0f0;padding:2px 7px;margin:0}
+  button.addbig{margin:10px 0 0;color:#1c8a4e;border-color:#bfe3cd;background:#f0f9f3}
+  .topbtn{background:#1d5e96;border:1px solid #2a7bc0;color:#fff;padding:5px 12px;font-size:13px;margin:0}
+  .topbtn:hover{background:#2a7bc0}
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(10,25,45,.55);z-index:50;align-items:center;justify-content:center}
+  .modal-bg.on{display:flex}
+  .modal{background:#fff;border-radius:10px;width:min(760px,92vw);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+  .modal-h{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid #e6ebf2}
+  .modal-h b{font-size:14px;color:#34465c}
+  .modal-tabs{display:flex;gap:6px;padding:10px 16px 0}
+  .tab{margin:0;background:#f1f5fb;border:1px solid #d6e0ee;color:#5a6677}
+  .tab.on{background:#0b6bc2;color:#fff;border-color:#0b6bc2}
+  .modal pre{margin:12px 16px 16px;overflow:auto;background:#0f1728;color:#d6e3f5;border-radius:8px;padding:14px;font-family:Consolas,monospace;font-size:12px;line-height:1.5}
+  input.calc{border:1px dashed #cdd8e8;background:#fafcff;color:#0b6bc2;font-family:Consolas,monospace;padding:3px 6px;width:104px}
+  input.calc.sub{width:94px}input.calc.cellc{width:92px}input.calc.fxedit{width:84px;color:#7a5a00;background:#fffdf5}
+  input.calc.v{width:96px;font-size:15px}
+  input.calc.net{font-size:22px;width:128px;font-weight:bold;padding:2px 6px}
+  input.tampered{border:2px solid #d9534f !important;background:#fdeeee;color:#b03030}
+  input.ovr{border:1px dashed #cdd8e8;background:#fafcff;color:#0b6bc2;font-family:Consolas,monospace;padding:3px 6px;width:88px}
+  input.ovr.s-overridden{border:2px solid #0b6bc2 !important;background:#eef5ff;font-weight:bold}
+  button.rv{margin:0 0 0 2px;padding:2px 5px;color:#0b6bc2;border-color:#cdd8e8;background:#f4f8ff}
+  input.cond{font-family:Consolas,monospace;padding:4px 8px;width:118px;font-size:15px;border-radius:6px}
+  input.cond.cond-calc{border:1px solid #e1e6ee;background:#f4f6fb;color:#5a6677}        /* 公式态：只读灰 */
+  input.cond.cond-input{border:2px solid #c2790b;background:#fffaf0;color:#a86609;font-weight:bold} /* 可输入态：橙 */
+  .bff-ok{color:#1c8a4e;font-weight:bold;font-size:14px}.bff-bad{color:#c0392b;font-weight:bold;font-size:14px}
+  table.dv{width:100%;border-collapse:collapse;margin-top:9px;font-size:12px}
+  table.dv th,table.dv td{border:1px solid #ecd6d6;padding:4px 8px;text-align:left;font-family:Consolas,monospace}
+  table.dv th{background:#fbf0f0;color:#a23;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="top">🏦 <b>GlobalTrade Bank</b> <span class="tag">L/C 结算 · 多层嵌套 · 增量引擎 v<span id="ver"></span></span>
+  <span style="flex:1"></span>
+  <button type="button" class="topbtn" onclick="showModel()">📋 查看数据模型</button></div>
+
+<div id="modal" class="modal-bg" onclick="if(event.target===this)closeModel()">
+  <div class="modal">
+    <div class="modal-h"><b>当前数据模型（实时快照）</b>
+      <span><button type="button" onclick="copyModel()">复制</button>
+        <button type="button" onclick="closeModel()">关闭 ✕</button></span></div>
+    <div class="modal-tabs">
+      <button type="button" id="tab-data" class="tab on" onclick="showTab('data')">数据 + 计算值</button>
+      <button type="button" id="tab-state" class="tab" onclick="showTab('state')">完整状态（含 state）</button>
+      <button type="button" id="tab-pin" class="tab" onclick="showTab('pin')">钉值快照</button>
+    </div>
+    <pre id="modelDump"></pre>
+  </div>
+</div>
+<div class="wrap">
+  <div>
+    <div class="panel"><h3>信用证主记录</h3><div class="hdr">
+      <label>信用证号<input id="lcNo" disabled /></label>
+      <label>基准币种<input data-id="root.baseCcy" id="f_baseCcy" /></label>
+      <label>起息日<input data-id="root.valueDate" id="f_valueDate" /></label>
+      <label>净额上限<input data-id="root.maxNet" id="f_maxNet" /></label>
+      <label>手续调整方式<select data-id="root.adjustMode" id="f_adjustMode"><option value="auto-high">auto-high（收费50%）</option><option value="auto-low">auto-low（收费10%）</option><option value="manual">manual（人工录入）</option></select></label>
+    </div></div>
+
+    <div class="panel"><h3>收费 Charges（组 → 明细，汇率异步注入）</h3><div id="charges"></div></div>
+    <div class="panel"><h3>付费 Payments</h3><div id="payments"></div></div>
+
+    <div class="panel"><h3>结算（计算值可编辑 —— 用于演示篡改）</h3>
+      <div class="totals">
+        <div><span class="k">收费合计</span><input class="calc v" id="root_chargeTotal" /></div>
+        <div><span class="k">付费合计</span><input class="calc v" id="root_paymentTotal" /></div>
+        <div><span class="k" id="adjLabel">手续调整</span><input class="cond v" data-id="root.adjustment" id="root_adjustment" /></div>
+        <div><span class="k">净额 net</span><input class="calc net" id="root_net" /></div>
+        <div><span id="status"></span></div>
+      </div>
+      <ul id="validations"></ul>
+      <h3 style="margin-top:13px">钉值快照（随交易提交后台复算）</h3><div id="pinned"></div>
+    </div>
+
+    <div class="panel"><h3>提交到中台（BFF 权威校验）</h3>
+      <div class="hint" style="margin-top:0">明细 base 是<b>可覆盖字段</b>（蓝色，可人工议定，随交易合法声明）；
+        其余计算值（小计/合计/净额）<b>改即篡改</b>。中台 honor 合法覆盖、拒绝越权覆盖与篡改。</div>
+      <div style="margin:11px 0">
+        <button type="button" class="topbtn" onclick="submitToBff()">⬆ 提交到中台校验</button>
+        <button type="button" onclick="resetTamper()">重置篡改</button>
+        <span id="tamperBadge" class="hint"></span> <span id="overrideBadge" class="hint" style="color:#0b6bc2"></span>
+      </div>
+      <div id="bffResult"></div>
+    </div>
+  </div>
+  <div class="panel"><h3>引擎事件（观察增量与异步）</h3>
+    <div class="hint" style="margin-top:0;margin-bottom:8px">最新在上。改一条最深明细，只触发它那条链的几条。</div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script src="dist/unified-dsl-incremental.js"></script>
+<script src="rules/commonFx.rules.js"></script>      <!-- 模块库（被规则集 import） -->
+<script src="rules/lcSettlement.rules.js"></script>
+<script>
+  document.getElementById("ver").textContent = UnifiedDSL.version;
+  const CCYS = ["USD","EUR","HKD","GBP","JPY","SGD","CNY"];
+
+  // 第三方自己的业务数据
+  const data = {
+    lcNo:"LC-2026-8842", baseCcy:"CNY", valueDate:"2026-06-25", maxNet:"1000000.00", adjustMode:"auto-low", adjustment:"0",
+    charges:[
+      { groupName:"银行费用", items:[
+        { desc:"开证费", ccy:"USD", amount:"10000.00" },
+        { desc:"通知费", ccy:"USD", amount:"500.00" } ] },
+      { groupName:"运输相关", items:[
+        { desc:"运费", ccy:"EUR", amount:"5000.00" },
+        { desc:"保险费", ccy:"HKD", amount:"20000.00" } ] },
+    ],
+    payments:[ { ccy:"USD", amount:"3000.00" }, { ccy:"SGD", amount:"8000.00" } ],
+  };
+
+  // 本行自己的汇率服务（引擎不碰 IO，只通过 resolve 拿值）
+  const RATES={"USD-CNY":"7.1234","EUR-CNY":"7.8901","HKD-CNY":"0.9123","GBP-CNY":"9.1234","JPY-CNY":"0.0481","SGD-CNY":"5.2710"};
+  let seq=8842177;
+  function myFxApi(_src,key){ return new Promise((res,rej)=>setTimeout(()=>{
+    const r=RATES[`${key.from}-${key.to}`];
+    r?res({value:r,asOf:"2026-06-25T09:30:00Z",rateId:"fx_"+(++seq)}):rej(new Error("无汇率 "+key.from+"→"+key.to));
+  },900)); }
+
+  // —— 第三方自己的 UI（用 getState 的 path 驱动，支持任意深度）——
+  const $=(s)=>document.querySelector(s);
+  const idOf=(path,field)=>(path+"."+field).replace(/[^a-zA-Z0-9]/g,"_");
+  const sel=(id,cur)=>`<select data-id="${id}">${CCYS.map(x=>`<option ${x===cur?"selected":""}>${x}</option>`).join("")}</select>`;
+  let session, prev={}, lastSig="";
+  const btn=(label,onclick,extra="")=>`<button type="button" ${extra} onclick="${onclick}">${label}</button>`;
+
+  function buildStructure(st){
+    $("#lcNo").value=data.lcNo; $("#f_baseCcy").value=data.baseCcy; $("#f_valueDate").value=data.valueDate; $("#f_maxNet").value=data.maxNet; $("#f_adjustMode").value=data.adjustMode;
+    // 收费：组 → 明细（带增删按钮）
+    $("#charges").innerHTML = st.tree.collections.charges.map((g)=>`
+      <div class="group">
+        <div class="group-h"><b>${g.fields.groupName.value}</b>
+          <span>小计 = <input class="calc sub" id="${idOf(g.path,'subtotal')}" />
+            ${btn("+ 明细",`addItem('${g.path}')`)} ${btn("✕ 组",`removeNode('${g.path}')`,'class="x"')}</span></div>
+        <table><thead><tr><th>明细</th><th>币种</th><th>金额</th><th>汇率（模块算）</th><th>本币 base（可覆盖）</th><th></th></tr></thead><tbody>
+          ${g.collections.items.map((it)=>`<tr>
+            <td>${it.fields.desc.value}</td>
+            <td>${sel(it.path+'.ccy', it.fields.ccy.value)}</td>
+            <td><input data-id="${it.path}.amount" value="${it.fields.amount.value}" /></td>
+            <td class="cell" id="${idOf(it.path,'fxRate')}">—</td>
+            <td><input class="ovr cellc" data-ovr="${it.path}.base" id="${idOf(it.path,'base')}" title="可人工覆盖" />${btn("⟲",`revertOvr('${it.path}.base')`,'class="rv" title="恢复计算"')}</td>
+            <td>${btn("✕",`removeNode('${it.path}')`,'class="x"')}</td></tr>`).join("")}
+        </tbody></table>
+      </div>`).join("") + btn("+ 添加收费组",`addGroup()`,'class="addbig"');
+    // 付费（带增删）
+    $("#payments").innerHTML = `<table><thead><tr><th>#</th><th>币种</th><th>金额</th><th>汇率（模块算）</th><th>本币 base</th><th></th></tr></thead><tbody>
+      ${st.tree.collections.payments.map((p,i)=>`<tr><td>${i+1}</td>
+        <td>${sel(p.path+'.ccy', p.fields.ccy.value)}</td>
+        <td><input data-id="${p.path}.amount" value="${p.fields.amount.value}" /></td>
+        <td class="cell" id="${idOf(p.path,'fxRate')}">—</td>
+        <td><input class="calc cellc" id="${idOf(p.path,'base')}" /></td>
+        <td>${btn("✕",`removeNode('${p.path}')`,'class="x"')}</td></tr>`).join("")}
+      </tbody></table>` + btn("+ 添加付费",`addPayment()`,'class="addbig"');
+    // 重建后回填已篡改的计算值（保持篡改可见）
+    for(const id of Object.keys(tamper)){ const el=document.getElementById(id); if(el){ el.value=tamper[id]; el.classList.add("tampered"); } }
+  }
+
+  // 输入委托：data-id → 引擎重算；.ovr → 合法覆盖（进引擎）；.calc → 篡改（不进引擎）
+  const tamper={};
+  document.addEventListener("input",(ev)=>{
+    const t=ev.target;
+    // 条件字段：公式态(cond-calc)被改 = 篡改(进payload，与其它计算值一致)；输入态(cond-input)被改 = 合法输入
+    if(t.classList && t.classList.contains("cond")){
+      if(t.classList.contains("cond-calc")){ tamper[t.id]=t.value; t.classList.add("tampered"); updateTamperBadge(); }
+      else { delete tamper[t.id]; t.classList.remove("tampered"); updateTamperBadge(); logDiv("改 "+t.dataset.id); session.setInput(t.dataset.id, t.value); }
+      return;
+    }
+    if(t.dataset && t.dataset.id){ logDiv("改 "+t.dataset.id); session.setInput(t.dataset.id, t.value); }
+    else if(t.classList && t.classList.contains("ovr")){ logDiv("覆盖 "+t.dataset.ovr); try{ session.setOverride(t.dataset.ovr, t.value); }catch(e){} }
+    else if(t.classList && t.classList.contains("calc")){ tamper[t.id]=t.value; t.classList.add("tampered"); updateTamperBadge(); }
+  });
+  window.revertOvr=(id)=>{ logDiv("清除覆盖 "+id); session.clearOverride(id); };
+  function updateTamperBadge(){ const n=Object.keys(tamper).length; $("#tamperBadge").textContent = n?`⚠ 已篡改 ${n} 个计算值，提交将被中台拒绝`:""; }
+  window.resetTamper=()=>{ for(const id of Object.keys(tamper)) delete tamper[id]; lastSig=""; renderView(session.getState()); updateTamperBadge(); $("#bffResult").innerHTML=""; };
+
+  // 结构签名：所有存活节点路径。变化（增删）→ 重建 DOM；不变（改值）→ 仅 patch（保持焦点）
+  function sigOf(node){ let s=node.path; for(const coll of Object.values(node.collections)) for(const c of coll) s+="|"+sigOf(c); return s; }
+
+  // —— 增删动作（挂到全局，供 onclick 调用）——
+  window.addItem=(groupPath)=>{ logDiv("addChild "+groupPath+".items"); session.addChild(groupPath,"items",{desc:"新明细",ccy:"USD",amount:"0"}); };
+  window.addGroup=()=>{ logDiv("addChild root.charges"); session.addChild("root","charges",{groupName:"新收费组",items:[]}); };
+  window.addPayment=()=>{ logDiv("addChild root.payments"); session.addChild("root","payments",{ccy:"USD",amount:"0"}); };
+  window.removeNode=(path)=>{ logDiv("removeChild "+path); session.removeChild(path); };
+
+  function cellTxt(c){ return c.state==="pending"?"⏳ 计算中":c.state==="error"?"✗ 错误":(c.value??"—"); }
+  function patchEl(id,c){ const el=document.getElementById(id); if(!el) return;
+    if(tamper[id]!==undefined) return;                       // 被篡改：保留用户值，引擎不覆盖
+    const t=cellTxt(c);
+    if(el.tagName==="INPUT"){ if(document.activeElement!==el) el.value=t; }
+    else el.textContent=t;
+    const sc=c.state==="pending"?"s-pending":c.state==="error"?"s-error":c.state==="overridden"?"s-overridden":"s-ok";
+    el.className=el.className.replace(/\bs-(ok|pending|error|overridden)\b/g,"").trim()+" "+sc;
+    if(prev[id]!==t){ el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"),600); prev[id]=t; } }
+
+  function walkPatch(node){
+    for(const f of Object.keys(node.fields)){ const el=document.getElementById(idOf(node.path,f)); if(el) patchEl(idOf(node.path,f), node.fields[f]); }
+    for(const coll of Object.values(node.collections)) coll.forEach(walkPatch);
+  }
+  function renderView(st){
+    const sig=sigOf(st.tree);
+    if(sig!==lastSig){ buildStructure(st); lastSig=sig; }   // 增删 → 重建；改值 → 跳过
+    walkPatch(st.tree);                                      // 含 root_chargeTotal/paymentTotal/net/adjustment（id 即 idOf）
+    // 条件可输入字段 adjustment：守卫为真=公式态(只读)、为假=可输入态
+    const adj=st.tree.fields.adjustment, adjEl=document.getElementById("root_adjustment");
+    if(adjEl){
+      const editable=(adj.state==="input");
+      // adjEl.readOnly=!editable;
+      adjEl.classList.toggle("cond-input", editable); adjEl.classList.toggle("cond-calc", !editable);
+      if(editable && tamper["root_adjustment"]!==undefined){ delete tamper["root_adjustment"]; adjEl.classList.remove("tampered"); updateTamperBadge(); } // 输入态：编辑是合法的，清除遗留篡改标记
+      $("#adjLabel").textContent = editable ? "手续调整（人工录入，合法）" : "手续调整（自动计算，改即篡改）"; }
+    $("#validations").innerHTML = st.validations.map(v=>{
+      const cls=v.state==="pending"?"warn":v.ok?"ok":"bad", t=v.state==="pending"?"计算中…":v.ok?"通过":v.message;
+      return `<li class="${cls}">${v.state==="pending"?"⏳":v.ok?"✔":"✘"} <b>${v.id}</b> ${t}</li>`; }).join("");
+    $("#pinned").innerHTML = st.pinned.map(p=>`<div class="pin">${p.field} = <b>${p.value}</b> <span class="dim">${JSON.stringify(p.key)} · ${p.rateId}</span></div>`).join("");
+    $("#status").textContent = st.anyPending?"⏳ 异步取数中…":"✅ 已结算"; $("#status").className=st.anyPending?"pending":"settled";
+    $("#overrideBadge").textContent = st.overrides.length?`✎ 已人工覆盖 ${st.overrides.length} 个计算值（合法，将随交易声明提交）`:"";
+  }
+
+  let n=0;
+  function appendLog(e){
+    const d=document.createElement("div"); let cls="lg-calc",text;
+    if(e.state==="fetching"){cls="lg-fetch";text=`⏳ 取数 ${e.id}  ${e.key}`;}
+    else if(e.kind==="resolver"&&e.state==="resolved"){cls="lg-res";text=`✓ ${e.id} = ${e.value} (${e.rateId})`;}
+    else if(e.state==="pending"){cls="lg-pend";text=`• ${e.id} → 计算中`;}
+    else if(e.state==="error"){cls="lg-err";text=`✗ ${e.id} ${e.error||""}`;}
+    else{text=`• ${e.id} = ${e.value??"null"}`;}
+    d.className=cls; d.textContent=`${++n}. ${text}`;
+    const log=$("#log"); log.insertBefore(d,log.firstChild); while(log.childNodes.length>300) log.removeChild(log.lastChild);
+  }
+  function logDiv(t){ const d=document.createElement("div"); d.className="lg-div"; d.textContent="──── "+t+" ────"; $("#log").insertBefore(d,$("#log").firstChild); }
+
+  // —— 数据模型查看器（随时取最新 session.getState）——
+  // 干净视图：节点 → { 字段:值, 子集合:[...] }；pending/error 标注
+  function modelOf(node){
+    const o={ _type: node.type };
+    for(const [f,c] of Object.entries(node.fields)) o[f] = c.state==="resolved" ? c.value : `<${c.state}>`;
+    for(const [coll,arr] of Object.entries(node.collections)) if(arr.length) o[coll]=arr.map(modelOf);
+    return o;
+  }
+  let modelTab="data";
+  function refreshModel(){
+    const st=session.getState();
+    let txt;
+    if(modelTab==="data") txt=JSON.stringify(modelOf(st.tree),null,2);
+    else if(modelTab==="state") txt=JSON.stringify({tree:st.tree,validations:st.validations,anyPending:st.anyPending},null,2);
+    else txt=JSON.stringify(st.pinned,null,2);
+    document.getElementById("modelDump").textContent=txt;
+  }
+  window.showModel=()=>{ refreshModel(); document.getElementById("modal").classList.add("on"); };
+  window.closeModel=()=>document.getElementById("modal").classList.remove("on");
+  window.showTab=(t)=>{ modelTab=t; ["data","state","pin"].forEach(x=>document.getElementById("tab-"+x).classList.toggle("on",x===t)); refreshModel(); };
+  window.copyModel=()=>navigator.clipboard?.writeText(document.getElementById("modelDump").textContent);
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape")closeModel(); });
+
+  // —— 提交到中台（BFF）——
+  const BFF_URL="http://localhost:8787/api/settle";
+  // 构造提交树（modelOf），计算字段套用篡改覆盖
+  function buildSubmitTree(node){
+    const o={_type:node.type};
+    for(const [f,c] of Object.entries(node.fields)){
+      const id=idOf(node.path,f);
+      o[f] = (tamper[id]!==undefined) ? tamper[id] : ((c.state==="resolved"||c.state==="overridden"||c.state==="input")?c.value:null);
+    }
+    for(const [coll,arr] of Object.entries(node.collections)) if(arr.length) o[coll]=arr.map(buildSubmitTree);
+    return o;
+  }
+  window.submitToBff=async()=>{
+    const st=session.getState();
+    if(st.anyPending){ $("#bffResult").innerHTML=`<div class="bff-bad">有字段仍在异步取数，请稍候再提交。</div>`; return; }
+    $("#bffResult").innerHTML=`<span class="hint">提交中台校验中…</span>`;
+    // 钉值随汇率篡改一并提交（模拟攻击者连钉值一起改 → 中台权威复核仍能识破）
+    const pinnedSubmit=st.pinned.map(p=>{ const id=p.field.replace(/[^a-zA-Z0-9]/g,"_"); return tamper[id]!==undefined?{...p,value:tamper[id]}:p; });
+    try{
+      const r=await fetch(BFF_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({ruleSetId:"lcSettlement",tree:buildSubmitTree(st.tree),pinned:pinnedSubmit,overrides:st.overrides})});
+      renderBff(await r.json());
+    }catch(e){
+      $("#bffResult").innerHTML=`<div class="bff-bad">⚠ 无法连接中台 BFF。请先启动：<code>node bff/server.js</code><br><span class="hint">(${e.message})</span></div>`;
+    }
+  };
+  function renderBff(d){
+    if(d.error){ $("#bffResult").innerHTML=`<div class="bff-bad">中台错误：${d.error}</div>`; return; }
+    let html="";
+    if(d.verdict==="ACCEPT")
+      html=`<div class="bff-ok">✅ 中台接受。权威重算 净额 net = ${d.serverComputed.net}。</div>`
+        + (d.overridesApplied&&d.overridesApplied.length?`<div class="hint">已接受 ${d.overridesApplied.length} 处合法人工覆盖：${d.overridesApplied.map(o=>o.field+"="+o.value).join("、")}</div>`:`<div class="hint">与前端一致，未发现篡改。</div>`);
+    else if(d.verdict==="REJECT_TAMPER"){
+      const kindTxt={computed:"计算值篡改",rate:"钉值汇率",["rate-unknown"]:"未知汇率",["unauth-override"]:"越权覆盖"};
+      html=`<div class="bff-bad">⛔ 中台拒绝：检测到 ${d.divergences.length} 处不一致（已权威复核 ${d.rateChecked} 条钉值汇率）。</div>
+        <table class="dv"><thead><tr><th>字段</th><th>类型</th><th>前端提交</th><th>中台权威值</th></tr></thead><tbody>
+        ${d.divergences.map(x=>`<tr><td>${x.field}</td><td>${kindTxt[x.kind]||x.kind}</td><td>${x.client}</td><td>${x.server}</td></tr>`).join("")}
+        </tbody></table>
+        <div class="hint">计算值以中台重算为准；钉值汇率以中台权威汇率源按容差复核。</div>`;
+    } else {
+      const fails=d.validations.filter(v=>v.state==="resolved"&&!v.ok);
+      html=`<div class="bff-bad">⚠ 中台拒绝：业务校验未通过。</div><ul>${fails.map(v=>`<li class="bad">✘ ${v.id}：${v.message||""}</li>`).join("")}</ul>`;
+    }
+    $("#bffResult").innerHTML=html;
+  }
+
+  // 导入注册表：规则集 import 的模块库（生产中由 Rule Bundle API 按 ref 拉取）
+  const IMPORTS = { [window.COMMON_FX.ruleSetId + "@" + window.COMMON_FX.version]: window.COMMON_FX };
+  // 所有声明就绪后再创建会话
+  session = UnifiedDSL.createSession(window.LC_RULES, data, { resolve: myFxApi, imports: IMPORTS, onUpdate: (s)=>{ renderView(s); if(document.getElementById("modal").classList.contains("on")) refreshModel(); }, onLog: appendLog });
+  renderView(session.getState());
+</script>
+</body>
+</html>

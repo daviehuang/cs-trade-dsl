@@ -1,0 +1,12 @@
+{
+  "limit": "5000.00",
+  "maxCharge": "2000.00",
+  "taxRate": "0.05",
+  "tier": "gold",
+  "status": "active",
+  "children": [
+    { "amount": "100.50", "rate": "1.2" },
+    { "amount": "200.00", "rate": "0.5" },
+    { "amount": "333.33", "rate": "3" }
+  ]
+}

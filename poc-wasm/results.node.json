@@ -1,0 +1,62 @@
+[
+  {
+    "id": "c01_float_trap",
+    "raw": "300000",
+    "decimal": "0.3"
+  },
+  {
+    "id": "c02_sub",
+    "raw": "200000",
+    "decimal": "0.2"
+  },
+  {
+    "id": "c03_mul",
+    "raw": "100005000",
+    "decimal": "100.005"
+  },
+  {
+    "id": "c04_round_2",
+    "raw": "100010000",
+    "decimal": "100.01"
+  },
+  {
+    "id": "c05_div_exact",
+    "raw": "125000",
+    "decimal": "0.125"
+  },
+  {
+    "id": "c06_div_repeat",
+    "raw": "333333",
+    "decimal": "0.333333"
+  },
+  {
+    "id": "c07_div_10_4",
+    "raw": "2500000",
+    "decimal": "2.5"
+  },
+  {
+    "id": "c08_round_half",
+    "raw": "3000000",
+    "decimal": "3"
+  },
+  {
+    "id": "c09_div_neg",
+    "raw": "-333333",
+    "decimal": "-0.333333"
+  },
+  {
+    "id": "c10_taxed_mul",
+    "raw": "1281619500",
+    "decimal": "1281.6195"
+  },
+  {
+    "id": "c11_taxed_round",
+    "raw": "1281620000",
+    "decimal": "1281.62"
+  },
+  {
+    "id": "c12_mul_neg",
+    "raw": "-2500000",
+    "decimal": "-2.5"
+  }
+]

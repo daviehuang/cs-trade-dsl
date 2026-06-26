@@ -1,0 +1,28 @@
+{
+  "lcNo": "LC-2026-8842",
+  "baseCcy": "CNY",
+  "valueDate": "2026-06-25",
+  "maxNet": "1000000.00",
+  "adjustMode": "auto-low",
+  "adjustment": "0",
+  "charges": [
+    {
+      "groupName": "银行费用",
+      "items": [
+        { "desc": "开证费", "ccy": "USD", "amount": "10000.00" },
+        { "desc": "通知费", "ccy": "USD", "amount": "500.00" }
+      ]
+    },
+    {
+      "groupName": "运输相关",
+      "items": [
+        { "desc": "运费", "ccy": "EUR", "amount": "5000.00" },
+        { "desc": "保险费", "ccy": "HKD", "amount": "20000.00" }
+      ]
+    }
+  ],
+  "payments": [
+    { "ccy": "USD", "amount": "3000.00" },
+    { "ccy": "SGD", "amount": "8000.00" }
+  ]
+}

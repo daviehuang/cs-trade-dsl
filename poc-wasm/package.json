@@ -1,0 +1,1 @@
+{"name":"wasm-poc","private":true,"type":"module","dependencies":{"wabt":"^1.0.39"}}
