@@ -19,22 +19,24 @@ export function createSession(ruleSet, data, opts = {}) {
   // ── 跨 RuleSet 导入：类型库（共享节点类型 + 规则 + uses + context，扁平命名空间）
   //    与模块库（modules，按 as 别名）。生产中由 Rule Bundle API 按 ref 拉取并缓存。
   const importRegistry = opts.imports || {};
-  const importedNodes = {}, importedRules = [], importedUses = [], importedModules = {};
+  const importedNodes = {}, importedRules = [], importedUses = [], importedModules = {}, importedModulesFlat = {};
   let importedContext = {};
   for (const imp of (ruleSet.imports || [])) {
     const lib = importRegistry[imp.ref];
     if (!lib) throw new Error("未找到导入(ref): " + imp.ref);
     Object.assign(importedNodes, lib.nodes || {});        // 共享节点类型（Party / BankParty…）
     if (lib.rules) importedRules.push(...lib.rules);       // 类型自带的通用校验随类型一起来
-    if (lib.uses) importedUses.push(...lib.uses);          // 库可声明模块挂载
+    if (lib.uses) importedUses.push(...lib.uses);          // 库可声明模块挂载（引用其自身模块，裸名）
     Object.assign(importedContext, lib.context || {});
-    if (imp.as) importedModules[imp.as] = lib.modules || {};  // 模块库（按别名）
+    Object.assign(importedModulesFlat, lib.modules || {}); // 库内模块扁平表：供库自身 uses 的裸名解析
+    if (imp.as) importedModules[imp.as] = lib.modules || {};  // 模块库（按别名，供显式跨库引用 fx.fxConvert）
   }
   // 有效模型/规则 = 导入 + 本地（本地同名覆盖导入；冲突治理见 lint TODO）
   const mergedNodes = { ...importedNodes, ...model.nodes };
   const allRules = [...importedRules, ...(ruleSet.rules || [])];
   const allUses = [...importedUses, ...(ruleSet.uses || [])];
   const mergedContext = { ...importedContext, ...(ruleSet.context || {}) };
+  const mergedLocalModules = { ...importedModulesFlat, ...(ruleSet.modules || {}) }; // 裸名解析：本地 + 各库扁平
 
   const cells = new Map();
   const dirty = new Set();
@@ -209,7 +211,7 @@ export function createSession(ruleSet, data, opts = {}) {
       if (!ns || !ns[modId]) throw new Error("未找到导入模块: " + ref);
       return ns[modId];
     }
-    const local = (ruleSet.modules || {})[ref]; // 本地模块
+    const local = mergedLocalModules[ref]; // 本地模块 + 各库扁平（库自身 uses 的裸名）
     if (!local) throw new Error("未找到模块: " + ref);
     return local;
   }

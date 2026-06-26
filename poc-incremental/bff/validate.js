@@ -20,7 +20,10 @@ for (const f of ["commonFx.json", "commonParty.json"]) {
 
 // 中台权威汇率源（生产中是独立权威服务；这里与前端同表，使"未篡改即一致"）
 const AUTH_RATES = { "USD-CNY": "7.1234", "EUR-CNY": "7.8901", "HKD-CNY": "0.9123", "GBP-CNY": "9.1234", "JPY-CNY": "0.0481", "SGD-CNY": "5.2710", "CNY-CNY": "1" };
-function authResolve(_source, key) {
+const AUTH_SANCTIONS = { SDNXKP01: "95", OFACUS00: "88" };  // 中台权威制裁名单（与前端同表，未篡改即一致）
+function authResolve(source, key) {
+  if (source === "sanctionsService")
+    return Promise.resolve({ value: AUTH_SANCTIONS[key.bic] || "0", asOf: "server", rateId: "scr_" + (key.bic || "none") });
   const r = AUTH_RATES[`${key.from}-${key.to}`];
   return r ? Promise.resolve({ value: r, asOf: "server", rateId: "srv_" + key.from }) : Promise.reject(new Error("无权威汇率 " + key.from + "→" + key.to));
 }

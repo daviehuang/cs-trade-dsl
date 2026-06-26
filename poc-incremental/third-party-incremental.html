@@ -161,8 +161,10 @@
 
   // 本行自己的汇率服务（引擎不碰 IO，只通过 resolve 拿值）
   const RATES={"USD-CNY":"7.1234","EUR-CNY":"7.8901","HKD-CNY":"0.9123","GBP-CNY":"9.1234","JPY-CNY":"0.0481","SGD-CNY":"5.2710"};
+  const SANCTIONS={SDNXKP01:"95",OFACUS00:"88"};  // 制裁名单（演示）：默认 0 干净
   let seq=8842177;
-  function myFxApi(_src,key){ return new Promise((res,rej)=>setTimeout(()=>{
+  function myFxApi(src,key){ return new Promise((res,rej)=>setTimeout(()=>{
+    if(src==="sanctionsService"){ res({value:SANCTIONS[key.bic]||"0",asOf:"2026-06-25",rateId:"scr_"+(key.bic||"none")}); return; }
     const r=RATES[`${key.from}-${key.to}`];
     r?res({value:r,asOf:"2026-06-25T09:30:00Z",rateId:"fx_"+(++seq)}):rej(new Error("无汇率 "+key.from+"→"+key.to));
   },900)); }

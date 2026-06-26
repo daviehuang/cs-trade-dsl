@@ -32,8 +32,9 @@ for (const v of s.getState().validations) (byNode[v.node] ||= []).push(v.id.repl
 const ids = (p) => (byNode["root." + p] || []).sort().join(",");
 console.log("  applicant   :", ids("applicant"));
 console.log("  advisingBank:", ids("advisingBank"));
-check(ids("applicant") === "custTaxId,partyCountry,partyName", "客户 = 基类(name,country) + 客户(taxId)，无银行规则");
-check(ids("advisingBank") === "bankBicFmt,bankBicReq,partyCountry,partyName", "银行 = 基类(name,country) + 银行(bic必填,格式)，无客户规则");
+check(ids("applicant") === "custTaxId,partyCountry,partyName", "客户 = 基类(name,country) + 客户(taxId)，无银行规则/模块");
+check(ids("advisingBank") === "bankBicFmt,bankBicReq,notSanctioned,partyCountry,partyName",
+  "银行 = 基类2 + 银行2 + 制裁筛查模块(notSanctioned)，无客户规则");
 
 banner("T2  初始数据全部合规");
 const fails0 = s.getState().validations.filter((v) => v.state === "resolved" && !v.ok);
@@ -51,6 +52,15 @@ s.setInput("root.adviseThrough.bic", "");
 await s.idle();
 const bicFails = s.getState().validations.filter((v) => v.id === "bankBicReq" && v.state === "resolved" && !v.ok);
 check(bicFails.length === 1 && bicFails[0].node === "root.adviseThrough", "只 adviseThrough 失败：" + bicFails.map((v) => v.node).join(","));
+s.setInput("root.adviseThrough.bic", "COBADEFFXXX"); await s.idle();
 
-console.log("\n" + (pass ? "✅ 继承 + 抽象 + 具名槽位：全部通过" : "❌ 有断言失败"));
+banner("T5  银行专有模块（库内 uses on:BankParty）：BIC 命中制裁名单 → 仅该行 notSanctioned 失败");
+s.setInput("root.advisingBank.bic", "SDNXKP01");   // 制裁名单内（8 位，格式合法）
+await s.idle();
+const scr = s.getState().validations.filter((v) => v.id === "screen.notSanctioned" && v.state === "resolved" && !v.ok);
+check(scr.length === 1 && scr[0].node === "root.advisingBank", "制裁筛查命中：" + scr.map((v) => v.node + " · " + v.message).join(""));
+const custHasScreen = s.getState().validations.some((v) => v.id === "screen.notSanctioned" && v.node.includes("applicant"));
+check(!custHasScreen, "客户(CustomerParty)不挂 bankScreening 模块（on:BankParty 按 is-a 只命中银行）");
+
+console.log("\n" + (pass ? "✅ 继承 + 抽象 + 具名槽位 + 类型库携带模块：全部通过" : "❌ 有断言失败"));
 process.exit(pass ? 0 : 1);

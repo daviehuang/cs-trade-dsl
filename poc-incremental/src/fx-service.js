@@ -5,10 +5,16 @@ const RATES = {
 };
 let seq = 8842177;
 
+// 制裁/合规评分服务（演示）：按 BIC 返回风险分，默认 0（干净），名单内为高分。
+const SANCTIONS = { SDNXKP01: "95", OFACUS00: "88" };
+const sanctionScore = (bic) => SANCTIONS[bic] || "0";
+
 export function makeFxService({ delay = 600 } = {}) {
-  return function resolve(_source, key) {
+  return function resolve(source, key) {
     return new Promise((res, rej) => {
       setTimeout(() => {
+        if (source === "sanctionsService")
+          return res({ value: sanctionScore(key.bic), asOf: "2026-06-25", rateId: "scr_" + (key.bic || "none") });
         const pair = `${key.from}-${key.to}`;
         const rate = RATES[pair];
         if (!rate) return rej(new Error("无汇率: " + pair));

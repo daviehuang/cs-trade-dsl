@@ -16,13 +16,19 @@ export class FxService {
     'GBP-CNY': '9.1234', 'JPY-CNY': '0.0481', 'SGD-CNY': '5.2710',
     'USD-EUR': '0.9234', 'EUR-USD': '1.0830',
   };
+  // 制裁/合规评分（演示）：按 BIC 返回风险分，默认 0（干净），名单内为高分。
+  private sanctions: Record<string, string> = { SDNXKP01: '95', OFACUS00: '88' };
   private seq = 8842177;
 
-  /** 传给 createSession({ resolve }) 的解析器。延迟 900ms 模拟后台取数。 */
-  readonly resolve: ResolveFn = (_source, key) =>
+  /** 传给 createSession({ resolve }) 的解析器。延迟 900ms 模拟后台取数；按 source 路由数据源。 */
+  readonly resolve: ResolveFn = (source, key) =>
     new Promise((res, rej) => {
       setTimeout(() => {
         this.zone.run(() => {
+          if (source === 'sanctionsService') {
+            res({ value: this.sanctions[key['bic']] ?? '0', asOf: '2026-06-25', rateId: 'scr_' + (key['bic'] || 'none') });
+            return;
+          }
           const r = this.rates[`${key['from']}-${key['to']}`];
           if (r) res({ value: r, asOf: '2026-06-25T09:30:00Z', rateId: 'fx_' + ++this.seq });
           else rej(new Error(`无汇率 ${key['from']}→${key['to']}`));

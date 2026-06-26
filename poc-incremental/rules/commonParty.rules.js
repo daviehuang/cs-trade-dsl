@@ -29,6 +29,34 @@ window.COMMON_PARTY = {
     }
   },
 
+  "dataSources": [
+    { "sourceId": "sanctionsService", "version": "1.0.0", "returns": "decimal",
+      "keySchema": { "bic": "string" }, "authority": "server",
+      "description": "按 BIC 返回制裁/合规风险评分（0=干净，>=50 视为命中）" }
+  ],
+
+  "modules": {
+    "bankScreening": {
+      "moduleId": "bankScreening", "version": "1.0.0",
+      "description": "银行专有切面：按 BIC 查制裁评分并校验。只挂在 BankParty（含其子类型）上。",
+      "inputs": { "bic": "string" },
+      "fields": {
+        "sanctionScore": { "type": "decimal", "external": true }
+      },
+      "rules": [
+        { "id": "score", "type": "resolver", "target": "sanctionScore", "source": "sanctionsService",
+          "key": { "bic": "bic" } },
+        { "id": "notSanctioned", "type": "validation",
+          "expr": "sanctionScore == null || sanctionScore < 50", "severity": "error",
+          "message": "命中制裁名单（BIC {bic} 评分 {sanctionScore}）" }
+      ],
+      "outputs": [ "sanctionScore" ]
+    }
+  },
+  "uses": [
+    { "use": "bankScreening", "on": "BankParty", "as": "screen", "bind": { "bic": "bic" } }
+  ],
+
   "rules": [
     { "id": "partyName", "type": "validation", "scope": "Party", "trigger": "after-calc",
       "expr": "len(name) > 0", "severity": "error", "code": "E_PARTY_NAME",
