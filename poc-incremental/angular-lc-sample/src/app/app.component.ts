@@ -55,6 +55,28 @@ const BFF_URL = 'http://localhost:8787/api/settle';
         </label>
       </div></div>
 
+      <!-- 当事方：5 个具名槽位共享 Party 基类，applicant/beneficiary=CustomerParty，*Bank=BankParty -->
+      <div class="panel"><h3>当事方 Parties（具名槽位 · 继承自 Party 基类 · 字段/校验按子类型不同）</h3>
+        <div class="party-grid">
+          @for (sl of slotEntries(); track sl.name) {
+            <div class="party-card" [class.bank]="sl.node.type==='BankParty'">
+              <div class="party-h"><b>{{ slotLabel(sl.name) }}</b>
+                <span class="party-type">{{ sl.node.type }}</span></div>
+              @for (f of fieldKeys(sl.node); track f) {
+                <label class="pf">{{ fieldLabel(f) }}
+                  <input [value]="sl.node.fields[f].value"
+                         (input)="onInput(sl.node.path + '.' + f, $any($event.target).value)" /></label>
+              }
+              @for (v of partyFails(sl.node.path); track v.id) {
+                <div class="pf-err">✘ {{ v.message }}</div>
+              }
+            </div>
+          }
+        </div>
+        <div class="hint">名称/国家校验来自 <code>scope:"Party"</code>（全员）；税号来自 <code>CustomerParty</code>；
+          BIC 必填/格式来自 <code>BankParty</code> —— 同一份 Party 定义，子类型各自扩展，校验自动按层级分发。</div>
+      </div>
+
       <!-- 收费：组 → 明细（汇率由 fxConvert 模块异步注入） -->
       <div class="panel"><h3>收费 Charges（组 → 明细，汇率异步注入）</h3>
         @for (g of state.tree.collections['charges']; track g.path) {
@@ -238,6 +260,16 @@ const BFF_URL = 'http://localhost:8787/api/settle';
     #log>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .lg-fetch{color:#0b6bc2}.lg-res{color:#1c8a4e}.lg-pend{color:#c2790b}.lg-err{color:#c0392b}.lg-calc{color:#7a8499}.lg-div{color:#aab2bf;margin:4px 0 2px}
     .hint{color:#8893a3;font-size:12px;margin-top:8px}.hint b{color:#3b4658}
+    .party-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:11px}
+    .party-card{border:1px solid #e1e6ee;border-radius:8px;padding:11px 12px;background:#fbfcfe}
+    .party-card.bank{background:#f5f9fd;border-color:#cfe0f2}
+    .party-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:6px}
+    .party-h b{font-size:13px;color:#34465c}
+    .party-type{font-size:10px;color:#0b6bc2;background:#e9f1fb;border-radius:9px;padding:1px 7px;white-space:nowrap}
+    .party-card.bank .party-type{color:#1c8a4e;background:#e6f5ec}
+    label.pf{display:flex;flex-direction:column;gap:2px;font-size:11px;color:#6b7688;margin-bottom:6px}
+    label.pf input{width:100%}
+    .pf-err{color:#c0392b;font-size:11px;margin-top:3px}
     button{background:#eef3fb;border:1px solid #c8d4e6;color:#0b6bc2;border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;margin-left:6px}
     button:hover{background:#e0eaf8;border-color:#0b6bc2}button.x{color:#b03030;border-color:#e6c8c8;background:#fbf0f0;padding:2px 7px;margin:0}
     button.addbig{margin:10px 0 0;color:#1c8a4e;border-color:#bfe3cd;background:#f0f9f3}
@@ -342,6 +374,24 @@ export class AppComponent implements OnInit {
   get adjEditable(): boolean { return this.state?.tree.fields['adjustment']?.state === 'input'; }
   jstr(o: unknown): string { return JSON.stringify(o); }
 
+  // ── 当事方槽位（具名单节点）──
+  private SLOT_LABEL: Record<string, string> = {
+    applicant: '申请人 Applicant', beneficiary: '受益人 Beneficiary',
+    advisingBank: '通知行 Advising Bank', adviseThrough: '转通知行 Advise Through', reimbursingBank: '偿付行 Reimbursing Bank',
+  };
+  private FIELD_LABEL: Record<string, string> = {
+    name: '名称', address: '地址', country: '国家', taxId: '税号', contactPerson: '联系人', bic: 'BIC/SWIFT', account: '账号',
+  };
+  slotEntries(): { name: string; node: ViewNode }[] {
+    return Object.entries(this.state?.tree.slots ?? {}).map(([name, node]) => ({ name, node }));
+  }
+  fieldKeys(node: ViewNode): string[] { return Object.keys(node.fields); }
+  slotLabel(n: string): string { return this.SLOT_LABEL[n] ?? n; }
+  fieldLabel(f: string): string { return this.FIELD_LABEL[f] ?? f; }
+  partyFails(path: string) {
+    return (this.state?.validations ?? []).filter((v) => v.node === path && v.state === 'resolved' && !v.ok);
+  }
+
   // ── 编辑委托 ──
   onInput(path: string, value: string): void { this.logDiv('改 ' + path); this.session!.setInput(path, value); }
   onOverride(path: string, value: string): void { this.logDiv('覆盖 ' + path); try { this.session!.setOverride(path, value); } catch { /* 非法覆盖忽略 */ } }
@@ -384,6 +434,7 @@ export class AppComponent implements OnInit {
   private modelOf(node: ViewNode): any {
     const o: any = { _type: node.type };
     for (const [f, c] of Object.entries(node.fields)) o[f] = c.state === 'resolved' ? c.value : `<${c.state}>`;
+    for (const [slot, child] of Object.entries(node.slots ?? {})) o[slot] = this.modelOf(child);   // 具名槽位
     for (const [coll, arr] of Object.entries(node.collections)) if (arr.length) o[coll] = arr.map((n) => this.modelOf(n));
     return o;
   }

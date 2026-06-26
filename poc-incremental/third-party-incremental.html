@@ -142,6 +142,11 @@
   // 第三方自己的业务数据
   const data = {
     lcNo:"LC-2026-8842", baseCcy:"CNY", valueDate:"2026-06-25", maxNet:"1000000.00", adjustMode:"auto-low", adjustment:"0",
+    applicant:       { name:"ACME Trading Co",  address:"上海", country:"CN", taxId:"91310000ACMEXX", contactPerson:"李雷" },
+    beneficiary:     { name:"Globex GmbH",      address:"Berlin", country:"DE", taxId:"DE811234567", contactPerson:"Hans" },
+    advisingBank:    { name:"Deutsche Bank AG", address:"Frankfurt", country:"DE", bic:"DEUTDEFF", account:"100200300" },
+    adviseThrough:   { name:"Commerzbank AG",   address:"Hamburg", country:"DE", bic:"COBADEFFXXX", account:"" },
+    reimbursingBank: { name:"Citibank N.A.",    address:"New York", country:"US", bic:"CITIUS33", account:"" },
     charges:[
       { groupName:"银行费用", items:[
         { desc:"开证费", ccy:"USD", amount:"10000.00" },

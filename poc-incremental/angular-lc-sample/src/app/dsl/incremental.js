@@ -25,11 +25,21 @@ export function createSession(ruleSet, data, opts = {}) {
   const eq = (a, b) => disp(a) === disp(b) && typeof a === typeof b;
   const ser = (o) => JSON.stringify(o, (_, v) => (v instanceof Decimal ? fmt(v) : v));
 
-  // 节点的子集合声明（兼容单对象与数组）
+  // ── 类型系统：继承(extends) + 抽象(abstract) + 具名槽位(slots) ──
+  function nodeDef(type) { const d = model.nodes[type]; if (!d) throw new Error("未知节点类型: " + type); return d; }
+  function typeChain(type) { const ch = []; let t = type; while (t) { ch.unshift(t); t = nodeDef(t).extends; } return ch; } // [基类…自身]
+  function isA(type, ancestor) { let t = type; while (t) { if (t === ancestor) return true; t = nodeDef(t).extends; } return false; }
+  // 沿继承链合并字段（子类可覆盖基类同名字段）
+  function effectiveFields(type) { const o = {}; for (const t of typeChain(type)) Object.assign(o, nodeDef(t).fields || {}); return o; }
+  // 节点的子集合声明（兼容单对象与数组），沿链合并
+  const normColls = (c) => (!c ? [] : Array.isArray(c) ? c : [c]);
   function childCollections(type) {
-    const c = model.nodes[type].children;
-    return !c ? [] : Array.isArray(c) ? c : [c];
+    const out = [], seen = new Set();
+    for (const t of typeChain(type)) for (const c of normColls(nodeDef(t).children)) if (!seen.has(c.name)) { seen.add(c.name); out.push(c); }
+    return out;
   }
+  // 具名单节点 slots：{ 槽位名: 子类型 }，沿链合并（区别于集合 children）
+  function effectiveSlots(type) { const o = {}; for (const t of typeChain(type)) Object.assign(o, nodeDef(t).slots || {}); return o; }
 
   // ── 递归节点注册表 ──
   const nodes = new Map();          // path -> { path, type, parentPath, data }
@@ -39,11 +49,14 @@ export function createSession(ruleSet, data, opts = {}) {
     (typeIndex.get(type) || typeIndex.set(type, []).get(type)).push(path);
   }
   function buildTree(path, type, parentPath, d) {
+    if (nodeDef(type).abstract) throw new Error(`抽象类型 ${type} 不能实例化（请用其子类型）: ${path}`);
     register(path, type, parentPath, d);
     for (const coll of childCollections(type)) {
       const arr = d[coll.name] || [];
       arr.forEach((cd, i) => buildTree(`${path}.${coll.name}[${i}]`, coll.node, path, cd));
     }
+    for (const [slotName, slotType] of Object.entries(effectiveSlots(type)))   // 具名单节点：data[slotName] 为对象
+      buildTree(`${path}.${slotName}`, slotType, path, (d && d[slotName]) || {});
   }
   buildTree("root", rootType, null, data);
 
@@ -67,11 +80,13 @@ export function createSession(ruleSet, data, opts = {}) {
     const node = nodes.get(path);
     const colls = childCollections(node.type);
     const collNames = new Set(colls.map((c) => c.name));
+    const slotNames = new Set(Object.keys(effectiveSlots(node.type)));
     const p = new Proxy({}, {
       get(_, prop) {
         if (prop === "ctx") return ctxProxy;               // 头部数据，位置无关
         if (prop === "__children") return colls[0] ? childProxies(path, colls[0]) : undefined;
         if (typeof prop !== "string") return undefined;
+        if (slotNames.has(prop)) return proxyOf(`${path}.${prop}`);  // 具名单节点 → 单个子 proxy（applicant.name）
         if (collNames.has(prop)) return childProxies(path, colls.find((c) => c.name === prop));
         return readCell(path + "." + prop);
       },
@@ -123,7 +138,7 @@ export function createSession(ruleSet, data, opts = {}) {
     const ntype = nodes.get(path).type;
     if (rule.type === "formula") {
       const id = path + "." + rule.target;
-      const spec = model.nodes[ntype].fields[rule.target] || {};
+      const spec = effectiveFields(ntype)[rule.target] || {};
       // 归一化为 cases 列表：cases 多分支 / 单 when / 无条件，统一成 [{whenExpr, compute}]
       const rawCases = rule.cases || (rule.when ? [{ when: rule.when, expr: rule.expr }] : [{ when: null, expr: rule.expr }]);
       const cases = rawCases.map((cs) => ({ whenExpr: cs.when || null, compute: () => evaluate(cs.expr, ctxFor(path)).value }));
@@ -132,7 +147,7 @@ export function createSession(ruleSet, data, opts = {}) {
         manual: rule.fallback === "input" ? nodes.get(path).data[rule.target] : undefined });
     } else if (rule.type === "pipeline") {
       const id = path + "." + rule.target;
-      const spec = model.nodes[ntype].fields[rule.target] || {};
+      const spec = effectiveFields(ntype)[rule.target] || {};
       cells.set(id, { ...base, id, kind: "computed", type: spec.type, overridable: !!spec.overridable, compute: () => {
         let v = null; const c = ctxFor(path);
         for (const s of rule.steps) if (s.expr) v = evaluate(s.expr, { ...c, value: v }).value;
@@ -147,13 +162,14 @@ export function createSession(ruleSet, data, opts = {}) {
     }
   }
   // 为一个节点建 input + 规则 cells（初次与动态增子时复用）
+  // 规则按继承链收集：scope 命中自身或任一祖先类型（Party 规则作用到 BankParty/CustomerParty）
+  function rulesForType(type) { const out = []; for (const t of typeChain(type)) out.push(...(rulesByScope.get(t) || [])); return out; }
   function buildNodeCells(path, type) {
-    const def = model.nodes[type];
-    for (const [f, spec] of Object.entries(def.fields)) {
+    for (const [f, spec] of Object.entries(effectiveFields(type))) {   // 含继承字段
       if (spec.computed || spec.external) continue;
       addInputCell(path, f, spec.type, nodes.get(path).data[f]);
     }
-    for (const rule of (rulesByScope.get(type) || [])) makeRuleCell(rule, path);
+    for (const rule of rulesForType(type)) makeRuleCell(rule, path);   // 含基类作用域规则
   }
   for (const node of nodes.values()) buildNodeCells(node.path, node.type);
 
@@ -216,19 +232,25 @@ export function createSession(ruleSet, data, opts = {}) {
       // 3) produce：host 字段 = 模块输出（继承 model 的 overridable，使覆盖/条件等沿用）
       for (const [out, hostField] of Object.entries(use.produce || {})) {
         const id = `${hostPath}.${hostField}`;
-        const fspec = model.nodes[nodes.get(hostPath).type].fields[hostField] || {};
+        const fspec = effectiveFields(nodes.get(hostPath).type)[hostField] || {};
         cells.set(id, { id, kind: "computed", nodePath: hostPath, type: fspec.type, overridable: !!fspec.overridable,
           deps: new Set(), dependents: new Set(), state: "stale", value: null,
           cases: [{ whenExpr: null, compute: () => evaluate(out, mctx()).value }], fallback: null });
       }
   }
-  function instantiateUse(use) {
-    for (const hostPath of (typeIndex.get(use.on) || [])) instantiateUseOnHost(use, hostPath);
+  // use.on 可为基类：命中所有 is-a 该类型的具体节点（含子类型）
+  function hostsFor(onType) {
+    const out = [];
+    for (const [t, paths] of typeIndex) if (isA(t, onType)) out.push(...paths);
+    return out;
   }
-  // 为单个新节点实例化其类型声明的全部 use 模块（动态增子时复用同一套初始化逻辑）
+  function instantiateUse(use) {
+    for (const hostPath of hostsFor(use.on)) instantiateUseOnHost(use, hostPath);
+  }
+  // 为单个新节点实例化其类型（含继承）匹配的全部 use 模块（动态增子时复用同一套初始化逻辑）
   function instantiateUsesForNode(path) {
     const type = nodes.get(path).type;
-    for (const use of (ruleSet.uses || [])) if (use.on === type) instantiateUseOnHost(use, path);
+    for (const use of (ruleSet.uses || [])) if (isA(type, use.on)) instantiateUseOnHost(use, path);
   }
   for (const use of (ruleSet.uses || [])) instantiateUse(use);
 
@@ -363,9 +385,8 @@ export function createSession(ruleSet, data, opts = {}) {
 
   // 递归视图
   function viewNode(path, type) {
-    const def = model.nodes[type];
     const fields = {};
-    for (const f of Object.keys(def.fields)) {
+    for (const f of Object.keys(effectiveFields(type))) {                 // 含继承字段
       const c = cells.get(path + "." + f);
       fields[f] = c ? { value: disp(c.value), state: c.state } : { value: null, state: "resolved" };
     }
@@ -376,7 +397,10 @@ export function createSession(ruleSet, data, opts = {}) {
       arr.forEach((d, i) => { if (d != null) live.push(viewNode(`${path}.${coll.name}[${i}]`, coll.node)); }); // 跳过墓碑
       collections[coll.name] = live;
     }
-    return { path, type, fields, collections };
+    const slots = {};
+    for (const [slotName, slotType] of Object.entries(effectiveSlots(type))) // 具名单节点
+      slots[slotName] = viewNode(`${path}.${slotName}`, slotType);
+    return { path, type, fields, collections, slots };
   }
   function getState() {
     const validations = [];

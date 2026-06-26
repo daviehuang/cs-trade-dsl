@@ -33,12 +33,14 @@ export interface Cell {
   state: 'resolved' | 'pending' | 'error' | 'overridden' | 'input';
 }
 
-/** getState() 视图节点：字段是 cell，子集合是同构子节点数组。 */
+/** getState() 视图节点：字段是 cell，子集合是同构子节点数组，slots 是具名单子节点。 */
 export interface ViewNode {
   path: string;
   type: string;
   fields: Record<string, Cell>;
   collections: Record<string, ViewNode[]>;
+  /** 具名单节点（如 applicant / advisingBank），每个是一个同构子节点视图。 */
+  slots: Record<string, ViewNode>;
 }
 
 export interface ValidationView {

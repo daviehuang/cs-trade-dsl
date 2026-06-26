@@ -1,7 +1,7 @@
 // 运行时加载的规则产物（生产中由 Rule Bundle API 下发：fetch('/rulesets/lcSettlement@active')）
 window.LC_RULES = {
   "ruleSetId": "lcSettlement",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "schemaVersion": "1.0",
   "status": "active",
   "model": {
@@ -18,6 +18,13 @@ window.LC_RULES = {
           "chargeTotal": { "type": "decimal", "computed": true },
           "paymentTotal": { "type": "decimal", "computed": true },
           "net": { "type": "decimal", "computed": true }
+        },
+        "slots": {
+          "applicant":       "CustomerParty",
+          "beneficiary":     "CustomerParty",
+          "advisingBank":    "BankParty",
+          "adviseThrough":   "BankParty",
+          "reimbursingBank": "BankParty"
         },
         "children": [
           { "name": "charges", "node": "ChargeGroup" },
@@ -46,6 +53,29 @@ window.LC_RULES = {
           "amount": { "type": "decimal" },
           "fxRate": { "type": "decimal", "external": true },
           "base": { "type": "decimal", "computed": true }
+        }
+      },
+
+      "Party": {
+        "abstract": true,
+        "fields": {
+          "name":    { "type": "string" },
+          "address": { "type": "string" },
+          "country": { "type": "string" }
+        }
+      },
+      "CustomerParty": {
+        "extends": "Party",
+        "fields": {
+          "taxId":         { "type": "string" },
+          "contactPerson": { "type": "string" }
+        }
+      },
+      "BankParty": {
+        "extends": "Party",
+        "fields": {
+          "bic":     { "type": "string" },
+          "account": { "type": "string" }
         }
       }
     }
@@ -96,7 +126,29 @@ window.LC_RULES = {
 
     { "id": "netLimit", "type": "validation", "scope": "LetterOfCredit", "trigger": "after-calc",
       "expr": "net <= maxNet", "severity": "error", "code": "E_NET_LIMIT",
-      "message": "净额 {net} 超过上限 {maxNet}" }
+      "message": "净额 {net} 超过上限 {maxNet}" },
+
+    { "id": "partyName", "type": "validation", "scope": "Party", "trigger": "after-calc",
+      "expr": "len(name) > 0", "severity": "error", "code": "E_PARTY_NAME",
+      "message": "当事方名称必填" },
+    { "id": "partyCountry", "type": "validation", "scope": "Party", "trigger": "after-calc",
+      "expr": "len(country) > 0", "severity": "error", "code": "E_PARTY_COUNTRY",
+      "message": "当事方国家必填" },
+
+    { "id": "custTaxId", "type": "validation", "scope": "CustomerParty", "trigger": "after-calc",
+      "expr": "len(taxId) > 0", "severity": "error", "code": "E_CUST_TAX",
+      "message": "客户税号必填" },
+
+    { "id": "bankBicReq", "type": "validation", "scope": "BankParty", "trigger": "after-calc",
+      "expr": "len(bic) > 0", "severity": "error", "code": "E_BANK_BIC_REQ",
+      "message": "银行 BIC/SWIFT 必填" },
+    { "id": "bankBicFmt", "type": "validation", "scope": "BankParty", "trigger": "after-calc",
+      "expr": "len(bic) == 0 || in(len(bic), 8, 11)", "severity": "error", "code": "E_BANK_BIC_FMT",
+      "message": "BIC 长度应为 8 或 11 位" },
+
+    { "id": "reimbVsAdvising", "type": "validation", "scope": "LetterOfCredit", "trigger": "after-calc",
+      "expr": "len(reimbursingBank.name) == 0 || reimbursingBank.name != advisingBank.name",
+      "severity": "error", "code": "E_REIMB_DUP", "message": "偿付行不应与通知行相同" }
   ]
 }
 ;
