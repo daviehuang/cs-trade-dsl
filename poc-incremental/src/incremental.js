@@ -186,12 +186,11 @@ export function createSession(ruleSet, data, opts = {}) {
   }
 
   // ── 模块实例化：use 模块 on 某 scope，把抽象 inputs 绑到 host 字段，produce 写回 host ──
-  function instantiateUse(use) {
+  function instantiateUseOnHost(use, hostPath) {
     const mod = resolveModule(use.use);
     const alias = use.as || use.use.split(".").pop();
-    for (const hostPath of (typeIndex.get(use.on) || [])) {
-      const ns = `${hostPath}.${alias}`;
-      const mctx = () => moduleCtx(ns, hostPath);
+    const ns = `${hostPath}.${alias}`;
+    const mctx = () => moduleCtx(ns, hostPath);
       // 1) 输入端口：alias.<input> = bind 表达式（在 host 作用域求值）
       for (const inp of Object.keys(mod.inputs || {})) {
         const expr = use.bind[inp];
@@ -222,7 +221,14 @@ export function createSession(ruleSet, data, opts = {}) {
           deps: new Set(), dependents: new Set(), state: "stale", value: null,
           cases: [{ whenExpr: null, compute: () => evaluate(out, mctx()).value }], fallback: null });
       }
-    }
+  }
+  function instantiateUse(use) {
+    for (const hostPath of (typeIndex.get(use.on) || [])) instantiateUseOnHost(use, hostPath);
+  }
+  // 为单个新节点实例化其类型声明的全部 use 模块（动态增子时复用同一套初始化逻辑）
+  function instantiateUsesForNode(path) {
+    const type = nodes.get(path).type;
+    for (const use of (ruleSet.uses || [])) if (use.on === type) instantiateUseOnHost(use, path);
   }
   for (const use of (ruleSet.uses || [])) instantiateUse(use);
 
@@ -391,6 +397,8 @@ export function createSession(ruleSet, data, opts = {}) {
   // ── 子记录增删 ──
   const subtreePaths = (rootPath) => [...nodes.keys()].filter((p) => p === rootPath || p.startsWith(rootPath + "."));
   const cellsOfNode = (path) => [...cells.values()].filter((c) => c.nodePath === path);
+  // 子树内全部 cell：含模块命名空间 cell（nodePath 形如 <path>.<alias>），按前缀匹配（"]"/"." 作边界，不误伤兄弟）
+  const cellsInSubtree = (path) => [...cells.values()].filter((c) => c.nodePath === path || c.nodePath.startsWith(path + "."));
 
   function addChild(parentPath, collName, childObj) {
     const parent = nodes.get(parentPath);
@@ -404,7 +412,8 @@ export function createSession(ruleSet, data, opts = {}) {
     buildTree(childPath, coll.node, parentPath, childObj); // 注册新子树（可含更深层）
     const newPaths = subtreePaths(childPath);
     for (const p of newPaths) buildNodeCells(p, nodes.get(p).type);
-    for (const p of newPaths) for (const c of cellsOfNode(p)) if (c.kind !== "input") dirty.add(c.id);
+    for (const p of newPaths) instantiateUsesForNode(p);                 // 新节点的 use 模块（fxConvert 等）：补回汇率 resolver 与 produce 字段
+    for (const c of cellsInSubtree(childPath)) if (c.kind !== "input") dirty.add(c.id); // 含模块命名空间 cell，确保新子树整体结算
     for (const c of cellsOfNode(parentPath)) if (c.kind !== "input") dirty.add(c.id); // 父聚合重读集合
     settle(); onUpdate(getState());
     return childPath;
@@ -416,8 +425,8 @@ export function createSession(ruleSet, data, opts = {}) {
     const parentPath = m[1], collName = m[2], idx = +m[3];
     const removed = subtreePaths(childPath).map((p) => [p, nodes.get(p).type]);
     nodes.get(parentPath).data[collName][idx] = null;      // 墓碑：保持其它兄弟下标不变
+    for (const c of cellsInSubtree(childPath)) { c.dead = true; cells.delete(c.id); dirty.delete(c.id); } // 含模块命名空间 cell，避免回收遗漏
     for (const [p, t] of removed) {
-      for (const c of cellsOfNode(p)) { c.dead = true; cells.delete(c.id); dirty.delete(c.id); }
       proxies.delete(p);
       nodes.delete(p);
       typeIndex.set(t, (typeIndex.get(t) || []).filter((x) => x !== p));

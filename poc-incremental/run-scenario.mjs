@@ -77,6 +77,12 @@ console.log("  新明细路径:", newPath, "  → 受影响:", ids(log).join(", 
 await session.idle();
 banner("T4'  新明细汇率取回后结算");
 dump(session.getState());
+// 断言：新明细必须由 fxConvert 模块算出汇率与本币（防回归——曾因 addChild 未实例化 use 模块而恒为 null）
+const added = session.getState().tree.collections.charges[0].collections.items.find((x) => x.path === newPath);
+const addOk = added && added.fields.fxRate.value === "7.1234" && added.fields.base.value === "7123.4";
+console.log(addOk
+  ? "  ✅ 新明细模块已实例化：fxRate=7.1234 × 1000 = base 7123.4（自动计算）"
+  : `  ❌ 新明细未自动计算：fxRate=${added?.fields.fxRate.value} base=${added?.fields.base.value}`);
 console.log("  收费组[0] 明细数:", session.getState().tree.collections.charges[0].collections.items.length, "（应为 3）");
 
 // T5：删除刚加的明细 → 小计/合计/净额退回，cell 被回收
