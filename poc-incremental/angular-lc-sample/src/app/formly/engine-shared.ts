@@ -1,0 +1,82 @@
+// 纯函数 + 常量（无 Angular 依赖）：被 绑定层(engine-formly)、自动布局、hydrator、linter 共享。
+// 这里集中放「领域标签 / 控件种类推导 / 路径解析」等与渲染框架无关的逻辑。
+import { Cell, SessionState, ValidationView, ViewNode } from '../dsl/incremental';
+import { EngineMeta } from './engine-meta';
+
+/** 绑定上下文：自定义字段类型从 props.ctx 拿到它，所有交互/取值都经它委托给引擎会话。 */
+export interface EngineCtx {
+  ccys: string[];
+  valueOf(path: string): string;
+  cellText(path: string): string;
+  cellState(path: string): Cell['state'] | undefined;
+  onInput(path: string, v: string): void;
+  onOverride(path: string, v: string): void;
+  clearOverride(path: string): void;
+  addChild(parent: string, coll: string, obj: any): void;
+  removeChild(path: string): void;
+  validationsFor(path: string): ValidationView[];
+  /** 注册「引擎更新」监听（让 OnPush 的 formly 子树在异步取数后 markForCheck）。返回注销函数。 */
+  onTick(cb: () => void): () => void;
+}
+
+export const CCYS = ['USD', 'EUR', 'HKD', 'GBP', 'JPY', 'SGD', 'CNY'];
+
+export const SLOT_LABEL: Record<string, string> = {
+  applicant: '申请人 Applicant', beneficiary: '受益人 Beneficiary',
+  advisingBank: '通知行 Advising Bank', adviseThrough: '转通知行 Advise Through', reimbursingBank: '偿付行 Reimbursing Bank',
+};
+export const FIELD_LABEL: Record<string, string> = {
+  lcNo: '信用证号', baseCcy: '基准币种', valueDate: '起息日', maxNet: '净额上限', adjustMode: '手续调整方式',
+  adjustment: '手续调整', chargeTotal: '收费合计', paymentTotal: '付费合计', net: '净额 net',
+  name: '名称', address: '地址', country: '国家', taxId: '税号', contactPerson: '联系人', bic: 'BIC/SWIFT', account: '账号',
+  groupName: '组名', subtotal: '小计', desc: '摘要', ccy: '币种', amount: '金额', fxRate: '汇率', base: '本币 base',
+};
+export const COLL_LABEL: Record<string, string> = { charges: '收费组 Charges', items: '明细 Items', payments: '付费 Payments' };
+export const COLL_TEMPLATE: Record<string, () => any> = {
+  charges: () => ({ groupName: '新收费组', items: [] }),
+  items: () => ({ desc: '新明细', ccy: 'USD', amount: '0' }),
+  payments: () => ({ ccy: 'USD', amount: '0' }),
+};
+
+/** 这些节点的叶子字段横向排成一行（明细/付费/收费组），其余（卡片）纵向堆叠。 */
+export const ROW_TYPES = new Set(['ChargeGroup', 'ChargeItem', 'Payment']);
+
+/** 按字段名推导控件种类（币种下拉 / 调整方式下拉 / 文本）。 */
+export const controlOf = (field: string): string =>
+  field === 'ccy' || field === 'baseCcy' ? 'ccy' : field === 'adjustMode' ? 'adjust' : 'text';
+
+export const toneOf = (type: string): string => (type === 'BankParty' ? 'bank' : 'cust');
+
+/** PageDef 的 grid 取值 → 全局布局 class（应用在 formly 生成的 group 容器上）。 */
+export const gridClass = (g?: string): string =>
+  ({ form: 'eg-form-grid', cards: 'eg-cards-grid', row: 'eg-rowfields', col: 'eg-colfields' } as Record<string, string>)[g || 'col'];
+
+export const lastSeg = (path: string): string => path.slice(path.lastIndexOf('.') + 1);
+
+// ── 运行时路径解析（按引擎 ViewNode 树）──────────────────────────────────────
+/** 路径 → 节点（支持 slot 与 collection[i]）。path 形如 root / root.applicant / root.charges[0]。 */
+export function resolveNode(state: SessionState, path: string): ViewNode | undefined {
+  const toks = path.split('.');
+  let node: ViewNode | undefined = state.tree;                  // toks[0] === 'root'
+  for (let k = 1; k < toks.length; k++) {
+    const tok = toks[k];
+    const m = tok.match(/^(\w+)\[(\d+)\]$/);
+    if (m) { node = node?.collections[m[1]]?.[+m[2]]; continue; }
+    if (node?.slots && node.slots[tok]) { node = node.slots[tok]; continue; }
+    node = undefined;
+  }
+  return node;
+}
+
+/** 字段路径 → cell（末段为字段名）。 */
+export function resolveCell(state: SessionState, path: string): Cell | undefined {
+  const i = path.lastIndexOf('.');
+  return resolveNode(state, path.slice(0, i))?.fields[path.slice(i + 1)];
+}
+
+/** 字段路径 → 字段 spec（从模型元数据按节点类型 + 继承链取）。 */
+export function specAt(meta: EngineMeta, state: SessionState, path: string): { computed?: boolean; external?: boolean; overridable?: boolean } {
+  const i = path.lastIndexOf('.');
+  const node = resolveNode(state, path.slice(0, i));
+  return node ? (meta.effectiveFields(node.type)[path.slice(i + 1)] ?? {}) : {};
+}

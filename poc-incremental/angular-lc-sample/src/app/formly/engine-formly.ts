@@ -6,43 +6,14 @@
 import { ChangeDetectorRef, Component, Directive, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FieldType, FieldTypeConfig, FieldWrapper, FormlyFieldConfig, FormlyModule } from '@ngx-formly/core';
-import { Cell, Session, SessionState, ValidationView, ViewNode } from '../dsl/incremental';
+import { Cell, Session, SessionState, ViewNode } from '../dsl/incremental';
 import { buildMeta, EngineMeta } from './engine-meta';
+import {
+  CCYS, COLL_LABEL, COLL_TEMPLATE, EngineCtx, FIELD_LABEL, ROW_TYPES, SLOT_LABEL,
+  controlOf, resolveCell, toneOf,
+} from './engine-shared';
 
-const CCYS = ['USD', 'EUR', 'HKD', 'GBP', 'JPY', 'SGD', 'CNY'];
-
-const SLOT_LABEL: Record<string, string> = {
-  applicant: '申请人 Applicant', beneficiary: '受益人 Beneficiary',
-  advisingBank: '通知行 Advising Bank', adviseThrough: '转通知行 Advise Through', reimbursingBank: '偿付行 Reimbursing Bank',
-};
-const FIELD_LABEL: Record<string, string> = {
-  lcNo: '信用证号', baseCcy: '基准币种', valueDate: '起息日', maxNet: '净额上限', adjustMode: '手续调整方式',
-  adjustment: '手续调整', chargeTotal: '收费合计', paymentTotal: '付费合计', net: '净额 net',
-  name: '名称', address: '地址', country: '国家', taxId: '税号', contactPerson: '联系人', bic: 'BIC/SWIFT', account: '账号',
-  groupName: '组名', subtotal: '小计', desc: '摘要', ccy: '币种', amount: '金额', fxRate: '汇率', base: '本币 base',
-};
-const COLL_LABEL: Record<string, string> = { charges: '收费组 Charges', items: '明细 Items', payments: '付费 Payments' };
-const COLL_TEMPLATE: Record<string, () => any> = {
-  charges: () => ({ groupName: '新收费组', items: [] }),
-  items: () => ({ desc: '新明细', ccy: 'USD', amount: '0' }),
-  payments: () => ({ ccy: 'USD', amount: '0' }),
-};
-
-/** 自定义类型从 props.ctx 拿到这个上下文，所有交互/取值都经它委托给引擎会话。 */
-export interface EngineCtx {
-  ccys: string[];
-  valueOf(path: string): string;
-  cellText(path: string): string;
-  cellState(path: string): Cell['state'] | undefined;
-  onInput(path: string, v: string): void;
-  onOverride(path: string, v: string): void;
-  clearOverride(path: string): void;
-  addChild(parent: string, coll: string, obj: any): void;
-  removeChild(path: string): void;
-  validationsFor(path: string): ValidationView[];
-  /** 注册「引擎更新」监听（用于让 OnPush 的 formly 子树在异步取数后 markForCheck）。返回注销函数。 */
-  onTick(cb: () => void): () => void;
-}
+export { EngineCtx } from './engine-shared';     // 绑定层对外仍从这里导出 EngineCtx
 
 /**
  * 基于一个 Session 构建上下文：含路径→cell 解析（支持 slot 与 collection[i]）。
@@ -51,25 +22,12 @@ export interface EngineCtx {
  */
 export function makeCtx(session: Session, getState: () => SessionState, rebuild: () => void): { ctx: EngineCtx; notify: () => void } {
   const listeners = new Set<() => void>();
-  const resolveCell = (path: string): Cell | undefined => {
-    const toks = path.split('.');
-    let node: ViewNode | undefined = getState().tree;            // toks[0] === 'root'
-    for (let k = 1; k < toks.length; k++) {
-      const tok = toks[k];
-      const m = tok.match(/^(\w+)\[(\d+)\]$/);
-      if (m) { node = node?.collections[m[1]]?.[+m[2]]; continue; }
-      if (node?.slots && node.slots[tok]) { node = node.slots[tok]; continue; }
-      if (k === toks.length - 1) return node?.fields[tok];        // 末段 = 字段
-      node = undefined;
-    }
-    return undefined;
-  };
   const text = (c?: Cell) => (!c ? '—' : c.state === 'pending' ? '⏳ 计算中' : c.state === 'error' ? '✗ 错误' : (c.value ?? '—'));
   const ctx: EngineCtx = {
     ccys: CCYS,
-    valueOf: (p) => resolveCell(p)?.value ?? '',
-    cellText: (p) => text(resolveCell(p)),
-    cellState: (p) => resolveCell(p)?.state,
+    valueOf: (p) => resolveCell(getState(), p)?.value ?? '',
+    cellText: (p) => text(resolveCell(getState(), p)),
+    cellState: (p) => resolveCell(getState(), p)?.state,
     onInput: (p, v) => session.setInput(p, v),
     onOverride: (p, v) => { try { session.setOverride(p, v); } catch { /* 非 overridable 忽略 */ } },
     clearOverride: (p) => session.clearOverride(p),
@@ -90,12 +48,8 @@ abstract class TickAwareType extends FieldType<FieldTypeConfig> implements OnIni
   ngOnDestroy(): void { this._off?.(); }
 }
 
-// ── 字段树构建：把 ViewNode 翻译为 formly 配置 ───────────────────────────────
-const controlOf = (field: string): string =>
-  field === 'ccy' || field === 'baseCcy' ? 'ccy' : field === 'adjustMode' ? 'adjust' : 'text';
-/** 这些节点的叶子字段横向排成一行（明细/付费/收费组），其余（卡片）纵向堆叠。 */
-const ROW_TYPES = new Set(['ChargeGroup', 'ChargeItem', 'Payment']);
-const toneOf = (type: string): string => (type === 'BankParty' ? 'bank' : 'cust');
+// ── 自动布局（回退生成器）：PageDef 缺省时按 model 自动产出字段树 ───────────────
+//   常量/控件推导/分色等已抽到 engine-shared，这里只保留"从 ViewNode 自动生成布局"的逻辑。
 
 /** 一个节点的叶子字段（可编辑 → eg-field；计算/外部值 → eg-cell）。 */
 function leafFields(node: ViewNode, ctx: EngineCtx, meta: EngineMeta, only?: string[]): FormlyFieldConfig[] {

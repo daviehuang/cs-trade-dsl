@@ -70,6 +70,19 @@ node bff/server.js   # 监听 http://localhost:8787
 对比意义：手写版字段写死在模板里；formly 版字段完全由运行时 RuleSet 的 `model` 推导，
 **改规则即改表单、无需改前端代码**——这正是"运行时加载、按 model 动态渲染"的最直接体现。
 
+## 用自己的页面编辑器接引擎（BYO Editor）
+
+formly 版顶部「**界面来源**」可切换：**模型自动生成** ↔ **自定义 PageDef（编辑器产物）**。
+后者演示了"你画页面、引擎做算校验"的完整分层——把"自动生成"换成
+「可序列化 PageDef + 运行时 hydrator + 发布期 linter」，绑定层（`eg-*` 自定义类型 + `makeCtx`）当 SDK 复用：
+
+- `page-def.ts` — PageDef 的可序列化 schema（编辑器保存的东西，纯 JSON，不含运行时 ctx）
+- `hydrator.ts` — `hydratePage(pageDef, ctx, state, meta)`：注入 ctx、按实际行数展开集合、控件种类从模型推导
+- `lint.ts` — `lintPageDef(pageDef, ruleSet, imports)`：发布期校验绑定（字段存在、控件种类匹配、集合/at 合法），出错运行时回退自动布局
+- `assets/pages/lcSettlement.page.json` — 一份示例 PageDef（故意重排/取子集，证明"编辑器驱动"）
+
+> 设计与规则详见 [`docs/byo-editor-binding.md`](docs/byo-editor-binding.md)：界面↔引擎契约、编辑器产物要遵循的规则、需要做的改造、治理边界。
+
 ## 目录
 
 ```
@@ -84,9 +97,16 @@ src/
     shell.component.ts   外壳：手写版 / ngx-formly 版切换
     app.component.ts     手写渲染版 L/C 表单（多层嵌套 + 全部特性）
     formly/
-      engine-meta.ts     从 RuleSet+imports 推导字段元数据（沿 extends 链取有效字段）
-      engine-formly.ts   把 ViewNode 树翻译为 formly 字段配置 + 一组委托回引擎的自定义类型
-      formly-lc.component.ts  ngx-formly 模型驱动版主组件
+      engine-meta.ts     从 RuleSet+imports 推导字段/槽位/子集合（继承感知）
+      engine-shared.ts   纯 SDK：常量、控件推导、路径解析、EngineCtx
+      engine-formly.ts   绑定层：eg-* 自定义类型 + makeCtx + 注册清单 + 回退生成器 buildRootFields
+      page-def.ts        PageDef 可序列化 schema（编辑器产物的类型契约）
+      hydrator.ts        运行时装配器 hydratePage(pageDef, ctx, state, meta)
+      lint.ts            发布期 linter lintPageDef(pageDef, ruleSet, imports)
+      formly-lc.component.ts  ngx-formly 主组件（界面来源：自动生成 ↔ 自定义 PageDef）
+  assets/pages/
+    lcSettlement.page.json    示例 PageDef（模拟页面编辑器产物）
+  docs/byo-editor-binding.md  「用自己的编辑器接引擎」契约/规则/改造说明
   assets/rules/
     lcSettlement.json         = poc-incremental/lc-rules.json
     commonFx.json             = poc-incremental/commonFx.json（被 import 的模块库）

@@ -1,5 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { FormlyModule, FormlyFieldConfig } from '@ngx-formly/core';
 
@@ -7,7 +8,12 @@ import { EngineService } from '../engine.service';
 import { FxService } from '../fx.service';
 import { RuleRepositoryService } from '../rule-repository.service';
 import { RuleSet, Session, SessionState, ViewNode } from '../dsl/incremental';
-import { EngineCtx, buildRootFields, makeCtx } from './engine-formly';
+import { buildRootFields, makeCtx } from './engine-formly';
+import { EngineCtx } from './engine-shared';
+import { buildMeta, EngineMeta } from './engine-meta';
+import { hydratePage } from './hydrator';
+import { lintPageDef, LintIssue } from './lint';
+import { PageDef } from './page-def';
 
 const BFF_URL = 'http://localhost:8787/api/settle';
 
@@ -42,6 +48,30 @@ const BFF_URL = 'http://localhost:8787/api/settle';
   @else if (error) { <div class="wrap"><div class="ph err">{{ error }}</div></div> }
   @else {
     <div class="wrap">
+      <div class="srcbar">
+        <span class="lbl">界面来源：</span>
+        <div class="seg">
+          <button type="button" [class.on]="layoutSource==='auto'" (click)="setSource('auto')">模型自动生成</button>
+          <button type="button" [class.on]="layoutSource==='page'" (click)="setSource('page')" [disabled]="!pageDef">自定义 PageDef（编辑器产物）</button>
+        </div>
+        @if (layoutSource==='page' && pageDef) {
+          @if (errorCount) { <span class="lint bad">⛔ PageDef 校验 {{ errorCount }} 个错误 —— 已回退自动布局</span> }
+          @else if (warnCount) { <span class="lint warn">⚠ PageDef 校验通过（{{ warnCount }} 个提醒）</span> }
+          @else { <span class="lint ok">✔ PageDef 校验通过（lint）</span> }
+        } @else if (layoutSource==='auto') {
+          <span class="hint">字段由运行时 RuleSet 的 <code>model.nodes</code> 自动生成</span>
+        }
+      </div>
+      @if (layoutSource==='page' && lintIssues.length) {
+        <div class="lintlist">
+          @for (i of lintIssues; track $index) {
+            <div class="li" [class.bad]="i.level==='error'" [class.warn]="i.level==='warn'">
+              {{ i.level==='error'?'⛔':i.level==='warn'?'⚠':'ℹ' }} <code>{{ i.path }}</code> {{ i.message }}
+            </div>
+          }
+        </div>
+      }
+
       <form [formGroup]="form">
         <formly-form [form]="form" [fields]="fields" [model]="model"></formly-form>
       </form>
@@ -71,6 +101,20 @@ const BFF_URL = 'http://localhost:8787/api/settle';
     .topbtn{background:#1d5e96;border:1px solid #2a7bc0;color:#fff;padding:6px 13px;font-size:13px;border-radius:6px;cursor:pointer}
     .topbtn:hover{background:#2a7bc0}
     .hint{color:#8893a3;font-size:12px}
+    .srcbar{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin:2px 0 13px}
+    .srcbar .lbl{font-size:12px;color:#64748b;font-weight:500}
+    .seg{display:inline-flex;border:1px solid #d4dbe6;border-radius:9px;overflow:hidden}
+    .seg button{background:#fff;border:none;color:#475569;padding:7px 14px;font-size:13px;cursor:pointer;border-right:1px solid #e6ebf2}
+    .seg button:last-child{border-right:none}
+    .seg button.on{background:#1d5e96;color:#fff;font-weight:600}
+    .seg button:disabled{color:#b6c0cf;cursor:not-allowed}
+    .lint{font-size:12px;padding:4px 11px;border-radius:8px;font-weight:500}
+    .lint.ok{background:#e9f7ef;color:#0e7a4f}.lint.warn{background:#fdf3e0;color:#a86609}.lint.bad{background:#fdecec;color:#c0392b}
+    .lintlist{margin:0 0 13px;border:1px solid #f0d9d9;border-radius:9px;overflow:hidden}
+    .lintlist .li{font-size:12px;padding:6px 12px;border-top:1px solid #f6e8e8;background:#fffafa;color:#8a5a5a}
+    .lintlist .li:first-child{border-top:none}
+    .lintlist .li.bad{color:#c0392b}.lintlist .li.warn{color:#a86609;background:#fffdf6}
+    .lintlist code{background:#f1f5fb;color:#475569;padding:1px 5px;border-radius:4px}
     .bff-ok{color:#1c8a4e;font-weight:bold;font-size:14px}.bff-bad{color:#c0392b;font-weight:bold;font-size:14px}
     table.dv{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
     table.dv th{text-align:left;color:#8893a3;padding:4px 8px}table.dv td{padding:3px 8px;border-top:1px solid #f0f3f8;font-family:Consolas,monospace}
@@ -80,6 +124,7 @@ export class FormlyLcComponent implements OnInit {
   private engine = inject(EngineService);
   private fx = inject(FxService);
   private repo = inject(RuleRepositoryService);
+  private http = inject(HttpClient);
 
   featureId = 'lcSettlement';
   loading = false;
@@ -92,11 +137,20 @@ export class FormlyLcComponent implements OnInit {
   model: Record<string, any> = {};
   fields: FormlyFieldConfig[] = [];
 
+  // 界面来源：auto=按 model 自动生成（回退）；page=运行时加载的自定义 PageDef（编辑器产物）。
+  layoutSource: 'auto' | 'page' = 'auto';
+  pageDef: PageDef | null = null;
+  lintIssues: LintIssue[] = [];
+
   private session: Session | null = null;
   private ctx!: EngineCtx;
   private notify: () => void = () => {};
   private importsReg: Record<string, RuleSet> = {};
+  private meta: EngineMeta | null = null;
   bffHtml = '';
+
+  get errorCount(): number { return this.lintIssues.filter((i) => i.level === 'error').length; }
+  get warnCount(): number { return this.lintIssues.filter((i) => i.level === 'warn').length; }
 
   ngOnInit(): void {
     this.loading = true;
@@ -112,19 +166,36 @@ export class FormlyLcComponent implements OnInit {
           onUpdate: (s) => { this.state = s; this.notify(); },
         });
         this.state = this.session.getState();
+        this.meta = buildMeta(ruleSet, imports);
         // 结构变化（增删子记录）时重建 formly 字段树；编辑/异步取数只刷新值（模板方法实时读引擎）。
         const built = makeCtx(this.session, () => this.session!.getState(), () => this.rebuild());
         this.ctx = built.ctx;
         this.notify = built.notify;
         this.rebuild();
         this.loading = false;
+        // 运行时加载自定义 PageDef（模拟页面编辑器产物），加载后用 model 做 lint（发布期护栏）。
+        this.http.get<PageDef>('assets/pages/lcSettlement.page.json').subscribe({
+          next: (pd) => {
+            this.pageDef = pd;
+            this.lintIssues = lintPageDef(pd, this.ruleSet!, this.importsReg);
+            if (this.layoutSource === 'page') this.rebuild();   // PageDef 异步到达后重建
+          },
+          error: () => { /* 没有自定义页就只用自动布局 */ },
+        });
       },
       error: (e) => { this.error = '运行时加载规则失败：' + (e?.message ?? e); this.loading = false; },
     });
   }
 
+  setSource(s: 'auto' | 'page'): void { this.layoutSource = s; this.rebuild(); }
+
+  /** PageDef 模式且 lint 无错误时用 hydrator 装配；否则回退到 model 自动生成。 */
   private rebuild(): void {
-    this.fields = buildRootFields(this.session!.getState(), this.ruleSet, this.importsReg, this.ctx);
+    const st = this.session!.getState();
+    if (this.layoutSource === 'page' && this.pageDef && this.meta && this.errorCount === 0)
+      this.fields = hydratePage(this.pageDef, this.ctx, st, this.meta);
+    else
+      this.fields = buildRootFields(st, this.ruleSet, this.importsReg, this.ctx);
   }
 
   // ── 提交到中台（BFF 权威校验，复用与手写版相同的接口）──

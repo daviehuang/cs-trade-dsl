@@ -87,6 +87,7 @@
 - [x] Angular（ESM import + 注入 Service）`poc/angular-sample/`
 - [x] **运行时动态加载 RuleSet**（不编译进包）+ **schema-driven 动态表单**
 - [x] **同一规则两种渲染**（`poc-incremental/angular-lc-sample/`，顶栏可切换）：① 手写渲染版；② **ngx-formly 模型驱动版**（由运行时 `model.nodes` 动态生成 formly 字段树，自定义类型把编辑/取值/增删/校验全部委托回引擎，引擎仍是计算与校验唯一真相源）。已实测：`ng build` 通过 + 真实 Edge headless 渲染核对（槽位继承字段、各节点校验含 bankScreening、异步汇率结算、subtotal/base/totals/net 计算值、增删按钮全部正确）。修复点：formly 的 form/group 为 OnPush，异步 resolver 完成后需在引擎 onUpdate 里 `markForCheck` 穿透刷新
+- [x] **BYO 页面编辑器接引擎**（formly 版「界面来源」可切换 自动生成 ↔ 自定义 PageDef）：把"生成"与"绑定"解耦——绑定层（`eg-*`+`makeCtx`，`engine-shared.ts`）当 SDK；新增 **可序列化 PageDef**（`page-def.ts`，编辑器产物纯 JSON、不含 ctx）+ **运行时 hydrator**（`hydrator.ts`，注入 ctx、按实际行展开集合、控件种类从模型推导）+ **发布期 linter**（`lint.ts`，校验字段存在/控件种类匹配/集合·at 合法，出错回退自动布局）；`buildRootFields` 降级为缺省回退。已实测：示例 PageDef（重排/取子集）hydrate 渲染正确、lint 通过；故意制造 computed 用输入框 + 未知字段 → lint 报 2 错并回退。说明文档 `docs/byo-editor-binding.md`
 - [x] 第三方接入增量引擎（`poc-incremental/third-party-incremental.html`）
 - [x] 子项增删按钮、数据模型实时查看器
 - [x] 计算值/汇率可编辑（用于篡改演示）+ 可覆盖字段（base）+ **条件可输入字段（adjustMode auto/manual → adjustment 公式态↔可输入态切换）**

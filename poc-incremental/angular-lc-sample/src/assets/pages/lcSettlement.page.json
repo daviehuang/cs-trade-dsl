@@ -1,0 +1,66 @@
+{
+  "ruleSetRef": "lcSettlement@5.1.0",
+  "title": "信用证结算 · 自定义页（模拟页面编辑器产出的 PageDef）",
+  "layout": [
+    {
+      "kind": "panel", "title": "结算速览", "badge": "计算值只读 · 引擎增量算出", "variant": "stats", "grid": "row",
+      "children": [
+        { "kind": "cell", "field": "net", "label": "净额 NET", "emphasis": true },
+        { "kind": "cell", "field": "chargeTotal", "label": "收费合计" },
+        { "kind": "cell", "field": "paymentTotal", "label": "付费合计" },
+        { "kind": "cell", "field": "adjustment", "label": "手续调整" },
+        { "kind": "validations", "path": "root" }
+      ]
+    },
+    {
+      "kind": "panel", "title": "信用证主记录", "grid": "form",
+      "children": [
+        { "kind": "field", "field": "lcNo" },
+        { "kind": "field", "field": "baseCcy", "control": "ccy" },
+        { "kind": "field", "field": "valueDate" },
+        { "kind": "field", "field": "maxNet" },
+        { "kind": "field", "field": "adjustMode", "control": "adjust" }
+      ]
+    },
+    {
+      "kind": "panel", "title": "交易对手", "badge": "申请人 / 受益人 / 银行（编辑器自选字段子集）", "variant": "cards", "grid": "cards",
+      "children": [
+        { "kind": "panel", "at": "applicant", "title": "申请人", "badge": "CustomerParty", "variant": "party", "tone": "cust", "grid": "col",
+          "children": [ { "kind": "field", "field": "name" }, { "kind": "field", "field": "country" }, { "kind": "field", "field": "taxId" }, { "kind": "validations" } ] },
+        { "kind": "panel", "at": "beneficiary", "title": "受益人", "badge": "CustomerParty", "variant": "party", "tone": "cust", "grid": "col",
+          "children": [ { "kind": "field", "field": "name" }, { "kind": "field", "field": "country" }, { "kind": "field", "field": "taxId" }, { "kind": "validations" } ] },
+        { "kind": "panel", "at": "advisingBank", "title": "通知行", "badge": "BankParty", "variant": "party", "tone": "bank", "grid": "col",
+          "children": [ { "kind": "field", "field": "name" }, { "kind": "field", "field": "country" }, { "kind": "field", "field": "bic" }, { "kind": "validations" } ] },
+        { "kind": "panel", "at": "reimbursingBank", "title": "偿付行", "badge": "BankParty", "variant": "party", "tone": "bank", "grid": "col",
+          "children": [ { "kind": "field", "field": "name" }, { "kind": "field", "field": "country" }, { "kind": "field", "field": "bic" }, { "kind": "validations" } ] }
+      ]
+    },
+    {
+      "kind": "panel", "title": "收费明细", "badge": "组 → 明细 · 汇率由 fxConvert 模块异步注入", "variant": "flow",
+      "children": [
+        { "kind": "collection", "name": "charges", "itemGrid": "row", "itemTemplate": [
+          { "kind": "field", "field": "groupName" },
+          { "kind": "cell", "field": "subtotal" },
+          { "kind": "collection", "name": "items", "itemGrid": "row", "itemTemplate": [
+            { "kind": "field", "field": "desc" },
+            { "kind": "field", "field": "ccy", "control": "ccy" },
+            { "kind": "field", "field": "amount" },
+            { "kind": "cell", "field": "fxRate" },
+            { "kind": "cell", "field": "base" }
+          ] }
+        ] }
+      ]
+    },
+    {
+      "kind": "panel", "title": "付费明细", "variant": "flow",
+      "children": [
+        { "kind": "collection", "name": "payments", "itemGrid": "row", "itemTemplate": [
+          { "kind": "field", "field": "ccy", "control": "ccy" },
+          { "kind": "field", "field": "amount" },
+          { "kind": "cell", "field": "fxRate" },
+          { "kind": "cell", "field": "base" }
+        ] }
+      ]
+    }
+  ]
+}
