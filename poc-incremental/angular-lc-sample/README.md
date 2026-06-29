@@ -4,6 +4,12 @@
 **增量引擎**在真实前端框架里的完整接入。与 `third-party-incremental.html`（纯 HTML 版）等价，
 但用 Angular standalone 组件 + 依赖注入 + HttpClient 运行时加载规则的方式实现。
 
+> **一份规则 · 两种渲染**：顶栏可在两个版本间切换——
+> - **手写渲染版**（`app.component.ts`）：模板逐字段手绘，控制力最强；
+> - **ngx-formly 模型驱动版**（`formly/`）：由运行时加载的 `model.nodes` **模型驱动地动态生成**
+>   formly 字段树。同一份 RuleSet、同一引擎、同一 BFF，只是渲染方式不同。它最能体现
+>   "UI 不写死字段、按 model 动态渲染" 这一硬约束。
+
 ## 这个示例覆盖了 lc-rules.json 的全部特性
 
 | 特性 | 规格来源 | 示例中的体现 |
@@ -46,6 +52,24 @@ node bff/server.js   # 监听 http://localhost:8787
 - **"篡改" vs "合法覆盖"**：明细 base 编辑走 `setOverride`（合法，进引擎、随交易声明）；
   小计/合计/净额/付费 base 编辑只记到 `tamper` 表（不进引擎），提交时注入 payload 让中台识破。
 
+## ngx-formly 版是怎么接的
+
+核心思想：**formly 只负责"按模型动态渲染字段树"，引擎仍是计算与校验的唯一真相源**
+（符合"中台负责校验和计算"——前端不重复实现校验/公式）。
+
+1. `engine-meta.ts` 合并 `import` 的类型库节点与本规则集 `model.nodes`，沿 `extends` 链
+   推导每个节点的有效字段及其 `computed / external / overridable` 标记。
+2. `engine-formly.ts` 的 `buildRootFields()` 递归遍历引擎 `getState().tree`，把每个 `ViewNode`
+   翻译成 `FormlyFieldConfig`：可编辑字段 → `eg-field`，计算/外部值 → `eg-cell`（只读、可覆盖），
+   具名槽位 → 面板，子集合 → `eg-collection`（带增删）。
+3. 自定义类型不持有数据：取值/编辑/增删/校验全部经 `EngineCtx` **委托回引擎会话**
+   （`setInput / setOverride / addChild / removeChild`、`getState().validations`）。
+4. **结构变化**（增删子记录）时重建字段树（`rebuild()`）；**值变化 / 异步取数**只刷新——
+   模板里的取值都是实时方法调用，引擎 `onUpdate` + NgZone 触发变更检测即可刷新。
+
+对比意义：手写版字段写死在模板里；formly 版字段完全由运行时 RuleSet 的 `model` 推导，
+**改规则即改表单、无需改前端代码**——这正是"运行时加载、按 model 动态渲染"的最直接体现。
+
 ## 目录
 
 ```
@@ -57,7 +81,12 @@ src/
     engine.service.ts    封装 createSession 的可注入服务
     fx.service.ts        宿主汇率解析器（resolve 回调 + NgZone）
     rule-repository.service.ts  运行时拉取 RuleSet + import 的模块库 + 初值
-    app.component.ts     L/C 表单组件（多层嵌套 + 全部特性）
+    shell.component.ts   外壳：手写版 / ngx-formly 版切换
+    app.component.ts     手写渲染版 L/C 表单（多层嵌套 + 全部特性）
+    formly/
+      engine-meta.ts     从 RuleSet+imports 推导字段元数据（沿 extends 链取有效字段）
+      engine-formly.ts   把 ViewNode 树翻译为 formly 字段配置 + 一组委托回引擎的自定义类型
+      formly-lc.component.ts  ngx-formly 模型驱动版主组件
   assets/rules/
     lcSettlement.json         = poc-incremental/lc-rules.json
     commonFx.json             = poc-incremental/commonFx.json（被 import 的模块库）

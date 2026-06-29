@@ -11,22 +11,17 @@ const CCYS = ['USD', 'EUR', 'HKD', 'GBP', 'JPY', 'SGD', 'CNY'];
 const BFF_URL = 'http://localhost:8787/api/settle';
 
 @Component({
-  selector: 'app-root',
+  selector: 'app-classic',
   standalone: true,
   imports: [CommonModule],
   template: `
-  <div class="top">🏦 <b>GlobalTrade Bank</b>
-    <span class="tag">L/C 结算 · 多层嵌套 · 增量引擎（Angular）</span>
-    <span style="flex:1"></span>
-    <button type="button" class="topbtn" (click)="openModel()">📋 查看数据模型</button>
-  </div>
-
   <div class="feat">
     <label>功能 feature：
       <select [value]="featureId" (change)="selectFeature($any($event.target).value)">
         @for (f of features; track f.id) { <option [value]="f.id">{{ f.label }}</option> }
       </select>
     </label>
+    <button type="button" class="topbtn" (click)="openModel()">📋 查看数据模型</button>
     @if (ruleSet) {
       <span class="muted">运行时已加载规则
         <code>{{ ruleSet.ruleSetId + '@' + ruleSet.version }}</code>

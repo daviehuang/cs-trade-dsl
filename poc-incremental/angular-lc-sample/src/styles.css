@@ -9,3 +9,12 @@ html, body { margin: 0; padding: 0; }
 table.dv { width: 100%; border-collapse: collapse; margin-top: 9px; font-size: 12px; }
 table.dv th, table.dv td { border: 1px solid #ecd6d6; padding: 4px 8px; text-align: left; font-family: Consolas, monospace; }
 table.dv th { background: #fbf0f0; color: #a23; font-family: inherit; }
+
+/* formly 字段组布局：fieldGroupClassName 应用在 formly 生成的 group 容器上（组件局部样式不可达），故放全局。 */
+.eg-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 14px 16px; align-items: start; }
+.eg-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 13px; align-items: stretch; }
+.eg-rowfields { display: grid; grid-template-columns: repeat(auto-fit, minmax(116px, 1fr)); gap: 11px 13px; align-items: end; }
+.eg-colfields { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.eg-form-grid > formly-field, .eg-cards-grid > formly-field,
+.eg-rowfields > formly-field, .eg-colfields > formly-field { min-width: 0; }   /* 防止内容撑破网格列 */
+.span-all { grid-column: 1 / -1; }
