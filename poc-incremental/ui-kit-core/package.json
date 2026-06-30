@@ -1,0 +1,9 @@
+{
+  "name": "@udsl/ui-kit-core",
+  "version": "0.1.0",
+  "description": "框架无关的绑定 SDK：EngineCtx 契约 + PageDef + hydrate→UI-IR + lint + 自动布局回退",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": { ".": "./src/index.ts" }
+}

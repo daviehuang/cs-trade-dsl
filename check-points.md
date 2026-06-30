@@ -91,6 +91,7 @@
 - [x] 第三方接入增量引擎（`poc-incremental/third-party-incremental.html`）
 - [x] 子项增删按钮、数据模型实时查看器
 - [x] 计算值/汇率可编辑（用于篡改演示）+ 可覆盖字段（base）+ **条件可输入字段（adjustMode auto/manual → adjustment 公式态↔可输入态切换）**
+- [x] **多框架运行时渲染 + 中性页面编辑器（PoC）**：把绑定层抽成框架无关 SDK `poc-incremental/ui-kit-core/`（`EngineCtx` + `page-def` + `engine-meta` + `lint` + `make-ctx` + `hydrate`(PageDef→中性 UI-IR) + `build-root-ir`）；新增 React 渲染 kit `ui-kit-react/`（`useSyncExternalStore` over onTick 解决异步刷新，受控输入=引擎真相源）；`react-lc-sample/` 运行时解释**与 Angular 同一份** PageDef+RuleSet，渲染与计算逐项一致（net=82203.22 等，对账 `verify-multiframework.mjs`）；`editor-react/` 最小中性编辑器（布局调色板+控件种类强制、formula/validation 编写+引擎 parser 即时校验、实时预览复用 ui-kit-react、发布期 lint、导出 PageDef+RuleSet）。已实测：各包 `tsc`/`vite build` 通过 + Edge 截图 + 编辑器产物 engine-valid（加 formula 算出 vatTotal=7949.53、加 validation 触发）。说明 `poc-incremental/MULTI-FRAMEWORK.md`。待办：Vue/HTML 适配器（照抄 React kit）、Angular 去重重指向 ui-kit-core、npm 发布
 - [ ] React / Vue 接入示例
 - [ ] 引擎发行物的 **npm 包**（ESM + UMD 双产物 + d.ts）
 - [ ] 大页面工程化：**虚拟化 / 懒渲染 / signals store / zone 外计算 / Web Worker 卸载**（上千栏位）

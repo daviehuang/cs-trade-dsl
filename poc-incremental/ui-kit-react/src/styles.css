@@ -1,0 +1,69 @@
+/* ui-kit-react 样式：与 Angular 版同名 class，保证两框架视觉一致（也利于截图核对）。 */
+
+/* ── 栅格（对应 fieldGroupClassName）── */
+.eg-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 14px 16px; align-items: start; }
+.eg-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 13px; align-items: stretch; }
+.eg-rowfields { display: grid; grid-template-columns: repeat(auto-fit, minmax(116px, 1fr)); gap: 11px 13px; align-items: end; }
+.eg-colfields { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.eg-form-grid > *, .eg-cards-grid > *, .eg-rowfields > *, .eg-colfields > * { min-width: 0; }
+.span-all { grid-column: 1 / -1; }
+
+/* ── 面板 ── */
+.eg-panel.panel { background: #fff; border: 1px solid #e6ebf2; border-radius: 13px; padding: 17px 18px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(15,23,42,.05); min-width: 0; }
+.eg-panel .ph { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; flex-wrap: wrap; }
+.eg-panel .ttl { font-size: 12px; font-weight: 700; color: #334155; letter-spacing: .05em; text-transform: uppercase; }
+.eg-panel .badge { font-size: 10px; font-weight: 600; color: #2563eb; background: #eff4ff; border: 1px solid #d6e2fb; border-radius: 20px; padding: 2px 10px; letter-spacing: .02em; }
+.eg-panel .body { display: block; }
+.eg-panel.v-party { padding: 14px; margin-bottom: 0; border-radius: 12px; background: #fbfcfe; height: 100%; box-shadow: none; }
+.eg-panel.v-party .ph { margin-bottom: 12px; }
+.eg-panel.v-party .ttl { font-size: 11px; color: #475569; letter-spacing: .02em; }
+.eg-panel.tone-bank.v-party { background: #f4f9ff; border-color: #d4e6fb; }
+.eg-panel.tone-bank .badge { color: #0e7a4f; background: #e9f7ef; border-color: #c3e6d2; }
+.eg-panel.tone-cust.v-party { background: #fcfbff; border-color: #e4e0fa; }
+.eg-panel.tone-cust .badge { color: #6d4bd0; background: #f1edff; border-color: #ddd4f7; }
+
+/* ── 可编辑字段 / 计算单元格（label 根带 .l）── */
+.eg-field, .eg-cell { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: #94a3b8; font-weight: 500; letter-spacing: .01em; min-width: 0; }
+.eg-field input, .eg-field select, .eg-cell .cond, .eg-cell .ovr {
+  height: 36px; padding: 0 10px; border: 1px solid #d4dbe6; border-radius: 8px; font-size: 13px;
+  font-family: ui-monospace, Consolas, monospace; background: #fff; color: #1e293b; width: 100%; box-sizing: border-box;
+  transition: border-color .12s, box-shadow .12s;
+}
+.eg-field select { padding-right: 4px; cursor: pointer; }
+.eg-field input:hover, .eg-field select:hover { border-color: #b9c4d6; }
+.eg-field input:focus, .eg-field select:focus, .eg-cell .cond:focus, .eg-cell .ovr:focus {
+  outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.13);
+}
+.eg-cell .row { display: flex; gap: 5px; align-items: center; }
+.eg-cell .cv { height: 36px; display: flex; align-items: center; padding: 0 11px; border: 1px dashed #cfd9e8; border-radius: 8px; background: #f8fafc; color: #2563eb; font-family: ui-monospace, Consolas, monospace; font-size: 13px; box-sizing: border-box; }
+.eg-cell .cv.big { height: auto; padding: 8px 13px; font-size: 21px; font-weight: 700; color: #0b3d6b; background: #eef4ff; border-style: solid; border-color: #cfe0f7; }
+.eg-cell .cv.pend { color: #c2790b; border-color: #ecd6a8; background: #fdf8ee; }
+.eg-cell .cv.err { color: #c0392b; border-color: #f0caca; }
+.eg-cell .ovr { border-style: dashed; background: #f8fafc; color: #2563eb; }
+.eg-cell .ovr.on { border: 2px solid #2563eb; background: #eef5ff; font-weight: 700; }
+.eg-cell .cond { border: 2px solid #d98a26; background: #fffaf0; color: #a86609; font-weight: 700; }
+.eg-cell .row button { height: 30px; background: #f1f6ff; border: 1px solid #cfd9e8; color: #2563eb; border-radius: 7px; padding: 0 8px; cursor: pointer; font-size: 13px; }
+.eg-cell .row button:hover { background: #e4eeff; border-color: #9cb8e8; }
+
+/* ── 校验胶囊 ── */
+.eg-validations.vl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.eg-validations .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; border: 1px solid; }
+.eg-validations .chip i { font-style: normal; }
+.eg-validations .chip em { font-style: normal; opacity: .9; }
+.eg-validations .chip.ok { color: #0e7a4f; background: #eaf7f0; border-color: #c3e6d2; }
+.eg-validations .chip.bad { color: #c0392b; background: #fdecec; border-color: #f3c9c9; }
+
+/* ── 集合 ── */
+.eg-collection.coll { border: 1px solid #e6ebf2; border-radius: 11px; padding: 13px; background: #fafcff; }
+.eg-collection .ch { display: flex; justify-content: space-between; align-items: center; margin-bottom: 11px; }
+.eg-collection .ch b { color: #334155; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.eg-collection .ch .n { font-size: 11px; font-weight: 600; color: #64748b; background: #eef2f8; border-radius: 20px; padding: 1px 8px; }
+.eg-collection .item { position: relative; display: flex; align-items: flex-start; gap: 10px; border: 1px solid #eef2f7; border-radius: 10px; background: #fff; padding: 12px 40px 12px 12px; margin-bottom: 9px; }
+.eg-collection .item:last-of-type { margin-bottom: 0; }
+.eg-collection .item .body { flex: 1; min-width: 0; }
+.eg-collection .idx { flex: none; width: 22px; height: 22px; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #64748b; background: #f1f5fb; border-radius: 50%; }
+.eg-collection .add { background: #ecfaf1; border: 1px solid #bfe3cd; color: #0e7a4f; border-radius: 8px; padding: 5px 13px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.eg-collection .add:hover { background: #dcf3e6; }
+.eg-collection .x { position: absolute; right: 9px; top: 11px; background: #fdf0f0; border: 1px solid #f0d2d2; color: #c0392b; border-radius: 7px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
+.eg-collection .x:hover { background: #fbe0e0; }
+.eg-collection .empty { color: #94a3b8; font-size: 12px; padding: 4px 2px; }
