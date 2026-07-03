@@ -1,36 +1,32 @@
 @echo off
 setlocal
 
-REM 检查参数
 if "%~1"=="" (
     echo Usage:
-    echo     md2pdf.bat input.md output.pdf
-    exit /b 1
-)
-
-if "%~2"=="" (
-    echo Usage:
-    echo     md2pdf.bat input.md output.pdf
+    echo md2pdf input.md [output.pdf]
     exit /b 1
 )
 
 set INPUT=%~1
-set OUTPUT=%~2
 
-pandoc "%INPUT%" ^
--o "%OUTPUT%" ^
---pdf-engine=xelatex ^
--V mainfont="Segoe UI" ^
--V CJKmainfont="Microsoft YaHei"
-
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo Convert failed!
-    exit /b %ERRORLEVEL%
+if "%~2"=="" (
+    set OUTPUT=%~dpn1.pdf
+) else (
+    set OUTPUT=%~2
 )
 
-echo.
-echo Convert success!
-echo Output: %OUTPUT%
+set TEMP=%TEMP%\pandoc_preprocessed.md
+
+python preprocess_md.py "%INPUT%" "%TEMP%"
+
+if errorlevel 1 exit /b 1
+
+pandoc "%TEMP%" ^
+-o "%OUTPUT%" ^
+--pdf-engine=xelatex ^
+-V mainfont="Times New Roman" ^
+-V CJKmainfont="Microsoft YaHei"
+
+del "%TEMP%"
 
 endlocal

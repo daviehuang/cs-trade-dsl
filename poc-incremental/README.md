@@ -2,6 +2,10 @@
 
 > 关联：[异步/规模架构补充](../unified_dsl_async_scale.md) · [架构](../unified_dsl_architecture.md)
 > 验证 **ADR-7（Resolver 异步注入）** 与 **ADR-8（增量依赖图）** 在信用证(L/C)场景的可行性。
+>
+> 进阶（本引擎之上，均已完成）：**一套规则/页面 → 四端渲染**（Angular / React / Vue / 原生 HTML，逐值一致）
+> 见 [MULTI-FRAMEWORK.md](MULTI-FRAMEWORK.md)；**可视化规则/参数编辑器**（Phase 1 + Phase 2 全部）见
+> [editor-fullspec.md](editor-fullspec.md)（编辑器在 `editor-react/`）。
 
 ## 看什么
 
