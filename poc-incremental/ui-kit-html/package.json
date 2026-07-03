@@ -1,0 +1,9 @@
+{
+  "name": "@udsl/ui-kit-html",
+  "version": "0.1.0",
+  "description": "原生 HTML 渲染 kit：UINode → DOM，经 EngineCtx 委托引擎（引擎是唯一真相源）。无框架依赖。",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": { "@udsl/ui-kit-core": "0.1.0" }
+}

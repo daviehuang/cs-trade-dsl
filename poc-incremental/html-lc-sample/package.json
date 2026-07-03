@@ -1,0 +1,18 @@
+{
+  "name": "html-lc-sample",
+  "version": "0.1.0",
+  "description": "原生 HTML 样本：运行时解释同一份 lcSettlement PageDef + RuleSet（证明 UI-IR 框架无关，无框架也能渲染）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "decimal.js": "^10.4.3"
+  },
+  "devDependencies": {
+    "typescript": "~5.4.0",
+    "vite": "^5.4.0"
+  }
+}

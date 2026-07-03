@@ -1,7 +1,8 @@
 # 中性页面编辑器 + 多框架运行时渲染（PoC）
 
 > 问题：能否做一个**中性页面编辑器**（含完整 DSL 规则设置），由其内容在 **HTML / Angular / Vue / React**
-> 多框架运行？**结论：能。** 本 PoC 已用 **React** 证明可行，并落地了一个最小编辑器。
+> 多框架运行？**结论：能，且四端已全部落地。** 同一份 RuleSet + PageDef + 引擎，四个哑渲染 kit
+> 渲染出**逐像素一致**的界面与**逐值相等**的计算（净额 net = 82203.22 四端相同），并落地了一个可视化编辑器。
 
 ## 一句话架构
 
@@ -13,10 +14,10 @@
 RuleSet(JSON,规则)  +  PageDef(JSON,布局)  ──►  @udsl/ui-kit-core  ──►  UI-IR(UINode[])
 （引擎 src/incremental.js 纯 JS）                hydrate / lint / makeCtx / buildRootIR
                        └───────────────────────────────────────────────────────────────────────┘
-                                                         │  每个框架一个"哑渲染器"
-                          ┌──────────────────────────────┼──────────────────────────────┐
-                   @udsl/ui-kit-angular            @udsl/ui-kit-react            (Vue / HTML 照抄)
-                   (eg-* 组件, 现有)                (Eg* 组件, 本 PoC 新增)
+                                                         │  每个框架一个"哑渲染器" switch(node.kind)
+        ┌──────────────────────┬──────────────────────┬──────────────────────┬──────────────────────┐
+   angular(formly 绑定层)   ui-kit-react(Eg* 组件)   ui-kit-vue(渲染函数)     ui-kit-html(纯 DOM)
+        └───────────── 均 import ui-kit-core；共享同名 eg-* CSS，四端视觉一致 ─────────────┘
 ```
 
 ## 目录
@@ -26,10 +27,12 @@ RuleSet(JSON,规则)  +  PageDef(JSON,布局)  ──►  @udsl/ui-kit-core  ─
 | `src/incremental.js` `src/kernel.js` | 引擎（纯 ESM JS，零框架依赖；UMD 见 build-dist.mjs） | 现有 |
 | `ui-kit-core/` | **框架无关 SDK**：`EngineCtx` 契约 + `page-def` + `engine-meta` + `lint` + `make-ctx` + `hydrate`(PageDef→UI-IR) + `build-root-ir`(自动布局回退) | **新增** |
 | `ui-kit-react/` | **React 渲染 kit**：`useEngineSession`(useSyncExternalStore over onTick) + `Eg*` 组件 + `UiRenderer` + 同名 CSS | **新增** |
-| `react-lc-sample/` | React 样本：运行时解释**与 Angular 同一份** lcSettlement PageDef + RuleSet | **新增** |
-| `editor-react/` | **中性页面编辑器**：产出 PageDef + RuleSet，实时预览复用 ui-kit-react，发布期 lint | **新增** |
-| `angular-lc-sample/` | 现有 Angular 样本（自带一份等价的 formly/ 绑定层） | 现有 |
-| `verify-multiframework.mjs` | 框架无关真值 + 编辑器产物有效性验证 | **新增** |
+| `ui-kit-vue/` | **Vue 渲染 kit**：`useEngineSession`(ref 响应式桥) + `UiRenderer`(渲染函数)；`UiRenderer` 内部订阅 onTick 自刷新 | **新增** |
+| `ui-kit-html/` | **原生 HTML 渲染 kit**：`mountEngineSession` + `renderUINode`(纯 DOM，无框架依赖，全量重渲染 + 焦点恢复) | **新增** |
+| `react-lc-sample/` `vue-lc-sample/` `html-lc-sample/` | React / Vue / 原生 HTML 样本：运行时解释**同一份** lcSettlement PageDef + RuleSet | **新增** |
+| `editor-react/` | **中性页面编辑器**：产出 PageDef + RuleSet，实时预览复用 ui-kit-react，发布期 lint（PageDef + RuleSet 两维） | **新增** |
+| `angular-lc-sample/` | Angular 样本：**已去重**，经 tsconfig paths 直接指向单源引擎 + `ui-kit-core`（formly/ 仅保留 formly 专用绑定层） | 现有·已去重 |
+| `verify-multiframework.mjs` `verify-optional-slot.mjs` | 框架无关真值 + 编辑器产物有效性 + 可选 slot 守卫验证 | **新增** |
 
 ## 关键设计点
 
@@ -66,9 +69,12 @@ cd poc-incremental && node verify-multiframework.mjs
 - **编辑器产物 engine-valid**：编辑器加的 `formula vatCalc` 被引擎算出 `vatTotal = 7949.53`；加的
   `validation vatLimit` 被引擎执行并正确触发。
 
+## 已完成的收尾（相对早期 PoC）
+
+- **Vue / 纯 HTML 适配器**：均已落地（`ui-kit-vue` / `ui-kit-html` + 对应样本），四端 net=82203.22 逐值一致、视觉一致。
+- **Angular 去重**：已完成——删掉内嵌的引擎/SDK 副本，经 tsconfig paths 直接指向单源 `src/incremental.js` + `ui-kit-core`，`ng build`(AOT) + 截图回归通过。
+- **RuleSet linter**：`lintRuleSet` 校验 import/uses/slots 引用完整性、formula.target 可写回、resolver.source/keySchema、可选 slot 一致性，编辑器场景与库两种编辑对象都实时显示。
+
 ## 边界 / 后续（不在本 PoC）
 
-- **Vue / 纯 HTML 适配器**：照抄 `ui-kit-react` 模式（UINode → 各自控件）即可，引擎/core/PageDef 全复用。
-- **Angular 去重**：当前 `angular-lc-sample/src/app/formly/` 仍保留一份等价绑定层（与 `ui-kit-core` 有重复）。
-  把 Angular 重指向 `ui-kit-core`（`hydrator`→`ir-to-formly`）是后续清理项，需用现有 `ng build`+截图基线做回归护栏。
-- **npm 正式发布**（ESM+UMD+d.ts）、编辑器 uses/module 全量编写、PageDef 拖拽、接 BFF 权威复算。
+- **npm 正式发布**（ESM+UMD+d.ts）、编辑器 Phase 2（uses/module 全量编写 + resolver 模拟器 + 版本/发布）、接 BFF 权威复算。

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { RuleSet, buildMeta, lintPageDef } from '@udsl/ui-kit-core';
+import { RuleSet, buildMeta, lintPageDef, lintRuleSet } from '@udsl/ui-kit-core';
 import '@udsl/ui-kit-react';     // 预览样式
 
 import ruleSetJson from '../../lc-rules.json';
@@ -54,7 +54,10 @@ export default function App() {
     : s.mutateRuleSet;
 
   const meta = useMemo(() => buildMeta(targetRS, s.libraries), [targetRS, s.libraries]);
-  const lint = useMemo(() => (isLib ? [] : lintPageDef(s.pageDef, s.ruleSet, s.libraries)), [isLib, s.pageDef, s.ruleSet, s.libraries]);
+  // 两类 lint：PageDef↔模型绑定（仅场景）+ RuleSet 内在一致性（场景与库都查，防运行时崩/静默失效）。
+  const pageLint = useMemo(() => (isLib ? [] : lintPageDef(s.pageDef, s.ruleSet, s.libraries)), [isLib, s.pageDef, s.ruleSet, s.libraries]);
+  const rsLint = useMemo(() => lintRuleSet(targetRS, s.libraries), [targetRS, s.libraries]);
+  const lint = useMemo(() => [...rsLint, ...pageLint], [rsLint, pageLint]);
   const errorCount = lint.filter((i) => i.level === 'error').length;
   const warnCount = lint.filter((i) => i.level === 'warn').length;
 
@@ -89,11 +92,11 @@ export default function App() {
       <div className="ed-lintbar">
         <span className="target-chip">编辑对象：{isLib ? <b>库 {editTarget}</b> : <b>场景 {s.ruleSet.ruleSetId}</b>}</span>
         {isLib && <button className="mini" onClick={() => setEditTarget('scenario')}>← 返回场景</button>}
-        {!isLib && (errorCount ? <span className="lint bad">⛔ lint {errorCount} 错</span>
+        {errorCount ? <span className="lint bad">⛔ lint {errorCount} 错</span>
           : warnCount ? <span className="lint warn">⚠ lint {warnCount} 提醒</span>
-            : <span className="lint ok">✔ lint 通过</span>)}
+            : <span className="lint ok">✔ lint 通过</span>}
         {s.restoredFromStorage && <span className="muted">（已从本地恢复）</span>}
-        {!isLib && lint.slice(0, 5).map((i, k) => <span key={k} className={'li ' + i.level}>{i.level === 'error' ? '⛔' : i.level === 'warn' ? '⚠' : 'ℹ'} <code>{i.path}</code> {i.message}</span>)}
+        {lint.slice(0, 5).map((i, k) => <span key={k} className={'li ' + i.level}>{i.level === 'error' ? '⛔' : i.level === 'warn' ? '⚠' : 'ℹ'} <code>{i.path}</code> {i.message}</span>)}
         <span style={{ flex: 1 }} />
         <button className="mini" onClick={() => setShowJson(showJson === 'rules' ? 'none' : 'rules')}>{isLib ? '库' : 'RuleSet'} JSON</button>
         {!isLib && <button className="mini" onClick={() => setShowJson(showJson === 'page' ? 'none' : 'page')}>PageDef JSON</button>}
