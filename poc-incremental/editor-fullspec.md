@@ -34,7 +34,7 @@
 
 ### 域 3 · 模块与装配（Modules & uses）
 - 模块定义：`modules`{moduleId/version/inputs/context/fields/rules/outputs}；模块内规则复用域 2 编辑器（模块命名空间）。
-- 装配 `uses`：`use`(选模块，裸名 / `alias.mod`) + `on`(宿主类型) + `as` + **`bind`(入参←宿主 expr)** + **`produce`(输出→宿主字段)**——可视化端口连线。（全缺）
+- 装配 `uses`：`use`(选模块，裸名 / `alias.mod`) + `on`(宿主类型) + `as` + **`bind`(入参←宿主 expr)** + **`produce`(输出→宿主字段)**——可视化端口连线。（✅ ModulesEditor「模块」tab：模块 CRUD（inputs/fields/resolver·formula·validation 规则/outputs）+ uses 装配 bind/produce，端口按已 import 模块 inputs/outputs 引导）
 
 ### 域 4 · 数据源（dataSources）
 - 登记：`sourceId/version/returns/keySchema/authority/cachePolicy/tolerance`。（✅ DataSourceEditor，「数据源」tab；作用于场景或库）
@@ -118,7 +118,7 @@
 - **Phase 1 · 完整前端编辑（✅ 已实现于 `editor-react`）**：域 2 完整规则(4 类型+cases/fallback+编辑/删除/复制/enable) · 域 1 模型 CRUD(节点/字段/extends/abstract/slots/children) · 域 5 context 接缝+消费反查 · 域 6 imports 选库(库目录+概览) · 域 7 PageDef WYSIWYG(结构树+属性 Inspector+类型感知调色板+拖拽) · 域 9 测试数据 JSON 编辑 + override/pinned/校验检查器 · 域 14 undo/redo · 域 12 一期 localStorage + 导入/导出。
   - 落地文件：`editor-react/src/` 的 `store/editorStore.ts`、`ModelDesigner.tsx`、`RulesEditor.tsx`、`ContextSeams.tsx`、`ImportsManager.tsx`、`LayoutCanvas.tsx`、`TestData.tsx`、`Preview.tsx`(含 Inspector)、`App.tsx`(6 tab + 工具栏)。
   - 验证：`tsc --noEmit && vite build` 通过（64 模块）；Edge headless 截图核对布局树/模型设计器/规则 4 类型/检查器/预览均正常；实时预览 net=82203.22、校验 ✔23、pinned 列全。
-- **Phase 2 · 模块/数据源 + 治理 + 分层 UI**：域 3 模块+uses 连线 · 域 4 dataSources+resolver 模拟 · 域 11 版本/diff/发布-回滚 · 域 14 分层 UI/模板向导。
+- **Phase 2 · 模块/数据源 + 治理 + 分层 UI**：域 3 模块+uses 连线（✅ ModulesEditor）· 域 10 RuleSet linter（✅ lintRuleSet：引用完整性/target 可写回/resolver.source·keySchema/可选 slot）· 域 4 dataSources+resolver 模拟（进行中）· 域 11 版本/diff/发布-回滚（待办）· 域 14 分层 UI/模板向导（待办）。
 - **Phase 3 · 后端 + 协作**：域 12 二期(Rule Bundle API) · 域 13 多人/权限/审批 · 域 6 组件目录/依赖图 · 域 8 多场景参数值。
 
 ---

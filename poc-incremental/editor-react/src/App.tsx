@@ -12,6 +12,7 @@ import pageDefJson from '../../angular-lc-sample/src/assets/pages/lcSettlement.p
 import { useEditorStore } from './store/editorStore';
 import { ModelDesigner } from './ModelDesigner';
 import { RulesEditor } from './RulesEditor';
+import { ModulesEditor } from './ModulesEditor';
 import { ContextSeams } from './ContextSeams';
 import { DataSourceEditor } from './DataSourceEditor';
 import { ImportsManager } from './ImportsManager';
@@ -31,7 +32,7 @@ const initial = {
     'commonMixPayment@1.0.0': commonMixPaymentJson as unknown as RuleSet,
   } as Record<string, RuleSet>,
 };
-type Tab = 'model' | 'rules' | 'datasource' | 'context' | 'imports' | 'layout' | 'data';
+type Tab = 'model' | 'rules' | 'modules' | 'datasource' | 'context' | 'imports' | 'layout' | 'data';
 
 // 库 ↔ RuleSet 形状适配：库用顶层 nodes/…；包成 { model:{nodes} } 供编辑器复用，写回时脱去 model 包装。
 const libToRS = (lib: RuleSet): RuleSet => ({ ...lib, model: { root: Object.keys(lib.nodes ?? {})[0] ?? '', nodes: lib.nodes ?? {} } } as any);
@@ -108,6 +109,7 @@ export default function App() {
           <div className="ed-tabs">
             <button className={tab === 'model' ? 'on' : ''} onClick={() => setTab('model')}>模型</button>
             <button className={tab === 'rules' ? 'on' : ''} onClick={() => setTab('rules')}>规则</button>
+            <button className={tab === 'modules' ? 'on' : ''} onClick={() => setTab('modules')}>模块</button>
             <button className={tab === 'datasource' ? 'on' : ''} onClick={() => setTab('datasource')}>数据源</button>
             <button className={tab === 'context' ? 'on' : ''} onClick={() => setTab('context')}>上下文</button>
             <button className={tab === 'imports' ? 'on' : ''} onClick={() => setTab('imports')}>库</button>
@@ -117,6 +119,7 @@ export default function App() {
 
           {tab === 'model' && <ModelDesigner ruleSet={targetRS} meta={meta} mutateRuleSet={mutateTarget} isLibrary={isLib} />}
           {tab === 'rules' && <RulesEditor ruleSet={targetRS} imports={s.libraries} meta={meta} addField={addField} addRule={addRule} updateRule={updateRule} deleteRule={deleteRule} duplicateRule={duplicateRule} toggleRule={toggleRule} />}
+          {tab === 'modules' && <ModulesEditor ruleSet={targetRS} meta={meta} imports={s.libraries} mutateRuleSet={mutateTarget} />}
           {tab === 'datasource' && <DataSourceEditor ruleSet={targetRS} mutateRuleSet={mutateTarget} />}
           {tab === 'context' && <ContextSeams ruleSet={targetRS} imports={s.libraries} mutateRuleSet={mutateTarget} />}
           {tab === 'imports' && <>
