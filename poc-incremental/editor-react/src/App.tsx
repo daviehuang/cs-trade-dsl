@@ -15,6 +15,8 @@ import { RulesEditor } from './RulesEditor';
 import { ModulesEditor } from './ModulesEditor';
 import { ContextSeams } from './ContextSeams';
 import { DataSourceEditor } from './DataSourceEditor';
+import { ResolverSim } from './ResolverSim';
+import { DEFAULT_MOCKS } from './mock';
 import { ImportsManager } from './ImportsManager';
 import { LibraryManager } from './LibraryManager';
 import { LayoutCanvas } from './LayoutCanvas';
@@ -31,8 +33,9 @@ const initial = {
     'commonParty@1.0.0': commonPartyJson as unknown as RuleSet,
     'commonMixPayment@1.0.0': commonMixPaymentJson as unknown as RuleSet,
   } as Record<string, RuleSet>,
+  mocks: DEFAULT_MOCKS,
 };
-type Tab = 'model' | 'rules' | 'modules' | 'datasource' | 'context' | 'imports' | 'layout' | 'data';
+type Tab = 'model' | 'rules' | 'modules' | 'datasource' | 'mock' | 'context' | 'imports' | 'layout' | 'data';
 
 // 库 ↔ RuleSet 形状适配：库用顶层 nodes/…；包成 { model:{nodes} } 供编辑器复用，写回时脱去 model 包装。
 const libToRS = (lib: RuleSet): RuleSet => ({ ...lib, model: { root: Object.keys(lib.nodes ?? {})[0] ?? '', nodes: lib.nodes ?? {} } } as any);
@@ -111,6 +114,7 @@ export default function App() {
             <button className={tab === 'rules' ? 'on' : ''} onClick={() => setTab('rules')}>规则</button>
             <button className={tab === 'modules' ? 'on' : ''} onClick={() => setTab('modules')}>模块</button>
             <button className={tab === 'datasource' ? 'on' : ''} onClick={() => setTab('datasource')}>数据源</button>
+            <button className={tab === 'mock' ? 'on' : ''} onClick={() => setTab('mock')}>取数模拟</button>
             <button className={tab === 'context' ? 'on' : ''} onClick={() => setTab('context')}>上下文</button>
             <button className={tab === 'imports' ? 'on' : ''} onClick={() => setTab('imports')}>库</button>
             {!isLib && <button className={tab === 'layout' ? 'on' : ''} onClick={() => setTab('layout')}>布局</button>}
@@ -121,6 +125,7 @@ export default function App() {
           {tab === 'rules' && <RulesEditor ruleSet={targetRS} imports={s.libraries} meta={meta} addField={addField} addRule={addRule} updateRule={updateRule} deleteRule={deleteRule} duplicateRule={duplicateRule} toggleRule={toggleRule} />}
           {tab === 'modules' && <ModulesEditor ruleSet={targetRS} meta={meta} imports={s.libraries} mutateRuleSet={mutateTarget} />}
           {tab === 'datasource' && <DataSourceEditor ruleSet={targetRS} mutateRuleSet={mutateTarget} />}
+          {tab === 'mock' && <ResolverSim ruleSet={targetRS} imports={s.libraries} mocks={s.mocks} mutateMocks={s.mutateMocks} />}
           {tab === 'context' && <ContextSeams ruleSet={targetRS} imports={s.libraries} mutateRuleSet={mutateTarget} />}
           {tab === 'imports' && <>
             <LibraryManager libraries={s.libraries} scenarioName={s.ruleSet.ruleSetId} editTarget={editTarget} setEditTarget={setEditTarget} addLibrary={s.addLibrary} deleteLibrary={s.deleteLibrary} />
@@ -141,7 +146,7 @@ export default function App() {
         <div className="ed-right">
           {isLib
             ? <div className="preview"><div className="pv-head"><b>库编辑模式</b></div><div className="lib-note">当前在编辑库 <code>{editTarget}</code>（无场景实例，故无实时预览）。库被场景 import 后可在场景预览里看到效果。返回场景查看预览。</div></div>
-            : <Preview key={s.sessionRev} ruleSet={s.ruleSet} imports={s.libraries} data={s.data} pageDef={s.pageDef} lintErr={errorCount} />}
+            : <Preview key={s.sessionRev} ruleSet={s.ruleSet} imports={s.libraries} data={s.data} pageDef={s.pageDef} mocks={s.mocks} lintErr={errorCount} />}
         </div>
       </div>
     </div>

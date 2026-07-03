@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PageDef, RuleSet } from '@udsl/ui-kit-core';
+import { Mocks } from '../mock';
 
 // 编辑器工作区：一份工件 = { ruleSet, pageDef, data, libraries }。
 //   libraries = 可编辑的库目录（ref → 库），既供 import 引用，也可在编辑器里新建/编辑。
 //   提供 undo/redo（history 栈）、localStorage 自动持久化、导入/导出、重置。
 //   sessionRev 在 ruleSet 或 libraries 引用变化时自增（驱动 Preview remount 出新 session）。
-export interface Bundle { ruleSet: RuleSet; pageDef: PageDef; data: any; libraries: Record<string, RuleSet>; }
+export interface Bundle { ruleSet: RuleSet; pageDef: PageDef; data: any; libraries: Record<string, RuleSet>; mocks: Mocks; }
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 const LS_KEY = 'udsl-editor-bundle-v2';
 const MAX_HIST = 100;
 
 export interface EditorStore {
-  ruleSet: RuleSet; pageDef: PageDef; data: any; libraries: Record<string, RuleSet>;
+  ruleSet: RuleSet; pageDef: PageDef; data: any; libraries: Record<string, RuleSet>; mocks: Mocks;
   rev: number;            // 任意变更自增（memo/lint 依赖）
-  sessionRev: number;     // ruleSet 或 libraries 变更自增（Preview remount）
+  sessionRev: number;     // ruleSet / libraries / mocks 变更自增（Preview remount 出新 session + resolve）
   setRuleSet: (rs: RuleSet) => void;
   setPageDef: (pd: PageDef) => void;
   setData: (d: any) => void;
   mutateRuleSet: (fn: (rs: RuleSet) => void) => void;
+  mutateMocks: (fn: (m: Mocks) => void) => void;
   mutatePageDef: (fn: (pd: PageDef) => void) => void;
   mutateLibrary: (ref: string, fn: (lib: RuleSet) => void) => void;
   addLibrary: (ref: string, lib: RuleSet) => void;
@@ -39,7 +41,7 @@ export function useEditorStore(initial: Bundle): EditorStore {
         if (b?.ruleSet && b?.pageDef) {
           restored.current = true;
           // 回填内置库目录：旧/残缺的持久化里 libraries 可能缺失，导致引擎解析不到 import。
-          return [{ ...clone(initial), ...b, libraries: { ...initial.libraries, ...(b.libraries || {}) } }];
+          return [{ ...clone(initial), ...b, libraries: { ...initial.libraries, ...(b.libraries || {}) }, mocks: { ...initial.mocks, ...(b.mocks || {}) } }];
         }
       } catch { /* ignore */ }
     }
@@ -50,8 +52,8 @@ export function useEditorStore(initial: Bundle): EditorStore {
   const cur = hist[idx];
 
   // ruleSet / libraries 引用变化检测 → sessionRev
-  const refs = useRef({ rs: cur.ruleSet, libs: cur.libraries, n: 0 });
-  if (refs.current.rs !== cur.ruleSet || refs.current.libs !== cur.libraries) { refs.current = { rs: cur.ruleSet, libs: cur.libraries, n: refs.current.n + 1 }; }
+  const refs = useRef({ rs: cur.ruleSet, libs: cur.libraries, mocks: cur.mocks, n: 0 });
+  if (refs.current.rs !== cur.ruleSet || refs.current.libs !== cur.libraries || refs.current.mocks !== cur.mocks) { refs.current = { rs: cur.ruleSet, libs: cur.libraries, mocks: cur.mocks, n: refs.current.n + 1 }; }
   const sessionRev = refs.current.n;
 
   const commit = useCallback((next: Bundle) => {
@@ -65,6 +67,7 @@ export function useEditorStore(initial: Bundle): EditorStore {
   const setPageDef = useCallback((pd: PageDef) => patch({ pageDef: pd }), [patch]);
   const setData = useCallback((d: any) => patch({ data: d }), [patch]);
   const mutateRuleSet = useCallback((fn: (rs: RuleSet) => void) => { const rs = clone(cur.ruleSet); fn(rs); patch({ ruleSet: rs }); }, [patch, cur]);
+  const mutateMocks = useCallback((fn: (m: Mocks) => void) => { const m = clone(cur.mocks); fn(m); patch({ mocks: m }); }, [patch, cur]);
   const mutatePageDef = useCallback((fn: (pd: PageDef) => void) => { const pd = clone(cur.pageDef); fn(pd); patch({ pageDef: pd }); }, [patch, cur]);
   const mutateLibrary = useCallback((ref: string, fn: (lib: RuleSet) => void) => { const libs = { ...cur.libraries }; const lib = clone(libs[ref]); fn(lib); libs[ref] = lib; patch({ libraries: libs }); }, [patch, cur]);
   const addLibrary = useCallback((ref: string, lib: RuleSet) => { patch({ libraries: { ...cur.libraries, [ref]: clone(lib) } }); }, [patch, cur]);
@@ -78,14 +81,14 @@ export function useEditorStore(initial: Bundle): EditorStore {
 
   const exportBundle = useCallback(() => JSON.stringify(cur, null, 2), [cur]);
   const importBundle = useCallback((b: Partial<Bundle>) => {
-    const next: Bundle = { ruleSet: b.ruleSet ?? cur.ruleSet, pageDef: b.pageDef ?? cur.pageDef, data: b.data ?? cur.data, libraries: b.libraries ?? cur.libraries };
+    const next: Bundle = { ruleSet: b.ruleSet ?? cur.ruleSet, pageDef: b.pageDef ?? cur.pageDef, data: b.data ?? cur.data, libraries: b.libraries ?? cur.libraries, mocks: b.mocks ?? cur.mocks };
     setHist([clone(next)]); setIdx(0); setRev((r) => r + 1);
   }, [cur]);
   const reset = useCallback(() => { try { localStorage.removeItem(LS_KEY); } catch { /* */ } setHist([clone(initial)]); setIdx(0); setRev((r) => r + 1); }, [initial]);
 
   return {
-    ruleSet: cur.ruleSet, pageDef: cur.pageDef, data: cur.data, libraries: cur.libraries, rev, sessionRev,
-    setRuleSet, setPageDef, setData, mutateRuleSet, mutatePageDef, mutateLibrary, addLibrary, deleteLibrary,
+    ruleSet: cur.ruleSet, pageDef: cur.pageDef, data: cur.data, libraries: cur.libraries, mocks: cur.mocks, rev, sessionRev,
+    setRuleSet, setPageDef, setData, mutateRuleSet, mutateMocks, mutatePageDef, mutateLibrary, addLibrary, deleteLibrary,
     canUndo, canRedo, undo, redo, exportBundle, importBundle, reset, restoredFromStorage: restored.current,
   };
 }

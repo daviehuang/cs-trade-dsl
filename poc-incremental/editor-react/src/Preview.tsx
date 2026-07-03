@@ -2,15 +2,14 @@ import { useMemo, useState } from 'react';
 import { createSession } from '@udsl/engine';
 import { PageDef, RuleSet, SessionState, buildMeta, buildRootIR, hydratePage } from '@udsl/ui-kit-core';
 import { UiRenderer, useEngineSession } from '@udsl/ui-kit-react';
-import { makeResolve } from './fx';
-
-const resolve = makeResolve(400);
+import { Mocks, makeResolveFromMocks } from './mock';
 
 // 实时预览 + 检查器：用【当前 RuleSet】建真 session，渲染【当前 PageDef】。
-//   App 用 key={ruleSetRev} 让 RuleSet 变化时 remount → 新 session。PageDef/data 变化靠 useMemo 重算。
-export function Preview({ ruleSet, imports, data, pageDef, lintErr }: {
-  ruleSet: RuleSet; imports: Record<string, RuleSet>; data: any; pageDef: PageDef; lintErr: number;
+//   resolve 由「取数模拟」的 mocks 生成；App 用 key={sessionRev} 让 RuleSet/库/mocks 变化时 remount。
+export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr }: {
+  ruleSet: RuleSet; imports: Record<string, RuleSet>; data: any; pageDef: PageDef; mocks: Mocks; lintErr: number;
 }) {
+  const resolve = useMemo(() => makeResolveFromMocks(mocks), [mocks]);
   const { ctx, getState, structVersion, error } = useEngineSession({ createSession, ruleSet, imports, data, resolve });
   const meta = useMemo(() => buildMeta(ruleSet, imports), [ruleSet, imports]);
   const st = getState();
