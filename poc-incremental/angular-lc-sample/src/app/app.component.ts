@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { EngineService } from './engine.service';
 import { FxService } from './fx.service';
 import { RuleRepositoryService } from './rule-repository.service';
-import { Cell, RuleSet, Session, SessionState, ViewNode } from './dsl/incremental';
+import { Cell, RuleSet, Session, SessionState, ViewNode } from '@udsl/ui-kit-core';
 
 interface LogLine { n: number; cls: string; text: string; }
 const CCYS = ['USD', 'EUR', 'HKD', 'GBP', 'JPY', 'SGD', 'CNY'];

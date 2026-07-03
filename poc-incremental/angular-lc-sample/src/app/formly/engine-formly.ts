@@ -6,14 +6,14 @@
 import { ChangeDetectorRef, Component, Directive, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FieldType, FieldTypeConfig, FieldWrapper, FormlyFieldConfig, FormlyModule } from '@ngx-formly/core';
-import { Cell, Session, SessionState, ViewNode } from '../dsl/incremental';
-import { buildMeta, EngineMeta } from './engine-meta';
 import {
+  Cell, Session, SessionState, ViewNode,
+  buildMeta, EngineMeta,
   CCYS, COLL_LABEL, COLL_TEMPLATE, EngineCtx, FIELD_LABEL, ROW_TYPES, SLOT_LABEL,
   controlOf, resolveCell, toneOf,
-} from './engine-shared';
+} from '@udsl/ui-kit-core';
 
-export { EngineCtx } from './engine-shared';     // 绑定层对外仍从这里导出 EngineCtx
+export { EngineCtx } from '@udsl/ui-kit-core';     // 绑定层对外仍从这里导出 EngineCtx
 
 /**
  * 基于一个 Session 构建上下文：含路径→cell 解析（支持 slot 与 collection[i]）。

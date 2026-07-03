@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { forkJoin, Observable, of } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
-import { RuleSet } from './dsl/incremental';
+import { RuleSet } from '@udsl/ui-kit-core';
 
 /** 一次功能加载所需的全部产物：规则集 + 它 import 的模块库 + 业务初值。 */
 export interface FeatureBundle {

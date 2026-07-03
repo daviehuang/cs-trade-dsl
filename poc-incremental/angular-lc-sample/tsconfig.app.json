@@ -5,5 +5,5 @@
     "types": []
   },
   "files": ["src/main.ts"],
-  "include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.js"]
+  "include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.js", "../ui-kit-core/src/**/*.ts"]
 }

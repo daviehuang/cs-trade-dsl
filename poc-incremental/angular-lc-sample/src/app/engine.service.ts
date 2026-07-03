@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-// 直接 import 真实增量引擎（ESM）。Angular 当普通库打包，与 PoC/BFF/中台同一份源码。
-import { createSession, RuleSet, Session, SessionOpts } from './dsl/incremental';
+// 直接 import 真实增量引擎（ESM）——单源真相 poc-incremental/src/incremental.js（与 PoC/BFF/中台同一份）。
+import { createSession } from '@udsl/engine';
+import { RuleSet, Session, SessionOpts } from '@udsl/ui-kit-core';
 
 /**
  * 把增量引擎封装成 Angular 可注入服务。引擎是 headless 的——这里没有任何界面逻辑，

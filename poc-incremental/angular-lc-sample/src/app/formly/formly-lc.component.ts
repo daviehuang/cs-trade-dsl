@@ -7,13 +7,12 @@ import { FormlyModule, FormlyFieldConfig } from '@ngx-formly/core';
 import { EngineService } from '../engine.service';
 import { FxService } from '../fx.service';
 import { RuleRepositoryService } from '../rule-repository.service';
-import { RuleSet, Session, SessionState, ViewNode } from '../dsl/incremental';
+import {
+  RuleSet, Session, SessionState, ViewNode,
+  EngineCtx, buildMeta, EngineMeta, lintPageDef, LintIssue, PageDef,
+} from '@udsl/ui-kit-core';
 import { buildRootFields, makeCtx } from './engine-formly';
-import { EngineCtx } from './engine-shared';
-import { buildMeta, EngineMeta } from './engine-meta';
 import { hydratePage } from './hydrator';
-import { lintPageDef, LintIssue } from './lint';
-import { PageDef } from './page-def';
 
 const BFF_URL = 'http://localhost:8787/api/settle';
 

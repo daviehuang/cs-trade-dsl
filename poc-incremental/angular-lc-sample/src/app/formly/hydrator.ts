@@ -4,13 +4,11 @@
 //         ③ 计算/外部/覆盖等"种类"从模型推导（不信任编辑器），保证绑定行为正确。
 // 注意：引擎是计算与校验唯一真相源；hydrator 不做任何业务逻辑。
 import { FormlyFieldConfig } from '@ngx-formly/core';
-import { SessionState } from '../dsl/incremental';
-import { EngineMeta } from './engine-meta';
-import { PageDef, PageNode } from './page-def';
 import {
+  SessionState, EngineMeta, PageDef, PageNode,
   COLL_LABEL, COLL_TEMPLATE, EngineCtx, FIELD_LABEL,
   controlOf, gridClass, lastSeg, resolveNode, specAt,
-} from './engine-shared';
+} from '@udsl/ui-kit-core';
 
 interface H { ctx: EngineCtx; state: SessionState; meta: EngineMeta; }
 

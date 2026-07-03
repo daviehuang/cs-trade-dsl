@@ -1,5 +1,5 @@
 import { Injectable, NgZone, inject } from '@angular/core';
-import { ResolveFn } from './dsl/incremental';
+import { ResolveFn } from '@udsl/ui-kit-core';
 
 /**
  * 宿主侧的汇率参考数据服务（引擎从不碰 IO，只通过 resolve 回调拿值）。
