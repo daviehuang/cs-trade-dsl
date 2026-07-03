@@ -23,7 +23,7 @@ window.LC_RULES = {
           "applicant":       "CustomerParty",
           "beneficiary":     "CustomerParty",
           "advisingBank":    "BankParty",
-          "adviseThrough":   "BankParty",
+          "adviseThrough":   { "node": "BankParty", "optional": true },
           "reimbursingBank": "BankParty"
         },
         "children": [

@@ -1,0 +1,23 @@
+{
+  "ruleSetId": "mixDemo",
+  "version": "1.0.0",
+  "description": "Mix Payment 组件演示场景（宿主）：Deal 引用 commonMixPayment.MixPayment 作为具名槽位 charge；币别由 context 注入（ctx.ccy=root.dealCcy），外部总额由宿主 formula 注入（extTotal=parent.agreedFee）。换场景只改这两处接缝，组件文件零改动。",
+  "imports": [ { "ref": "commonMixPayment@1.0.0", "as": "mix" } ],
+  "model": {
+    "root": "Deal",
+    "nodes": {
+      "Deal": {
+        "fields": {
+          "dealCcy":   { "type": "string" },
+          "agreedFee": { "type": "decimal" }
+        },
+        "slots": { "charge": "MixPayment" }
+      }
+    }
+  },
+  "context": { "ccy": "root.dealCcy" },
+  "rules": [
+    { "id": "feedExtTotal", "type": "formula", "scope": "MixPayment", "trigger": "calc",
+      "target": "extTotal", "expr": "parent.agreedFee" }
+  ]
+}

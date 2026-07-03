@@ -11,6 +11,7 @@ export interface FieldSpec {
 }
 
 export interface ChildColl { name: string; node: string; }
+export interface SlotDef { node: string; optional: boolean; }
 
 export interface EngineMeta {
   /** 合并后的节点定义表（库节点 + 本规则集节点）。 */
@@ -19,8 +20,10 @@ export interface EngineMeta {
   root: string;
   /** 沿 extends 链合并的有效字段（基类在前、子类型在后）。 */
   effectiveFields(type: string): Record<string, FieldSpec>;
-  /** 沿 extends 链合并的具名槽位（slot 名 → 子节点类型）。 */
+  /** 沿 extends 链合并的具名槽位（slot 名 → 子节点类型，归一化）。 */
   effectiveSlots(type: string): Record<string, string>;
+  /** 具名槽位完整定义（含 optional）。 */
+  effectiveSlotDefs(type: string): Record<string, SlotDef>;
   /** 沿 extends 链合并的子集合定义（去重）。 */
   childrenOf(type: string): ChildColl[];
 }
@@ -41,6 +44,13 @@ export function buildMeta(ruleSet: RuleSet, imports: Record<string, RuleSet>): E
     return out;
   };
   const normColls = (c: any): ChildColl[] => (!c ? [] : Array.isArray(c) ? c : [c]);
+  const slotDefs = (type: string): Record<string, SlotDef> => {
+    const raw: Record<string, any> = {};
+    for (const t of chain(type)) Object.assign(raw, merged[t]?.slots ?? {});
+    const o: Record<string, SlotDef> = {};
+    for (const [k, v] of Object.entries(raw)) o[k] = typeof v === 'string' ? { node: v, optional: false } : { node: v.node, optional: !!v.optional };
+    return o;
+  };
 
   return {
     nodes: merged,
@@ -52,9 +62,10 @@ export function buildMeta(ruleSet: RuleSet, imports: Record<string, RuleSet>): E
     },
     effectiveSlots(type: string) {
       const o: Record<string, string> = {};
-      for (const t of chain(type)) Object.assign(o, merged[t]?.slots ?? {});
+      for (const [k, v] of Object.entries(slotDefs(type))) o[k] = v.node;
       return o;
     },
+    effectiveSlotDefs(type: string) { return slotDefs(type); },
     childrenOf(type: string) {
       const out: ChildColl[] = [];
       const seen = new Set<string>();

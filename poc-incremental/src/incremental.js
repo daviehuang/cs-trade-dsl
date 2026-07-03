@@ -61,8 +61,22 @@ export function createSession(ruleSet, data, opts = {}) {
     for (const t of typeChain(type)) for (const c of normColls(nodeDef(t).children)) if (!seen.has(c.name)) { seen.add(c.name); out.push(c); }
     return out;
   }
-  // 具名单节点 slots：{ 槽位名: 子类型 }，沿链合并（区别于集合 children）
-  function effectiveSlots(type) { const o = {}; for (const t of typeChain(type)) Object.assign(o, nodeDef(t).slots || {}); return o; }
+  // 具名单节点 slots：{ 槽位名: 子类型 | {node, optional} }，沿链合并；归一化为 { node, optional }
+  function effectiveSlots(type) {
+    const o = {}; for (const t of typeChain(type)) Object.assign(o, nodeDef(t).slots || {});
+    const out = {};
+    for (const [name, v] of Object.entries(o)) out[name] = typeof v === "string" ? { node: v, optional: false } : { node: v.node, optional: !!v.optional };
+    return out;
+  }
+  // 可选对象"存在(在用)"守卫表达式：任一输入字段有值（字符串 len>0，其余 != null）。空→null（无输入字段）
+  function activeGuardExpr(type) {
+    const terms = [];
+    for (const [f, spec] of Object.entries(effectiveFields(type))) {
+      if (spec.computed || spec.external) continue;
+      terms.push(spec.type === "string" ? `len(${f}) > 0` : `${f} != null`);
+    }
+    return terms.length ? terms.join(" || ") : null;
+  }
 
   // ── 递归节点注册表 ──
   const nodes = new Map();          // path -> { path, type, parentPath, data }
@@ -78,8 +92,11 @@ export function createSession(ruleSet, data, opts = {}) {
       const arr = d[coll.name] || [];
       arr.forEach((cd, i) => buildTree(`${path}.${coll.name}[${i}]`, coll.node, path, cd));
     }
-    for (const [slotName, slotType] of Object.entries(effectiveSlots(type)))   // 具名单节点：data[slotName] 为对象
-      buildTree(`${path}.${slotName}`, slotType, path, (d && d[slotName]) || {});
+    for (const [slotName, slotDef] of Object.entries(effectiveSlots(type))) {   // 具名单节点：data[slotName] 为对象
+      const childPath = `${path}.${slotName}`;
+      buildTree(childPath, slotDef.node, path, (d && d[slotName]) || {});
+      if (slotDef.optional) nodes.get(childPath).optionalSlot = true;           // 可选 slot：空时抑制其校验
+    }
   }
   buildTree("root", rootType, null, data);
 
@@ -181,7 +198,10 @@ export function createSession(ruleSet, data, opts = {}) {
       cells.set(id, { ...base, id, kind: "resolver", source: rule.source, key: rule.key, lastKey: null, pinned: null });
     } else if (rule.type === "validation") {
       const id = path + ".__val_" + rule.id;
-      cells.set(id, { ...base, id, kind: "validation", ruleId: rule.id, scope: rule.scope || rootType, expr: rule.expr, message: rule.message || "", severity: rule.severity || "error" });
+      // 该节点占据可选 slot（optionalSlot）时，包一层"存在才校验"守卫：全空则通过（跳过），填了任一字段则照常校验。
+      let expr = rule.expr;
+      if (nodes.get(path).optionalSlot) { const g = activeGuardExpr(ntype); if (g) expr = `!(${g}) || (${rule.expr})`; }
+      cells.set(id, { ...base, id, kind: "validation", ruleId: rule.id, scope: rule.scope || rootType, expr, message: rule.message || "", severity: rule.severity || "error" });
     }
   }
   // 为一个节点建 input + 规则 cells（初次与动态增子时复用）
@@ -413,8 +433,8 @@ export function createSession(ruleSet, data, opts = {}) {
       collections[coll.name] = live;
     }
     const slots = {};
-    for (const [slotName, slotType] of Object.entries(effectiveSlots(type))) // 具名单节点
-      slots[slotName] = viewNode(`${path}.${slotName}`, slotType);
+    for (const [slotName, slotDef] of Object.entries(effectiveSlots(type))) // 具名单节点
+      slots[slotName] = viewNode(`${path}.${slotName}`, slotDef.node);
     return { path, type, fields, collections, slots };
   }
   function getState() {

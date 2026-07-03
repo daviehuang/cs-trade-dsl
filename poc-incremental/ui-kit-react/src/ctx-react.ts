@@ -6,7 +6,6 @@ import { useState, useSyncExternalStore } from 'react';
 import { CreateSession, EngineCtx, RuleSet, ResolveFn, Session, SessionState, makeCtx } from '@udsl/ui-kit-core';
 
 export interface EngineStore {
-  session: Session;
   ctx: EngineCtx;
   getState: () => SessionState;
   subscribe: (cb: () => void) => () => void;
@@ -14,6 +13,8 @@ export interface EngineStore {
   getVersion: () => number;
   /** 仅结构版本（增删子记录时变化 → 需重建 UI-IR）。 */
   getStructVersion: () => number;
+  /** createSession 失败（如 import 未解析）时的错误信息；非空则渲染层应显示提示而非崩溃。 */
+  error?: string;
 }
 
 export interface UseEngineOpts {
@@ -24,27 +25,39 @@ export interface UseEngineOpts {
   resolve: ResolveFn;
 }
 
+const EMPTY_STATE: SessionState = {
+  tree: { path: 'root', type: '', fields: {}, collections: {}, slots: {} },
+  validations: [], pinned: [], overrides: [], anyPending: false,
+};
+const NOOP_CTX: EngineCtx = {
+  ccys: [], valueOf: () => '', cellText: () => '—', cellState: () => undefined,
+  onInput: () => {}, onOverride: () => {}, clearOverride: () => {},
+  addChild: () => {}, removeChild: () => {}, validationsFor: () => [], onTick: () => () => {},
+};
+
 function createStore(opts: UseEngineOpts): EngineStore {
   let valueVer = 0;
   let structVer = 0;
   const subs = new Set<() => void>();
   const fire = () => subs.forEach((s) => s());
-
-  const session = opts.createSession(opts.ruleSet, structuredClone(opts.data), {
-    resolve: opts.resolve,
-    imports: opts.imports,
-    onUpdate: () => { valueVer++; fire(); },                    // 值刷新（含异步取数完成）
-  });
-  const built = makeCtx(session, () => session.getState(), () => { structVer++; fire(); });  // 增删 → 结构刷新
-
-  return {
-    session,
-    ctx: built.ctx,
-    getState: () => session.getState(),
-    subscribe: (cb) => { subs.add(cb); return () => subs.delete(cb); },
+  const base = {
+    subscribe: (cb: () => void) => { subs.add(cb); return () => subs.delete(cb); },
     getVersion: () => valueVer + structVer,
     getStructVersion: () => structVer,
   };
+
+  try {
+    const session = opts.createSession(opts.ruleSet, structuredClone(opts.data), {
+      resolve: opts.resolve,
+      imports: opts.imports,
+      onUpdate: () => { valueVer++; fire(); },                  // 值刷新（含异步取数完成）
+    });
+    const built = makeCtx(session, () => session.getState(), () => { structVer++; fire(); });  // 增删 → 结构刷新
+    return { ...base, ctx: built.ctx, getState: () => session.getState() };
+  } catch (e: any) {
+    // 建会话失败（常见：某 import ref 未解析）——不崩溃，返回错误态供渲染层提示。
+    return { ...base, ctx: NOOP_CTX, getState: () => EMPTY_STATE, error: e?.message ?? String(e) };
+  }
 }
 
 /** 建立一次会话并订阅其更新；返回 ctx / getState（实时） / 结构版本（供重建 UI-IR）。 */
@@ -53,8 +66,9 @@ export function useEngineSession(opts: UseEngineOpts): {
   getState: () => SessionState;
   structVersion: number;
   version: number;
+  error?: string;
 } {
   const [store] = useState(() => createStore(opts));            // 仅建一次
   const version = useSyncExternalStore(store.subscribe, store.getVersion, store.getVersion);
-  return { ctx: store.ctx, getState: store.getState, structVersion: store.getStructVersion(), version };
+  return { ctx: store.ctx, getState: store.getState, structVersion: store.getStructVersion(), version, error: store.error };
 }

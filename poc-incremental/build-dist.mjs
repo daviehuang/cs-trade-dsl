@@ -59,3 +59,14 @@ writeFileSync(join(here, "rules/commonParty.rules.js"),
   `// 类型库产物（生产中由 Rule Bundle API 下发：fetch('/rulesets/commonParty@1.0.0')）\nwindow.COMMON_PARTY = ${commonParty};\n`);
 writeFileSync(join(here, "rules/commonParty.json"), commonParty);
 console.log("✅ rules/commonParty.rules.js + commonParty.json（类型库）");
+
+// 可复用「混合收费」组件 + 其演示场景，作为独立产物导出（运行时按 ref 加载）
+const commonMixPayment = read("commonMixPayment.json");
+writeFileSync(join(here, "rules/commonMixPayment.rules.js"),
+  `// 组件库产物（被 mixDemo import：MixPayment/ChargeItem + 对账规则）\nwindow.COMMON_MIX_PAYMENT = ${commonMixPayment};\n`);
+writeFileSync(join(here, "rules/commonMixPayment.json"), commonMixPayment);
+const mixDemo = read("mixDemo.json");
+writeFileSync(join(here, "rules/mixDemo.rules.js"),
+  `// 演示场景产物（import commonMixPayment；币别/总额外部传入的接缝在此）\nwindow.MIX_DEMO = ${mixDemo};\n`);
+writeFileSync(join(here, "rules/mixDemo.json"), mixDemo);
+console.log("✅ rules/commonMixPayment.rules.js + mixDemo.rules.js（Mix Payment 组件 + 场景）");

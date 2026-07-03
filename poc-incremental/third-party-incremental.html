@@ -132,10 +132,37 @@
   </div>
 </div>
 
+<!-- ───── 独立可复用组件演示：混合收费 Mix Payment（币别/总额外部传入）───── -->
+<div class="wrap" style="margin-top:0">
+  <div style="grid-column:1/-1">
+    <div class="panel"><h3>混合收费 Mix Payment（独立可复用组件 · 币别/总额外部传入）</h3>
+      <div class="hint" style="margin-top:0">组件 <code>commonMixPayment</code> 被 <code>mixDemo</code> 场景 <code>import</code>：
+        <b>币别</b>由场景 <code>context</code> 注入（<code>ctx.ccy = root.dealCcy</code>），<b>外部总额</b>由宿主 formula 注入（<code>extTotal = parent.agreedFee</code>）。
+        组件零业务耦合——同一文件可被多场景复用，换场景只改这两处接缝。</div>
+      <div class="hdr" style="margin-top:11px">
+        <label>币别（外部传入 ctx.ccy）<select id="mixCcy" onchange="mixSetCcy(this.value)"></select></label>
+        <label>外部总额（agreedFee → extTotal）<input id="mixTotal" oninput="mixSet('root.agreedFee', this.value)" /></label>
+      </div>
+      <table style="margin-top:10px"><thead><tr><th>收费明细</th><th>金额（amount）</th><th></th></tr></thead>
+        <tbody id="mixItems"></tbody></table>
+      <button type="button" class="addbig" onclick="mixAddItem()">+ 明细</button>
+      <div class="totals" style="margin-top:13px">
+        <div><span class="k">明细合计 itemsTotal（组件自算）</span><b id="mixItemsTotal" style="font-family:Consolas,monospace;color:#0b6bc2;font-size:15px"></b></div>
+        <div><span class="k">外部总额 extTotal（宿主注入）</span><b id="mixExtTotal" style="font-family:Consolas,monospace;font-size:15px"></b></div>
+        <div><span class="k">差额 diff</span><b id="mixDiff" style="font-family:Consolas,monospace;font-size:15px"></b></div>
+      </div>
+      <ul class="vlist" id="mixVals"></ul>
+      <div class="hint">改金额让明细合计 ≠ 外部总额，可见 <code>mixTotalMatch</code> 校验触发（消息里 <code>{ctx.ccy}</code> 即场景币别）。</div>
+    </div>
+  </div>
+</div>
+
 <script src="dist/unified-dsl-incremental.js"></script>
 <script src="rules/commonFx.rules.js"></script>      <!-- 模块库（被规则集 import） -->
 <script src="rules/commonParty.rules.js"></script>   <!-- 类型库：Party/Customer/Bank 节点类型 + 通用校验 -->
 <script src="rules/lcSettlement.rules.js"></script>
+<script src="rules/commonMixPayment.rules.js"></script> <!-- 可复用「混合收费」组件（被 mixDemo import） -->
+<script src="rules/mixDemo.rules.js"></script>          <!-- Mix Payment 演示场景（币别/总额外部传入） -->
 <script>
   document.getElementById("ver").textContent = UnifiedDSL.version;
   const CCYS = ["USD","EUR","HKD","GBP","JPY","SGD","CNY"];
@@ -357,6 +384,46 @@
   // 所有声明就绪后再创建会话
   session = UnifiedDSL.createSession(window.LC_RULES, data, { resolve: myFxApi, imports: IMPORTS, onUpdate: (s)=>{ renderView(s); if(document.getElementById("modal").classList.contains("on")) refreshModel(); }, onLog: appendLog });
   renderView(session.getState());
+
+  // ───── 混合收费 Mix Payment 组件演示（独立的第二个会话）─────
+  const MIX_IMPORTS = { [window.COMMON_MIX_PAYMENT.ruleSetId + "@" + window.COMMON_MIX_PAYMENT.version]: window.COMMON_MIX_PAYMENT };
+  const mixData = { dealCcy:"USD", agreedFee:"300", charge:{ items:[ {desc:"开证费",amount:"100"}, {desc:"通知费",amount:"200"} ] } };
+  const esc = (s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+  // 路径→cell（支持 slot 与 collection[i]）
+  function mixCell(state, path){
+    const toks=path.split("."); let node=state.tree;
+    for(let k=1;k<toks.length;k++){ const tok=toks[k], m=tok.match(/^(\w+)\[(\d+)\]$/);
+      if(m){ node=node&&node.collections[m[1]]&&node.collections[m[1]][+m[2]]; continue; }
+      if(node&&node.slots&&node.slots[tok]){ node=node.slots[tok]; continue; }
+      const i=path.lastIndexOf("."); return node&&node.fields[path.slice(i+1)]; }
+    return undefined;
+  }
+  const mixVal = (state,p)=>{ const c=mixCell(state,p); return c ? (c.state==="resolved"||c.state==="overridden"||c.state==="input" ? c.value : "⏳") : "—"; };
+  let mixSession;
+  window.mixSet = (id,v)=>{ logDiv("mix 改 "+id); mixSession.setInput(id,v); };
+  window.mixSetCcy = (v)=> window.mixSet("root.dealCcy", v);
+  window.mixAddItem = ()=>{ logDiv("mix addChild charge.items"); mixSession.addChild("root.charge","items",{desc:"新明细",amount:"0"}); };
+  window.mixRemove = (path)=>{ logDiv("mix removeChild "+path); mixSession.removeChild(path); };
+  function renderMix(state){
+    const ccySel=document.getElementById("mixCcy");
+    if(!ccySel.options.length) ccySel.innerHTML = CCYS.map(c=>`<option>${c}</option>`).join("");
+    ccySel.value = mixCell(state,"root.dealCcy")?.value || "USD";
+    document.getElementById("mixTotal").value = mixCell(state,"root.agreedFee")?.value ?? "";
+    const items = (state.tree.slots.charge.collections.items)||[];
+    document.getElementById("mixItems").innerHTML = items.map((it)=>`
+      <tr>
+        <td><input value="${esc(it.fields.desc.value)}" oninput="mixSet('${it.path}.desc', this.value)" /></td>
+        <td><input value="${esc(it.fields.amount.value)}" oninput="mixSet('${it.path}.amount', this.value)" style="width:96px" /></td>
+        <td><button type="button" class="x" onclick="mixRemove('${it.path}')">✕</button></td>
+      </tr>`).join("");
+    document.getElementById("mixItemsTotal").textContent = mixVal(state,"root.charge.itemsTotal");
+    document.getElementById("mixExtTotal").textContent  = mixVal(state,"root.charge.extTotal");
+    document.getElementById("mixDiff").textContent      = mixVal(state,"root.charge.diff");
+    const vals = state.validations.filter(x=> x.state==="resolved" && (x.node==="root.charge" || x.node.indexOf("root.charge.items")===0));
+    document.getElementById("mixVals").innerHTML = vals.map(x=>`<li class="${x.ok?"ok":"bad"}">${x.ok?"✔":"✘"} <b>${x.id}</b> ${x.ok?"通过":esc(x.message||"")}</li>`).join("");
+  }
+  mixSession = UnifiedDSL.createSession(window.MIX_DEMO, JSON.parse(JSON.stringify(mixData)), { imports: MIX_IMPORTS, onUpdate: renderMix, onLog: appendLog });
+  renderMix(mixSession.getState());
 </script>
 </body>
 </html>

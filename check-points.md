@@ -32,6 +32,7 @@
 - [ ] 模块机制其余工程化：模块内 pipeline、模块 cell 随宿主增删的回收、lint（位置无关性强制等）
 - [ ] 动态 scope —— 大部分被 `when`/`cases` 覆盖；排序/聚合选取的残余场景待评估
 - [x] **节点类型继承 + 抽象基类 + 具名槽位(slots)**：`Party`(abstract) ← `CustomerParty`/`BankParty`，`extends` 沿链合并字段、`scope`/`uses.on` 按 `is-a` 分发、`slots` 具名单子节点（applicant/beneficiary/各 Bank），已在增量引擎实现并实测（`party-scenario.mjs`：基类校验全员、子类型校验隔离、跨槽位表达式、字段隔离）
+- [x] **可选 slot（声明式"对象可选则内部必填忽略"）**：slot 值支持 `{ node, optional:true }`（字符串=必填，向后兼容）；引擎 `effectiveSlots` 归一化 + `buildTree` 打标 `optionalSlot` + `makeRuleCell` 对可选空对象的校验自动包"存在才校验"守卫（`!(任一字段有值) || 原expr`），保持增量反应式。**库 commonParty 零改动**、必填 slot 为空仍报必填。宿主只需 `adviseThrough:{node:"BankParty",optional:true}`。engine-meta 增 `effectiveSlotDefs`；编辑器 ModelDesigner 每个 slot 加"可选"勾选。已实测 `verify-optional-slot.mjs`（空可选不报错/空必填报错/填了恢复/默认回归 net=82203.22）+ editor/react/angular/dist 全绿 + Edge 截图
 - [x] **类型库 import（共享节点类型 + 规则跨 RuleSet 复用）**：import 机制从只搬运 `modules` 扩展为也合并 `nodes`/`rules`/`uses`/`context`（类型库扁平命名空间、模块库按别名）。`commonParty.json`（Party/Customer/Bank + 通用校验）抽成独立文件，被 `lcSettlement` import；业务专有的跨方规则（reimbVsAdvising）留在业务 RuleSet。已实测（run/party-scenario + Angular/BFF 全绿）
 - [x] **类型库自带模块切面**：`commonParty` 内置 `bankScreening` 模块（按 BIC 取制裁评分 + 校验）+ 库自身 `uses on:"BankParty"`，模块解析支持「库内裸名扁平表」与「别名跨库引用」并存；`on:BankParty` 按 is-a 只命中银行、不挂客户。库一站式携带「结构 + 校验 + 取数切面」。各宿主 resolver 按 `source` 路由（fx / sanctionsService）。（resolver 仍为标量返回；结构化外部记录返回为后续扩展）
 - [ ] 继承/槽位的 **JSON Schema 形式化** 与 lint（抽象类不可实例化、slots 目标须具体子类型）
@@ -92,6 +93,7 @@
 - [x] 子项增删按钮、数据模型实时查看器
 - [x] 计算值/汇率可编辑（用于篡改演示）+ 可覆盖字段（base）+ **条件可输入字段（adjustMode auto/manual → adjustment 公式态↔可输入态切换）**
 - [x] **多框架运行时渲染 + 中性页面编辑器（PoC）**：把绑定层抽成框架无关 SDK `poc-incremental/ui-kit-core/`（`EngineCtx` + `page-def` + `engine-meta` + `lint` + `make-ctx` + `hydrate`(PageDef→中性 UI-IR) + `build-root-ir`）；新增 React 渲染 kit `ui-kit-react/`（`useSyncExternalStore` over onTick 解决异步刷新，受控输入=引擎真相源）；`react-lc-sample/` 运行时解释**与 Angular 同一份** PageDef+RuleSet，渲染与计算逐项一致（net=82203.22 等，对账 `verify-multiframework.mjs`）；`editor-react/` 最小中性编辑器（布局调色板+控件种类强制、formula/validation 编写+引擎 parser 即时校验、实时预览复用 ui-kit-react、发布期 lint、导出 PageDef+RuleSet）。已实测：各包 `tsc`/`vite build` 通过 + Edge 截图 + 编辑器产物 engine-valid（加 formula 算出 vatTotal=7949.53、加 validation 触发）。说明 `poc-incremental/MULTI-FRAMEWORK.md`。待办：Vue/HTML 适配器（照抄 React kit）、Angular 去重重指向 ui-kit-core、npm 发布
+- [x] **完整版可视化编辑器 Phase 1**（`poc-incremental/editor-react/`，规格见 `editor-fullspec.md`）：6 tab（模型/规则/上下文/库/布局/数据）+ 工具栏（undo/redo/导入/导出/重置）。域1 模型 CRUD(节点/字段/extends/abstract/slots/children+有效字段预览)；域2 完整规则(formula 单/when/cases+fallback、validation severity/code、resolver source+key、pipeline steps + 编辑/删除/复制/enable)；域5 context 接缝+ctx.* 消费反查；域6 imports 库目录选库+概览；域7 PageDef WYSIWYG(结构树+属性 Inspector+类型感知调色板+拖拽/上下移)；域9 测试数据 JSON 编辑 + override/pinned/校验检查器；域12 localStorage 持久化+导入导出；域14 undo/redo。**库的新建/编辑/删除**：库为可编辑工作区工件（LibraryManager + 编辑对象场景↔库切换，经 libToRS 适配复用模型/规则/上下文编辑器），新建库后可被场景 import。表达式全走引擎 `parseCached` 即时校验。已实测 `tsc+vite build`(65 模块)通过 + Edge 截图核对各 tab（含库目录/库编辑模式）
 - [ ] React / Vue 接入示例
 - [ ] 引擎发行物的 **npm 包**（ESM + UMD 双产物 + d.ts）
 - [ ] 大页面工程化：**虚拟化 / 懒渲染 / signals store / zone 外计算 / Web Worker 卸载**（上千栏位）

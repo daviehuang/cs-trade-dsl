@@ -54,3 +54,54 @@ button.primary:disabled { background: #b6c0cf; border-color: #b6c0cf; cursor: no
 .ed-json-h { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; background: #f3f6fb; }
 .ed-json-h b { font-size: 12px; color: #334155; } .ed-json-h button { font-size: 11px; padding: 3px 9px; border: 1px solid #cdd6e3; background: #fff; border-radius: 5px; cursor: pointer; }
 .ed-json pre { margin: 0; max-height: 320px; overflow: auto; background: #0f1728; color: #d6e3f5; padding: 11px; font-size: 11px; line-height: 1.5; }
+
+/* 完整规则编写 */
+.ed-sec h4 { display: flex; align-items: center; gap: 8px; }
+button.mini { font-size: 11px; padding: 3px 9px; border: 1px solid #cdd6e3; background: #fff; border-radius: 6px; cursor: pointer; margin: 0; }
+button.mini.primary { background: #1d5e96; border-color: #2a7bc0; color: #fff; }
+.ed-tbl tr.off td { opacity: .5; }
+.ed-tbl .kind.resolver { background: #eaf1ff; color: #4f46e5; } .ed-tbl .kind.pipeline { background: #f0eafd; color: #7c3aed; }
+.rule-form { border: 1px solid #c7d6ea; border-radius: 9px; background: #f6f9fe; padding: 12px; margin: 8px 0 14px; }
+.rf-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.rf-h b { font-size: 13px; color: #1d5e96; } .rf-h button { font-size: 12px; padding: 5px 12px; margin-left: 6px; border: 1px solid #cdd6e3; background: #fff; border-radius: 6px; cursor: pointer; }
+.rf-h button.primary { background: #1d5e96; border-color: #2a7bc0; color: #fff; } .rf-h button.primary:disabled { background: #b6c0cf; border-color: #b6c0cf; }
+.case-row { display: flex; gap: 8px; align-items: flex-start; border: 1px solid #e3e9f2; border-radius: 8px; padding: 8px; margin: 6px 0; background: #fff; }
+.case-n { flex: none; font-size: 11px; font-weight: 600; color: #64748b; margin-top: 6px; }
+.case-row button.del, .rule-form button.del { color: #c0392b; border: 1px solid #f0d2d2; background: #fdf0f0; border-radius: 6px; padding: 3px 8px; cursor: pointer; height: 28px; }
+.rule-form > button { margin-top: 6px; border: 1px solid #cdd6e3; background: #fff; border-radius: 6px; padding: 5px 11px; cursor: pointer; font-size: 12px; }
+
+/* 顶部工具栏按钮 disabled */
+.ed-top button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* 更多 kind 颜色（布局节点/模型） */
+.kind.panel { background: #eef2f8; color: #475569; } .kind.group { background: #f1f5fb; color: #64748b; }
+.kind.collection { background: #ecfaf1; color: #0e7a4f; } .kind.validations { background: #fdeee0; color: #a86609; }
+.kind.slot { background: #f1edff; color: #6d4bd0; }
+
+/* 模型设计器：选中行 */
+.ed-tbl tr.selrow td { background: #eef4ff; }
+
+/* 布局结构树 */
+.layout-canvas .tree { border: 1px solid #e1e6ee; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+.tree-row { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-top: 1px solid #f0f3f8; cursor: pointer; font-size: 12px; }
+.tree-row:first-child { border-top: none; } .tree-row:hover { background: #f7faff; } .tree-row.sel { background: #eef4ff; }
+.tree-row .tr-label { color: #334155; } .tree-row .tr-type { font-size: 10px; margin-left: 2px; }
+.tree-row .tr-ops { margin-left: auto; white-space: nowrap; }
+.tree-row .tr-ops button { height: 22px; padding: 0 6px; margin-left: 3px; border: 1px solid #cdd6e3; background: #fff; border-radius: 5px; cursor: pointer; }
+.tree-row .tr-ops button.del { color: #c0392b; border-color: #f0d2d2; }
+
+/* 检查器 */
+.inspector { border: 1px solid #e1e6ee; border-radius: 8px; background: #fbfcfe; padding: 8px 10px; margin-bottom: 10px; }
+.ins-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 3px 0; font-size: 12px; }
+.ins-tag { font-size: 11px; color: #64748b; font-weight: 600; min-width: 96px; }
+.ins-fail { font-size: 11px; color: #c0392b; background: #fdecec; border: 1px solid #f3c9c9; border-radius: 6px; padding: 1px 7px; }
+
+/* 测试数据编辑 */
+.data-edit { width: 100%; box-sizing: border-box; height: 460px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; line-height: 1.5; border: 1px solid #cdd6e3; border-radius: 8px; padding: 10px; background: #fff; color: #1e293b; resize: vertical; }
+.data-edit:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+
+/* 编辑对象切换 */
+.target-chip { font-size: 12px; color: #334155; background: #eef4ff; border: 1px solid #d6e2fb; border-radius: 8px; padding: 3px 10px; }
+.target-chip b { color: #1d5e96; }
+.lib-note { background: #fff; border: 1px dashed #cdd6e3; border-radius: 8px; padding: 14px; color: #64748b; font-size: 13px; line-height: 1.6; }
+.ds-sub { font-size: 11px; color: #64748b; font-weight: 600; margin: 8px 0 4px; }
