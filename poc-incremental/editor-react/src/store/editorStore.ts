@@ -9,7 +9,12 @@ import { Mocks } from '../mock';
 export interface Bundle { ruleSet: RuleSet; pageDef: PageDef; data: any; libraries: Record<string, RuleSet>; mocks: Mocks; }
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 const LS_KEY = 'udsl-editor-bundle-v2';
+const SNAP_KEY = 'udsl-editor-snapshots-v1';
 const MAX_HIST = 100;
+
+// 域11 版本/发布：一次发布 = 打一个工作区快照（label + 时间 + 当时 ruleSet 版本 + 整份 bundle）。
+//   与 undo/redo 的 history 栈相互独立；供 diff / 回滚 / 审计。单独持久化。
+export interface Snapshot { id: string; label: string; at: string; version: string; bundle: Bundle; }
 
 export interface EditorStore {
   ruleSet: RuleSet; pageDef: PageDef; data: any; libraries: Record<string, RuleSet>; mocks: Mocks;
@@ -29,6 +34,12 @@ export interface EditorStore {
   importBundle: (b: Partial<Bundle>) => void;
   reset: () => void;
   restoredFromStorage: boolean;
+  // 域11 版本/发布
+  snapshots: Snapshot[];
+  publish: (label: string) => void;
+  rollback: (id: string) => void;
+  deleteSnapshot: (id: string) => void;
+  currentBundle: () => Bundle;
 }
 
 export function useEditorStore(initial: Bundle): EditorStore {
@@ -79,16 +90,30 @@ export function useEditorStore(initial: Bundle): EditorStore {
 
   useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify(cur)); } catch { /* quota */ } }, [cur]);
 
+  // 域11 版本/发布：快照独立于 undo 栈，单独持久化。
+  const [snapshots, setSnapshots] = useState<Snapshot[]>(() => {
+    try { const s = localStorage.getItem(SNAP_KEY); if (s) return JSON.parse(s); } catch { /* */ }
+    return [];
+  });
+  useEffect(() => { try { localStorage.setItem(SNAP_KEY, JSON.stringify(snapshots)); } catch { /* quota */ } }, [snapshots]);
+  const publish = useCallback((label: string) => {
+    const snap: Snapshot = { id: String(new Date().getTime()), label: label || '(未命名)', at: new Date().toISOString(), version: (cur.ruleSet as any).version ?? '—', bundle: clone(cur) };
+    setSnapshots((s) => [snap, ...s]);
+  }, [cur]);
+  const deleteSnapshot = useCallback((id: string) => setSnapshots((s) => s.filter((x) => x.id !== id)), []);
+
   const exportBundle = useCallback(() => JSON.stringify(cur, null, 2), [cur]);
   const importBundle = useCallback((b: Partial<Bundle>) => {
     const next: Bundle = { ruleSet: b.ruleSet ?? cur.ruleSet, pageDef: b.pageDef ?? cur.pageDef, data: b.data ?? cur.data, libraries: b.libraries ?? cur.libraries, mocks: b.mocks ?? cur.mocks };
     setHist([clone(next)]); setIdx(0); setRev((r) => r + 1);
   }, [cur]);
+  const rollback = useCallback((id: string) => { const snap = snapshots.find((x) => x.id === id); if (snap) importBundle(clone(snap.bundle)); }, [snapshots, importBundle]);
   const reset = useCallback(() => { try { localStorage.removeItem(LS_KEY); } catch { /* */ } setHist([clone(initial)]); setIdx(0); setRev((r) => r + 1); }, [initial]);
 
   return {
     ruleSet: cur.ruleSet, pageDef: cur.pageDef, data: cur.data, libraries: cur.libraries, mocks: cur.mocks, rev, sessionRev,
     setRuleSet, setPageDef, setData, mutateRuleSet, mutateMocks, mutatePageDef, mutateLibrary, addLibrary, deleteLibrary,
     canUndo, canRedo, undo, redo, exportBundle, importBundle, reset, restoredFromStorage: restored.current,
+    snapshots, publish, rollback, deleteSnapshot, currentBundle: () => cur,
   };
 }

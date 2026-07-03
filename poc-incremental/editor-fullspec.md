@@ -71,8 +71,8 @@
 - 发布闸门：error 阻断、warn 提示；治理红线校验（页面无算逻辑入口）。
 
 ### 域 11 · 版本 / 发布 / 回滚 / 审计
-- 每工件(RuleSet/PageDef/库)独立 `version`+`status`(draft/active/deprecated)+`schemaVersion`。
-- 结构级 diff、发布/回滚、变更历史/审计、`ruleSetRef` 兼容闸门（PageDef↔RuleSet 版本匹配）。
+- 每工件(RuleSet/PageDef/库)独立 `version`+`status`(draft/active/deprecated)+`schemaVersion`。（✅ VersionPanel「版本」tab：version/status 编辑）
+- 结构级 diff、发布/回滚、变更历史/审计、`ruleSetRef` 兼容闸门（PageDef↔RuleSet 版本匹配）。（✅ 发布=打工作区快照；快照 vs 当前草稿的规则/节点/模块/uses 结构 diff；回滚；快照独立于 undo 单独持久化。ruleSetRef 闸门为后续）
 
 ### 域 12 · 存储 / 后端（两阶段）
 - **一期（纯前端）**：导入/导出 JSON + localStorage/IndexedDB + 工作区；后端接口预留。
@@ -118,7 +118,7 @@
 - **Phase 1 · 完整前端编辑（✅ 已实现于 `editor-react`）**：域 2 完整规则(4 类型+cases/fallback+编辑/删除/复制/enable) · 域 1 模型 CRUD(节点/字段/extends/abstract/slots/children) · 域 5 context 接缝+消费反查 · 域 6 imports 选库(库目录+概览) · 域 7 PageDef WYSIWYG(结构树+属性 Inspector+类型感知调色板+拖拽) · 域 9 测试数据 JSON 编辑 + override/pinned/校验检查器 · 域 14 undo/redo · 域 12 一期 localStorage + 导入/导出。
   - 落地文件：`editor-react/src/` 的 `store/editorStore.ts`、`ModelDesigner.tsx`、`RulesEditor.tsx`、`ContextSeams.tsx`、`ImportsManager.tsx`、`LayoutCanvas.tsx`、`TestData.tsx`、`Preview.tsx`(含 Inspector)、`App.tsx`(6 tab + 工具栏)。
   - 验证：`tsc --noEmit && vite build` 通过（64 模块）；Edge headless 截图核对布局树/模型设计器/规则 4 类型/检查器/预览均正常；实时预览 net=82203.22、校验 ✔23、pinned 列全。
-- **Phase 2 · 模块/数据源 + 治理 + 分层 UI**：域 3 模块+uses 连线（✅ ModulesEditor）· 域 10 RuleSet linter（✅ lintRuleSet：引用完整性/target 可写回/resolver.source·keySchema/可选 slot）· 域 4 dataSources+resolver 模拟（✅ ResolverSim）· 域 11 版本/diff/发布-回滚（待办）· 域 14 分层 UI/模板向导（待办）。
+- **Phase 2 · 模块/数据源 + 治理 + 分层 UI**：域 3 模块+uses 连线（✅ ModulesEditor）· 域 10 RuleSet linter（✅ lintRuleSet：引用完整性/target 可写回/resolver.source·keySchema/可选 slot）· 域 4 dataSources+resolver 模拟（✅ ResolverSim）· 域 11 版本/diff/发布-回滚（✅ VersionPanel）· 域 14 分层 UI（✅ 开发者/业务视图切换：业务只见参数/取数/数据/版本，不碰规则/模型/模块）。**Phase 2 完成。**
 - **Phase 3 · 后端 + 协作**：域 12 二期(Rule Bundle API) · 域 13 多人/权限/审批 · 域 6 组件目录/依赖图 · 域 8 多场景参数值。
 
 ---

@@ -21,6 +21,7 @@ import { ImportsManager } from './ImportsManager';
 import { LibraryManager } from './LibraryManager';
 import { LayoutCanvas } from './LayoutCanvas';
 import { TestData } from './TestData';
+import { VersionPanel } from './VersionPanel';
 import { Preview } from './Preview';
 
 // 初始库目录（可编辑；新建/编辑后进 store）。引擎只用被 import 引用到的。
@@ -35,7 +36,11 @@ const initial = {
   } as Record<string, RuleSet>,
   mocks: DEFAULT_MOCKS,
 };
-type Tab = 'model' | 'rules' | 'modules' | 'datasource' | 'mock' | 'context' | 'imports' | 'layout' | 'data';
+type Tab = 'model' | 'rules' | 'modules' | 'datasource' | 'mock' | 'context' | 'imports' | 'layout' | 'data' | 'version';
+
+// 域14 分层 UI：业务视图只见「参数/取数/数据/版本」（不碰规则/模型/模块=逻辑编写，符合治理红线）。
+type Role = 'dev' | 'biz';
+const BIZ_TABS: Tab[] = ['mock', 'context', 'data', 'version'];
 
 // 库 ↔ RuleSet 形状适配：库用顶层 nodes/…；包成 { model:{nodes} } 供编辑器复用，写回时脱去 model 包装。
 const libToRS = (lib: RuleSet): RuleSet => ({ ...lib, model: { root: Object.keys(lib.nodes ?? {})[0] ?? '', nodes: lib.nodes ?? {} } } as any);
@@ -44,9 +49,13 @@ const writeRS = (rs: any, lib: any) => { lib.nodes = rs.model?.nodes ?? {}; lib.
 export default function App() {
   const s = useEditorStore(initial);
   const [tab, setTab] = useState<Tab>('layout');
+  const [role, setRoleRaw] = useState<Role>('dev');
   const [showJson, setShowJson] = useState<'none' | 'page' | 'rules' | 'data'>('none');
   const [editTarget, setEditTargetRaw] = useState<string>('scenario');   // 'scenario' | ref
   const fileRef = useRef<HTMLInputElement>(null);
+  // 切到业务视图：收敛到参数类 tab、锁定场景（业务不编辑库/逻辑）。
+  const setRole = (r: Role) => { setRoleRaw(r); if (r === 'biz') { if (!BIZ_TABS.includes(tab)) setTab('mock'); if (editTarget !== 'scenario') setEditTargetRaw('scenario'); } };
+  const biz = role === 'biz';
 
   const isLib = editTarget !== 'scenario';
   const setEditTarget = (t: string) => { setEditTargetRaw(t); if (t !== 'scenario' && (tab === 'layout' || tab === 'data')) setTab('model'); };
@@ -94,8 +103,13 @@ export default function App() {
       </div>
 
       <div className="ed-lintbar">
+        <span className="target-chip">视图：
+          <button className="mini" style={{ marginLeft: 4, ...(role === 'dev' ? { background: '#1d5e96', color: '#fff' } : {}) }} onClick={() => setRole('dev')}>开发者</button>
+          <button className="mini" style={role === 'biz' ? { background: '#1d5e96', color: '#fff' } : {}} onClick={() => setRole('biz')}>业务</button>
+        </span>
         <span className="target-chip">编辑对象：{isLib ? <b>库 {editTarget}</b> : <b>场景 {s.ruleSet.ruleSetId}</b>}</span>
-        {isLib && <button className="mini" onClick={() => setEditTarget('scenario')}>← 返回场景</button>}
+        {biz && <span className="muted">业务视图：规则/模型只读，可调参数·取数·数据</span>}
+        {!biz && isLib && <button className="mini" onClick={() => setEditTarget('scenario')}>← 返回场景</button>}
         {errorCount ? <span className="lint bad">⛔ lint {errorCount} 错</span>
           : warnCount ? <span className="lint warn">⚠ lint {warnCount} 提醒</span>
             : <span className="lint ok">✔ lint 通过</span>}
@@ -110,15 +124,16 @@ export default function App() {
       <div className="ed-main">
         <div className="ed-left">
           <div className="ed-tabs">
-            <button className={tab === 'model' ? 'on' : ''} onClick={() => setTab('model')}>模型</button>
-            <button className={tab === 'rules' ? 'on' : ''} onClick={() => setTab('rules')}>规则</button>
-            <button className={tab === 'modules' ? 'on' : ''} onClick={() => setTab('modules')}>模块</button>
-            <button className={tab === 'datasource' ? 'on' : ''} onClick={() => setTab('datasource')}>数据源</button>
+            {!biz && <button className={tab === 'model' ? 'on' : ''} onClick={() => setTab('model')}>模型</button>}
+            {!biz && <button className={tab === 'rules' ? 'on' : ''} onClick={() => setTab('rules')}>规则</button>}
+            {!biz && <button className={tab === 'modules' ? 'on' : ''} onClick={() => setTab('modules')}>模块</button>}
+            {!biz && <button className={tab === 'datasource' ? 'on' : ''} onClick={() => setTab('datasource')}>数据源</button>}
             <button className={tab === 'mock' ? 'on' : ''} onClick={() => setTab('mock')}>取数模拟</button>
             <button className={tab === 'context' ? 'on' : ''} onClick={() => setTab('context')}>上下文</button>
-            <button className={tab === 'imports' ? 'on' : ''} onClick={() => setTab('imports')}>库</button>
-            {!isLib && <button className={tab === 'layout' ? 'on' : ''} onClick={() => setTab('layout')}>布局</button>}
+            {!biz && <button className={tab === 'imports' ? 'on' : ''} onClick={() => setTab('imports')}>库</button>}
+            {!isLib && !biz && <button className={tab === 'layout' ? 'on' : ''} onClick={() => setTab('layout')}>布局</button>}
             {!isLib && <button className={tab === 'data' ? 'on' : ''} onClick={() => setTab('data')}>数据</button>}
+            {!isLib && <button className={tab === 'version' ? 'on' : ''} onClick={() => setTab('version')}>版本</button>}
           </div>
 
           {tab === 'model' && <ModelDesigner ruleSet={targetRS} meta={meta} mutateRuleSet={mutateTarget} isLibrary={isLib} />}
@@ -133,6 +148,7 @@ export default function App() {
           </>}
           {tab === 'layout' && !isLib && <LayoutCanvas pageDef={s.pageDef} meta={meta} mutatePageDef={s.mutatePageDef} />}
           {tab === 'data' && !isLib && <TestData data={s.data} setData={s.setData} />}
+          {tab === 'version' && !isLib && <VersionPanel ruleSet={s.ruleSet} mutateRuleSet={s.mutateRuleSet} snapshots={s.snapshots} publish={s.publish} rollback={s.rollback} deleteSnapshot={s.deleteSnapshot} />}
 
           {showJson !== 'none' && (
             <div className="ed-json">
