@@ -2,5 +2,6 @@
   "name":"dsl-incremental-poc",
   "private":true,
   "type":"module",
+  "scripts":{"store":"node store-server.js","seed":"node seed-store.mjs","bff":"node bff/server.js"},
   "dependencies":{"decimal.js":"^10.4.3"}
 }

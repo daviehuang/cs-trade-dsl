@@ -7,6 +7,10 @@ out-tsc/
 .angular/
 *.tsbuildinfo
 
+# 文件式规则仓库的可变运行时数据（由 seed-store.mjs 生成 / store-server 空库自动种子）
+poc-incremental/store/
+poc-incremental/_data-backup.json
+
 # 日志 / 系统文件
 *.log
 .DS_Store

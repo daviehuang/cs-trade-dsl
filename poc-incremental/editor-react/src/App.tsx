@@ -22,6 +22,7 @@ import { LibraryManager } from './LibraryManager';
 import { LayoutCanvas } from './LayoutCanvas';
 import { TestData } from './TestData';
 import { VersionPanel } from './VersionPanel';
+import { StorePanel } from './StorePanel';
 import { Preview } from './Preview';
 
 // 初始库目录（可编辑；新建/编辑后进 store）。引擎只用被 import 引用到的。
@@ -36,11 +37,11 @@ const initial = {
   } as Record<string, RuleSet>,
   mocks: DEFAULT_MOCKS,
 };
-type Tab = 'model' | 'rules' | 'modules' | 'datasource' | 'mock' | 'context' | 'imports' | 'layout' | 'data' | 'version';
+type Tab = 'model' | 'rules' | 'modules' | 'datasource' | 'mock' | 'context' | 'imports' | 'layout' | 'data' | 'version' | 'store';
 
-// 域14 分层 UI：业务视图只见「参数/取数/数据/版本」（不碰规则/模型/模块=逻辑编写，符合治理红线）。
+// 域14 分层 UI：业务视图只见「参数/取数/数据/版本/仓库」（不碰规则/模型/模块=逻辑编写，符合治理红线）。
 type Role = 'dev' | 'biz';
-const BIZ_TABS: Tab[] = ['mock', 'context', 'data', 'version'];
+const BIZ_TABS: Tab[] = ['mock', 'context', 'data', 'version', 'store'];
 
 // 库 ↔ RuleSet 形状适配：库用顶层 nodes/…；包成 { model:{nodes} } 供编辑器复用，写回时脱去 model 包装。
 const libToRS = (lib: RuleSet): RuleSet => ({ ...lib, model: { root: Object.keys(lib.nodes ?? {})[0] ?? '', nodes: lib.nodes ?? {} } } as any);
@@ -58,7 +59,7 @@ export default function App() {
   const biz = role === 'biz';
 
   const isLib = editTarget !== 'scenario';
-  const setEditTarget = (t: string) => { setEditTargetRaw(t); if (t !== 'scenario' && (tab === 'layout' || tab === 'data')) setTab('model'); };
+  const setEditTarget = (t: string) => { setEditTargetRaw(t); if (t !== 'scenario' && (['layout', 'data', 'version', 'store'] as Tab[]).includes(tab)) setTab('model'); };
 
   // 编辑目标（场景 or 库）→ 统一成 RuleSet 视图 + 变更函数
   const targetRS = isLib ? libToRS(s.libraries[editTarget]) : s.ruleSet;
@@ -134,6 +135,7 @@ export default function App() {
             {!isLib && !biz && <button className={tab === 'layout' ? 'on' : ''} onClick={() => setTab('layout')}>布局</button>}
             {!isLib && <button className={tab === 'data' ? 'on' : ''} onClick={() => setTab('data')}>数据</button>}
             {!isLib && <button className={tab === 'version' ? 'on' : ''} onClick={() => setTab('version')}>版本</button>}
+            {!isLib && <button className={tab === 'store' ? 'on' : ''} onClick={() => setTab('store')}>仓库</button>}
           </div>
 
           {tab === 'model' && <ModelDesigner ruleSet={targetRS} meta={meta} mutateRuleSet={mutateTarget} isLibrary={isLib} />}
@@ -149,6 +151,7 @@ export default function App() {
           {tab === 'layout' && !isLib && <LayoutCanvas pageDef={s.pageDef} meta={meta} mutatePageDef={s.mutatePageDef} />}
           {tab === 'data' && !isLib && <TestData data={s.data} setData={s.setData} />}
           {tab === 'version' && !isLib && <VersionPanel ruleSet={s.ruleSet} mutateRuleSet={s.mutateRuleSet} snapshots={s.snapshots} publish={s.publish} rollback={s.rollback} deleteSnapshot={s.deleteSnapshot} />}
+          {tab === 'store' && !isLib && <StorePanel currentBundle={s.currentBundle} importBundle={s.importBundle} scenarioName={s.ruleSet.ruleSetId} />}
 
           {showJson !== 'none' && (
             <div className="ed-json">

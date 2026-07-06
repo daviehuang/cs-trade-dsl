@@ -63,6 +63,32 @@ node bff/server.js          # → http://localhost:8787
 > - **钉值汇率**：攻击者就算把汇率和依赖它的计算值改得"内部自洽"，中台拿自己的权威汇率一复核（带容差，放行正常漂移），照样识破。
 > 页面里汇率、base、subtotal、合计、净额都可编辑——随便改，提交即被拒并列出"前端 vs 中台权威值"。
 
+## ▶ 规则仓库（文件式）+ 运行时加载：前后贯通
+
+演示**硬约束**——规则不编译进前端包，运行时按 feature 动态拉取。三段打通：
+**编辑器产出 → 仓库文件 → 运行时页拉取渲染**。
+
+```bash
+# 1) 启动规则仓库服务（:8788；store/ 为空会自动种子化现有 lcSettlement 交易）
+node store-server.js          # 或 npm run store
+#   store/ = { libraries/ rulesets/ pages/ data/ features/ } 各存 JSON 文件
+#   GET /api/catalog · /api/bundle/:featureId（一次拉齐 ruleSet+库+页面+数据）· PUT 各类
+
+# 2) 运行时加载器（新样本，零静态 import——启动即 fetch 仓库渲染）
+cd runtime-loader && npm install && npm run dev
+#   顶部下拉选 feature → 从仓库拉规则/页面渲染，net=82203.22 与四端一致
+
+# 3) 可视化编辑器接仓库：编辑器「仓库」标签页 →「保存到仓库」/「加载」
+cd editor-react && npm run dev    # /api 由 Vite proxy 代到 :8788
+#   在编辑器改动 → 保存到仓库 → 刷新 runtime-loader → 改动即现（前后贯通）
+
+# 端到端回归（需 store-server 已启动）
+node verify-store.mjs         # catalog/bundle/PUT→GET 往返 + 仓库规则喂引擎 net=82203.22
+```
+
+> 仓库是**发布目标**；编辑器仍保留 localStorage 本地草稿。BFF 从仓库读同源规则复算留待下一轮。
+> `store/` 是可变运行时数据（已 gitignore），由 `seed-store.mjs` 生成或 store-server 空库自动种子化。
+
 ## 第三方接入只需三步
 
 ```html
@@ -132,6 +158,11 @@ poc-incremental/
 ├── bff/
 │   ├── server.js                     # ★ BFF 中台校验 HTTP 服务（:8787）
 │   └── validate.js                   # 中台校验核心：原始输入权威重算 + 比对裁决
+├── store-server.js                   # ★ 文件式规则仓库服务（:8788）catalog/bundle/CRUD
+├── seed-store.mjs                    # 把现有 JSON 种子化进 store/（store-server 空库自动调用）
+├── store/                            # 仓库数据（gitignore）：libraries/ rulesets/ pages/ data/ features/
+├── runtime-loader/                   # ★ 运行时加载器样本：启动即从仓库按 feature 拉取渲染（零静态 import）
+├── verify-store.mjs                  # 仓库端到端回归（catalog/bundle/往返 + 喂引擎真值）
 ├── lc-rules.json / lc-data.json      # 规则与初始数据源
 └── run-scenario.mjs                  # 脚本化场景（带增量断言）
 ```

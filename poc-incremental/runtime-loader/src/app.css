@@ -1,0 +1,20 @@
+/* 页面级外壳样式（与其它样本一致）。 */
+:root { color-scheme: light; }
+body { margin: 0; background: #f3f5f9; color: #1c2430; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+.app { min-height: 100vh; }
+.top { background: #0b3d6b; color: #fff; padding: 13px 26px; display: flex; align-items: center; gap: 10px; }
+.top b { font-size: 16px; } .top .tag { font-size: 11px; background: #1d5e96; padding: 3px 9px; border-radius: 10px; }
+.feat { max-width: 1180px; margin: 14px auto 0; padding: 0 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.muted { color: #6b7688; font-size: 13px; } .muted b { color: #0b6bc2; }
+code { background: #eef2f8; padding: 1px 5px; border-radius: 4px; }
+.status { font-size: 12px; padding: 5px 11px; border-radius: 8px; }
+.status.pending { background: #fdf0d5; color: #a86609; } .status.settled { background: #e3f5ea; color: #1c8a4e; }
+.wrap { max-width: 1180px; margin: 14px auto; padding: 0 16px; }
+.srcbar { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; margin: 2px 0 13px; }
+.srcbar .lbl { font-size: 12px; color: #64748b; font-weight: 500; }
+.seg { display: inline-flex; border: 1px solid #d4dbe6; border-radius: 9px; overflow: hidden; }
+.seg select { border: none; background: #fff; color: #1d5e96; font-size: 13px; font-weight: 600; padding: 7px 12px; cursor: pointer; }
+.lint { font-size: 12px; padding: 4px 11px; border-radius: 8px; font-weight: 500; }
+.lint.ok { background: #e9f7ef; color: #0e7a4f; } .lint.warn { background: #fdf3e0; color: #a86609; } .lint.bad { background: #fdecec; color: #c0392b; }
+.loading { max-width: 1180px; margin: 40px auto; padding: 0 16px; color: #64748b; font-size: 14px; }
+.err { max-width: 1180px; margin: 20px auto; padding: 14px 16px; background: #fdecec; color: #c0392b; border-radius: 8px; font-size: 13px; }
