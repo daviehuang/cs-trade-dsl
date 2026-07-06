@@ -41,10 +41,13 @@ export function ModelDesigner({ ruleSet, meta, mutateRuleSet, isLibrary }: Props
 
   return (
     <div className="ed-sec">
-      {!isLibrary && (
+      {!isLibrary ? (
         <div className="ed-row">
           <label>根节点 root<select value={meta.root} onChange={(e) => setRoot(e.target.value)}>{allTypes.map((t) => <option key={t}>{t}</option>)}</select></label>
         </div>
+      ) : (
+        <div className="hint">库 = 可被场景 import 的<b>类型 / 模块集合</b>，<b>无需根节点 root</b>——库不是要独立实例化的树。
+          场景按<b>类型名</b>（如 <code>CustomerParty</code>）用 slot / children 引用库节点即可。此处只维护节点类型与字段。</div>
       )}
 
       <h4>{isLibrary ? '库节点' : '本地节点'}（{localTypes.length}）</h4>
@@ -55,7 +58,7 @@ export function ModelDesigner({ ruleSet, meta, mutateRuleSet, isLibrary }: Props
             const n = localNodes[t];
             return (
               <tr key={t} className={t === sel ? 'selrow' : ''} onClick={() => setSel(t)} style={{ cursor: 'pointer' }}>
-                <td><b>{t}</b>{meta.root === t && <span className="kind" style={{ marginLeft: 6 }}>root</span>}</td>
+                <td><b>{t}</b>{!isLibrary && meta.root === t && <span className="kind" style={{ marginLeft: 6 }}>root</span>}</td>
                 <td>{n.extends || '—'}</td><td>{n.abstract ? '✔' : ''}</td>
                 <td className="muted">{Object.keys(n.fields || {}).length}f · {Object.keys(n.slots || {}).length}s · {(Array.isArray(n.children) ? n.children.length : n.children ? 1 : 0)}c</td>
                 <td className="ops"><button className="del" onClick={(e) => { e.stopPropagation(); delNode(t); if (sel === t) setSel(localTypes.find((x) => x !== t) ?? ''); }}>✕</button></td>
