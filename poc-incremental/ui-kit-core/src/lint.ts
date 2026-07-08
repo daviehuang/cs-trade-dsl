@@ -56,6 +56,12 @@ function walk(nodes: PageNode[], type: string, base: string, meta: EngineMeta, o
         walk(n.itemTemplate, child.node, `${base}.${n.name}[*]`, meta, out);
         break;
       }
+      case 'group':                                             // 布局容器：类型上下文不变，递归子节点
+        walk(n.children, type, base, meta, out);
+        break;
+      case 'tabs':                                              // 标签页：每个 tab 的子节点同上下文递归
+        for (const tab of n.tabs) walk(tab.children, type, base, meta, out);
+        break;
       case 'validations':
         break;                                                  // 路径可选，宽松处理
     }

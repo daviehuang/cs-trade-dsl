@@ -66,6 +66,10 @@ function hydrateNode(n: PageNode, base: string, h: H): FormlyFieldConfig {
         fieldGroup,
       };
     }
+    case 'group':                                               // 行/列/网格：无外壳栅格分组
+      return listGroup(n.children, base, n.grid, h);
+    case 'tabs':                                                // tabs：本端暂无交互式标签页，堆叠渲染各 tab 内容（React 端有完整 tab UI）
+      return { fieldGroup: n.tabs.flatMap((t) => t.children.map((c) => hydrateNode(c, base, h))) };
   }
 }
 

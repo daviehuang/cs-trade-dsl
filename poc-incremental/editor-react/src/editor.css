@@ -13,7 +13,72 @@ code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px
 
 .ed-main { flex: 1; display: grid; min-height: 0; }
 .ed-main.split { grid-template-columns: 420px 1fr; }
+.ed-main.page { grid-template-columns: 300px 1fr; }
 .ed-main.full { grid-template-columns: 1fr; }
+
+/* ── 页面编辑：规则集树（左） ── */
+.rs-tree { font-size: 13px; }
+.rs-tree-hint { color: #64748b; font-size: 12px; margin-bottom: 8px; }
+.rs-item { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 6px; cursor: grab; }
+.rs-item:hover { background: #eef4fb; }
+.rs-item:active { cursor: grabbing; }
+.rs-item .rs-name { color: #1e293b; font-size: 13px; }
+.rs-item .rs-lbl { font-size: 11px; }
+.rs-exp { border: none; background: transparent; cursor: pointer; color: #64748b; padding: 0 2px; font-size: 11px; width: 16px; }
+.rs-block { }
+
+/* ── 页面编辑：画布（右） ── */
+.page-canvas { }
+.pc-palette { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 0 12px; border-bottom: 1px dashed #dde3ec; margin-bottom: 12px; }
+.pc-pal { background: #1d5e96; color: #fff; border: 1px solid #2a7bc0; border-radius: 7px; padding: 5px 11px; font-size: 12px; cursor: pointer; }
+.pc-pal:hover { background: #17507f; }
+.pc-empty { color: #94a3b8; font-size: 13px; padding: 16px; text-align: center; }
+.pc-dz-hint { color: #aab4c2; font-size: 11px; padding: 2px 4px; }
+
+/* 放置区：按容器 grid 方向布局（所见即所得） */
+.pc-drop { min-height: 26px; border: 1px dashed #dde3ec; border-radius: 7px; padding: 6px; background: #fbfcfe; }
+.pc-drop.pc-root { min-height: 200px; border-color: #c7d2e0; padding: 8px; }
+.pc-dz-col { display: flex; flex-direction: column; gap: 6px; }
+.pc-dz-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.pc-dz-grid { display: grid; gap: 8px; }
+.pc-dz-row > .pc-chip, .pc-dz-grid > .pc-chip { align-self: flex-start; }
+.pc-dz-row > .pc-block { flex: 1 1 180px; min-width: 160px; }        /* 行中的子容器（列）分享宽度 → 并排 */
+.pc-dz-row > .pc-chip { flex: 0 0 auto; }                            /* 行中的叶子芯片自然宽 */
+
+/* 容器块（panel/group/collection/tabs）：slim 头部 + 放置区 */
+.pc-block { border: 1px solid #dbe3ee; border-radius: 8px; background: #fff; }
+.pc-block.sel { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+.pc-block .pc-drop { margin: 6px; }
+.pc-h { display: flex; align-items: center; gap: 6px; padding: 4px 8px; cursor: pointer; border-bottom: 1px solid #eef2f7; background: #f7f9fc; border-radius: 7px 7px 0 0; }
+.pc-h b { font-size: 12px; color: #334155; }
+.pc-block.kind-group > .pc-h { background: #f3f8f4; } .pc-block.kind-tabs > .pc-h { background: #f3f0fb; }
+.pc-block.kind-collection > .pc-h { background: #f0f9f4; }
+
+/* 叶子：单行紧凑芯片 */
+.pc-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid #e2e8f2; border-radius: 7px; background: #fff; cursor: grab; font-size: 12px; }
+.pc-chip:hover { border-color: #c7d2e0; }
+.pc-chip.sel { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+.pc-chip.kind-field { background: #f7faff; } .pc-chip.kind-cell { background: #f5fbf7; } .pc-chip.kind-validations { background: #fdf7ef; }
+.pc-chip .pc-chip-name { color: #334155; font-family: ui-monospace, Consolas, monospace; }
+.pc-chip .pc-chip-lbl { font-size: 11px; }
+.pc-dz-col > .pc-chip { width: 100%; }                               /* 竖排时占满一行 */
+
+/* 通用 ops（容器头 + 芯片）：悬停显现 */
+.pc-ops { margin-left: auto; white-space: nowrap; display: inline-flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+.pc-h:hover .pc-ops, .pc-chip:hover .pc-ops, .pc-block.sel > .pc-h .pc-ops, .pc-chip.sel .pc-ops { opacity: 1; }
+.pc-ops button { height: 20px; padding: 0 5px; border: 1px solid #cdd6e3; background: #fff; border-radius: 5px; cursor: pointer; font-size: 11px; color: #64748b; }
+.pc-ops button.del { color: #c0392b; border-color: #f0d2d2; }
+
+/* tabs 编辑块 */
+.pc-tabs { padding: 6px; }
+.pc-tab-h { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+.pc-tab { display: inline-flex; align-items: center; border: 1px solid #d4dbe6; border-radius: 7px; overflow: hidden; }
+.pc-tab button { border: none; background: #fff; padding: 4px 10px; font-size: 12px; cursor: pointer; color: #475569; }
+.pc-tab.on button:first-child { background: #1d5e96; color: #fff; }
+.pc-tab button.del { color: #c0392b; padding: 4px 7px; border-left: 1px solid #eef2f7; }
+.pc-tab-edit { height: 26px; width: 100px; padding: 0 6px; border: 1px solid #2563eb; border-radius: 5px; font-size: 12px; }
+.pc-tab-add { border: 1px dashed #c7d2e0; background: #fff; border-radius: 7px; padding: 4px 10px; font-size: 12px; cursor: pointer; color: #1d5e96; }
+.pc-inspector { margin-top: 12px; }
 .ed-aside { border-right: 1px solid #dde3ec; overflow: auto; padding: 12px 12px; background: #f7f9fc; }
 .ed-center { overflow: auto; padding: 14px 16px; }
 .ed-left { border-right: 1px solid #dde3ec; overflow: auto; padding: 12px 14px; background: #fbfcfe; }

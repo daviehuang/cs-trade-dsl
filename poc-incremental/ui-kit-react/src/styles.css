@@ -67,3 +67,19 @@
 .eg-collection .x { position: absolute; right: 9px; top: 11px; background: #fdf0f0; border: 1px solid #f0d2d2; color: #c0392b; border-radius: 7px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
 .eg-collection .x:hover { background: #fbe0e0; }
 .eg-collection .empty { color: #94a3b8; font-size: 12px; padding: 4px 2px; }
+
+/* ── 集合表格模式 ── */
+.eg-collection .eg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.eg-collection .eg-table th { text-align: left; color: #64748b; font-weight: 600; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #e6ebf2; white-space: nowrap; }
+.eg-collection .eg-table td { padding: 5px 8px; border-bottom: 1px solid #f0f4f9; vertical-align: middle; }
+.eg-collection .eg-table th.ti, .eg-collection .eg-table td.ti { width: 30px; color: #94a3b8; text-align: center; }
+.eg-collection .eg-table input, .eg-collection .eg-table select { height: 32px; }
+.eg-collection .eg-table .cv { border: none; background: transparent; padding: 0 4px; }
+
+/* ── 标签页 tabs ── */
+.eg-tabs { border: 1px solid #e6ebf2; border-radius: 11px; overflow: hidden; background: #fff; }
+.eg-tabs .eg-tab-h { display: flex; gap: 2px; background: #f5f8fc; border-bottom: 1px solid #e6ebf2; padding: 4px 4px 0; }
+.eg-tabs .eg-tab { background: transparent; border: 1px solid transparent; border-bottom: none; color: #64748b; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0; }
+.eg-tabs .eg-tab:hover { background: #eaf0f8; }
+.eg-tabs .eg-tab.on { background: #fff; color: #1d5e96; border-color: #e6ebf2; }
+.eg-tabs .eg-tab-body { padding: 14px; display: grid; gap: 12px; }

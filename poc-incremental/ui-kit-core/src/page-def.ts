@@ -10,7 +10,7 @@ export interface PageDef {
   layout: PageNode[];
 }
 
-export type PageNode = PanelNode | FieldNode | CellNode | CollectionNode | ValidationsNode;
+export type PageNode = PanelNode | GroupNode | TabsNode | FieldNode | CellNode | CollectionNode | ValidationsNode;
 
 interface BaseNode {
   /** 透传到渲染层的 className（如自定义栅格/对齐）。 */
@@ -29,6 +29,22 @@ export interface PanelNode extends BaseNode {
   /** 重定基：槽位名（相对当前节点，如 'applicant'）或绝对节点路径（'root.applicant'）。 */
   at?: string;
   children: PageNode[];
+}
+
+/** 无外壳布局容器：行(grid:'row')/列(grid:'col')/多列网格(cols:N)。子节点类型上下文不变（同当前基）。 */
+export interface GroupNode extends BaseNode {
+  kind: 'group';
+  /** 内部子节点栅格：row(横排)/col(竖排)/form/cards。 */
+  grid?: 'form' | 'cards' | 'row' | 'col';
+  /** 多列网格：等分 N 列（与 grid 二选一，cols 优先）。 */
+  cols?: number;
+  children: PageNode[];
+}
+
+/** 标签页容器：每个 tab 一组子节点，运行时只显示当前激活页。类型上下文同当前基。 */
+export interface TabsNode extends BaseNode {
+  kind: 'tabs';
+  tabs: { label: string; children: PageNode[] }[];
 }
 
 /** 可编辑字段（普通输入）。绑定的字段不能是 computed/external（linter 会拦）。 */
@@ -59,6 +75,8 @@ export interface CollectionNode extends BaseNode {
   /** 子集合名（相对当前节点类型，如 'charges' / 'items'）。 */
   name: string;
   title?: string;
+  /** 记录布局：cards（每条一张卡片，默认）/ table（列=字段、行=记录）。 */
+  layout?: 'cards' | 'table';
   /** 单行内字段布局：row（横排）/ col（竖排）。 */
   itemGrid?: 'row' | 'col';
   /** 新增一行的默认值；缺省用内置模板。 */

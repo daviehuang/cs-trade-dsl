@@ -47,6 +47,14 @@ function hydrateNode(n: PageNode, base: string, h: H): UINode {
         className: n.className,
       };
     }
+    case 'group': {
+      const gcls = n.cols ? undefined : (n.grid ? gridClass(n.grid) : undefined);
+      return { kind: 'group', gridClass: gcls, cols: n.cols, className: n.className,
+        children: n.children.map((c) => withSpan(hydrateNode(c, base, h), n.grid, c.kind)) };
+    }
+    case 'tabs':
+      return { kind: 'tabs', className: n.className,
+        tabs: n.tabs.map((t) => ({ label: t.label, children: t.children.map((c) => hydrateNode(c, base, h)) })) };
     case 'collection': {
       const parent = base, node = resolveNode(h.state, parent);
       const rows = node?.collections?.[n.name] ?? [];
@@ -54,13 +62,34 @@ function hydrateNode(n: PageNode, base: string, h: H): UINode {
         const itemPath = `${parent}.${n.name}[${i}]`;
         return { nodePath: itemPath, group: hydrateGroup(n.itemTemplate, itemPath, n.itemGrid ?? 'row', h) };
       });
+      const layout = n.layout === 'table' ? 'table' : undefined;
+      const itemType = node ? (h.meta.childrenOf(node.type).find((c) => c.name === n.name)?.node ?? node.type) : undefined;
+      const columns = layout && itemType ? tableColumns(n.itemTemplate, itemType, h.meta) : undefined;
       return {
         kind: 'collection', parentPath: parent, collName: n.name, title: n.title ?? COLL_LABEL[n.name] ?? n.name,
+        layout, columns,
         newItemTemplate: () => (n.newItem ? structuredClone(n.newItem) : (COLL_TEMPLATE[n.name]?.() ?? {})),
         items, className: n.className,
       };
     }
   }
+}
+
+// 表格列：从 itemTemplate 递归抽取 field/cell 叶子（label 走 field.label/FIELD_LABEL，kind 由 spec 强制）。
+function tableColumns(itemTemplate: PageNode[], itemType: string, meta: EngineMeta) {
+  const specs = meta.effectiveFields(itemType);
+  const cols: { field?: string; label: string; kind: 'field' | 'cell'; control?: string }[] = [];
+  const walk = (nodes: PageNode[]) => {
+    for (const n of nodes as any[]) {
+      if (n.kind === 'field' || n.kind === 'cell') {
+        const f = n.field ?? lastSeg(n.path ?? '');
+        const s: any = specs[f] ?? {};
+        cols.push({ field: f, label: n.label ?? s.label ?? FIELD_LABEL[f] ?? f, kind: (s.computed || s.external) ? 'cell' : 'field', control: n.control ?? controlOf(f) });
+      } else if (Array.isArray(n.children)) walk(n.children);
+    }
+  };
+  walk(itemTemplate);
+  return cols;
 }
 
 function hydrateGroup(nodes: PageNode[], base: string, grid: string | undefined, h: H): UINode {

@@ -19,7 +19,8 @@ import { ResolverSim } from './ResolverSim';
 import { DEFAULT_MOCKS } from './mock';
 import { ImportsManager } from './ImportsManager';
 import { LibraryManager } from './LibraryManager';
-import { LayoutCanvas } from './LayoutCanvas';
+import { RulesetTree } from './RulesetTree';
+import { PageCanvas } from './PageCanvas';
 import { TestData } from './TestData';
 import { VersionPanel } from './VersionPanel';
 import { StorePanel } from './StorePanel';
@@ -180,7 +181,7 @@ export default function App() {
         {!isLib && <button className="mini" onClick={() => setShowJson(showJson === 'data' ? 'none' : 'data')}>Data JSON</button>}
       </div>
 
-      <div className={'ed-main ' + (section === 'page' ? 'full' : 'split')}>
+      <div className={'ed-main ' + (section === 'page' ? 'page' : 'split')}>
         {section === 'ruleset' && <>
           <div className="ed-aside">
             <div className="tree">
@@ -208,12 +209,13 @@ export default function App() {
           </div>
         </>}
 
-        {section === 'page' && (
+        {section === 'page' && <>
+          <div className="ed-aside"><RulesetTree meta={meta} /></div>
           <div className="ed-center">
-            <LayoutCanvas pageDef={s.pageDef} meta={buildMeta(s.ruleSet, s.libraries)} mutatePageDef={s.mutatePageDef} />
+            <PageCanvas pageDef={s.pageDef} meta={meta} mutatePageDef={s.mutatePageDef} />
             {jsonPane(showJson, false, jsonText, setShowJson)}
           </div>
-        )}
+        </>}
       </div>
 
       {showPreview && (

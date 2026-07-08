@@ -18,6 +18,8 @@ export function renderNode(node: UINode, ctx: EngineCtx): VNode {
     case 'panel': return egPanel(node, ctx);
     case 'collection': return egCollection(node, ctx);
     case 'group': return egGroup(node, ctx);
+    // tabs：本端暂无交互式标签页，优雅降级为堆叠渲染各 tab 内容（不丢内容；完整 tab UI 见 React 端，四端 parity 后续）。
+    case 'tabs': return h('div', { class: cx('eg-tabs', node.className) }, node.tabs.flatMap((t) => t.children.map((c) => renderNode(c, ctx))));
   }
 }
 
