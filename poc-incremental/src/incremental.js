@@ -54,6 +54,8 @@ export function createSession(ruleSet, data, opts = {}) {
   function isA(type, ancestor) { let t = type; while (t) { if (t === ancestor) return true; t = nodeDef(t).extends; } return false; }
   // 沿继承链合并字段（子类可覆盖基类同名字段）
   function effectiveFields(type) { const o = {}; for (const t of typeChain(type)) Object.assign(o, nodeDef(t).fields || {}); return o; }
+  // 字段的人类可读标签（用于报错 {字段:label} 引用）；取不到返回 undefined
+  function fieldLabel(type, field) { try { return (effectiveFields(type)[field] || {}).label; } catch { return undefined; } }
   // 节点的子集合声明（兼容单对象与数组），沿链合并
   const normColls = (c) => (!c ? [] : Array.isArray(c) ? c : [c]);
   function childCollections(type) {
@@ -307,7 +309,7 @@ export function createSession(ruleSet, data, opts = {}) {
         const gctx = cell.getCtx ? cell.getCtx() : ctxFor(cell.nodePath);
         const r = evaluate(cell.expr, gctx).value;
         value = r === true;
-        cell.failMsg = value ? null : interp(cell.message, gctx);
+        cell.failMsg = value ? null : interp(cell.message, gctx, cell.scope);
       } else { // computed
         if (cell.override !== undefined) {
           value = coerce(cell.type, cell.override);   // 人工覆盖：持有该值，不跑公式
@@ -377,10 +379,15 @@ export function createSession(ruleSet, data, opts = {}) {
     }
   }
 
-  function interp(tmpl, ctxObj) {
+  function interp(tmpl, ctxObj, type) {
     if (!tmpl) return null;
-    return tmpl.replace(/\{\{|\}\}|\{([^}]*)\}/g, (m, expr) =>
-      m === "{{" ? "{" : m === "}}" ? "}" : fmt(evaluate(expr, ctxObj).value));
+    return tmpl.replace(/\{\{|\}\}|\{([^}]*)\}/g, (m, expr) => {
+      if (m === "{{") return "{";
+      if (m === "}}") return "}";
+      const lm = expr.match(/^\s*([\w.]+)\s*:\s*label\s*$/);   // {字段:label} → 字段的人类可读标签
+      if (lm) return fieldLabel(type, lm[1]) || lm[1];
+      return fmt(evaluate(expr, ctxObj).value);               // {表达式} → 求值结果（原行为）
+    });
   }
 
   // ── 公共 API ──

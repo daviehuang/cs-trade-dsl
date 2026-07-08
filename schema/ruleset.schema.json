@@ -82,7 +82,8 @@
               "type": { "$ref": "#/$defs/fieldType" },
               "computed": { "type": "boolean" },
               "external": { "type": "boolean" },
-              "overridable": { "type": "boolean" }
+              "overridable": { "type": "boolean" },
+              "label": { "type": "string", "description": "字段的人类可读描述（单一事实来源）：UI 标签兜底 + 报错 {字段:label} 引用" }
             }
           }
         },

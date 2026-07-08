@@ -8,6 +8,8 @@ export interface FieldSpec {
   computed?: boolean;
   external?: boolean;
   overridable?: boolean;
+  /** 字段的人类可读描述（单一事实来源）：页面标签兜底 + 报错 {字段:label} 引用。 */
+  label?: string;
 }
 
 export interface ChildColl { name: string; node: string; }

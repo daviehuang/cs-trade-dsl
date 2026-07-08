@@ -29,12 +29,12 @@ function withSpan(node: UINode, grid: string | undefined, srcKind: PageNode['kin
 function hydrateNode(n: PageNode, base: string, h: H): UINode {
   switch (n.kind) {
     case 'field': {
-      const path = leafPath(n, base), f = lastSeg(path);
-      return { kind: 'field', path, label: n.label ?? FIELD_LABEL[f] ?? f, control: n.control ?? controlOf(f), className: n.className };
+      const path = leafPath(n, base), f = lastSeg(path), spec = specAt(h.meta, h.state, path);
+      return { kind: 'field', path, label: n.label ?? spec.label ?? FIELD_LABEL[f] ?? f, control: n.control ?? controlOf(f), className: n.className };
     }
     case 'cell': {
       const path = leafPath(n, base), f = lastSeg(path), spec = specAt(h.meta, h.state, path);
-      return { kind: 'cell', path, label: n.label ?? FIELD_LABEL[f] ?? f, overridable: !!spec.overridable, external: !!spec.external, big: !!n.emphasis, className: n.className };
+      return { kind: 'cell', path, label: n.label ?? spec.label ?? FIELD_LABEL[f] ?? f, overridable: !!spec.overridable, external: !!spec.external, big: !!n.emphasis, className: n.className };
     }
     case 'validations':
       return { kind: 'validations', path: n.path ?? base, className: cls(n.className, 'span-all') };

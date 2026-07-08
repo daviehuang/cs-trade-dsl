@@ -8,15 +8,15 @@
     "nodes": {
       "LetterOfCredit": {
         "fields": {
-          "lcNo": { "type": "string" },
-          "baseCcy": { "type": "string" },
-          "valueDate": { "type": "date" },
-          "maxNet": { "type": "decimal" },
-          "adjustMode": { "type": "string" },
-          "adjustment": { "type": "decimal", "computed": true },
-          "chargeTotal": { "type": "decimal", "computed": true },
-          "paymentTotal": { "type": "decimal", "computed": true },
-          "net": { "type": "decimal", "computed": true }
+          "lcNo": { "type": "string", "label": "信用证号" },
+          "baseCcy": { "type": "string", "label": "基准币种" },
+          "valueDate": { "type": "date", "label": "起息日" },
+          "maxNet": { "type": "decimal", "label": "净额上限" },
+          "adjustMode": { "type": "string", "label": "手续调整方式" },
+          "adjustment": { "type": "decimal", "computed": true, "label": "手续调整" },
+          "chargeTotal": { "type": "decimal", "computed": true, "label": "收费合计" },
+          "paymentTotal": { "type": "decimal", "computed": true, "label": "付费合计" },
+          "net": { "type": "decimal", "computed": true, "label": "净额" }
         },
         "slots": {
           "applicant":       "CustomerParty",
@@ -32,26 +32,26 @@
       },
       "ChargeGroup": {
         "fields": {
-          "groupName": { "type": "string" },
-          "subtotal": { "type": "decimal", "computed": true }
+          "groupName": { "type": "string", "label": "组名" },
+          "subtotal": { "type": "decimal", "computed": true, "label": "小计" }
         },
         "children": [ { "name": "items", "node": "ChargeItem" } ]
       },
       "ChargeItem": {
         "fields": {
-          "desc": { "type": "string" },
-          "ccy": { "type": "string" },
-          "amount": { "type": "decimal" },
-          "fxRate": { "type": "decimal", "external": true },
-          "base": { "type": "decimal", "computed": true, "overridable": true }
+          "desc": { "type": "string", "label": "摘要" },
+          "ccy": { "type": "string", "label": "币种" },
+          "amount": { "type": "decimal", "label": "金额" },
+          "fxRate": { "type": "decimal", "external": true, "label": "汇率" },
+          "base": { "type": "decimal", "computed": true, "overridable": true, "label": "本币 base" }
         }
       },
       "Payment": {
         "fields": {
-          "ccy": { "type": "string" },
-          "amount": { "type": "decimal" },
-          "fxRate": { "type": "decimal", "external": true },
-          "base": { "type": "decimal", "computed": true }
+          "ccy": { "type": "string", "label": "币种" },
+          "amount": { "type": "decimal", "label": "金额" },
+          "fxRate": { "type": "decimal", "external": true, "label": "汇率" },
+          "base": { "type": "decimal", "computed": true, "label": "本币 base" }
         }
       }
     }
@@ -105,7 +105,7 @@
 
     { "id": "netLimit", "type": "validation", "scope": "LetterOfCredit", "trigger": "after-calc",
       "expr": "net <= maxNet", "severity": "error", "code": "E_NET_LIMIT",
-      "message": "净额 {net} 超过上限 {maxNet}" },
+      "message": "{net:label} {net} 超过{maxNet:label} {maxNet}" },
 
     { "id": "reimbVsAdvising", "type": "validation", "scope": "LetterOfCredit", "trigger": "after-calc",
       "expr": "len(reimbursingBank.name) == 0 || reimbursingBank.name != advisingBank.name",

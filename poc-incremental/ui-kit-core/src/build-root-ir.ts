@@ -11,7 +11,7 @@ function leafFieldsIR(node: ViewNode, meta: EngineMeta, only?: string[]): UINode
   const names = (only ?? Object.keys(node.fields)).filter((f) => f in node.fields);
   return names.map((f): UINode => {
     const s = specs[f] ?? {};
-    const path = node.path + '.' + f, label = FIELD_LABEL[f] ?? f;
+    const path = node.path + '.' + f, label = s.label ?? FIELD_LABEL[f] ?? f;
     if (s.computed || s.external)
       return { kind: 'cell', path, label, overridable: !!s.overridable, external: !!s.external, big: f === 'net' };
     return { kind: 'field', path, label, control: controlOf(f) };

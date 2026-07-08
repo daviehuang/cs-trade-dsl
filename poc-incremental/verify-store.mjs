@@ -60,6 +60,14 @@ try {
   const net = resolveCell(st, 'root.net')?.value;
   console.log('  净额 net =', net);
   check(net === '82203.22', 'net = 82203.22（与四端一致）');
+
+  // ── 5) 字段 label：报错 {字段:label} 引用友好名（越限触发 netLimit）──────
+  banner('5) field.label：报错用 {字段:label} 引用友好名');
+  const s2 = createSession(b.ruleSet, { ...structuredClone(b.data), maxNet: '1000' }, { resolve, imports: b.imports });
+  await s2.idle();
+  const vmsg = s2.getState().validations.find((x) => x.id === 'netLimit')?.message;
+  console.log('  netLimit.message =', vmsg);
+  check(!!vmsg && vmsg.startsWith('净额 ') && vmsg.includes('超过净额上限 '), '报错含字段 label（净额 / 净额上限），而非字段名');
 } catch (e) {
   console.error('\n⛔ 验证异常：', e.message, '\n（store-server 是否已启动？node store-server.js）');
   pass = false;

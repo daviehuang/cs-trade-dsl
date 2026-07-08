@@ -75,7 +75,7 @@ export function resolveCell(state: SessionState, path: string): Cell | undefined
 }
 
 /** 字段路径 → 字段 spec（从模型元数据按节点类型 + 继承链取）。 */
-export function specAt(meta: EngineMeta, state: SessionState, path: string): { computed?: boolean; external?: boolean; overridable?: boolean } {
+export function specAt(meta: EngineMeta, state: SessionState, path: string): { computed?: boolean; external?: boolean; overridable?: boolean; label?: string } {
   const i = path.lastIndexOf('.');
   const node = resolveNode(state, path.slice(0, i));
   return node ? (meta.effectiveFields(node.type)[path.slice(i + 1)] ?? {}) : {};

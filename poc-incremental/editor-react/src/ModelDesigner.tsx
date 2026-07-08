@@ -9,11 +9,12 @@ const FLAGS = [
   { k: 'external', label: 'external（外部注入）' }, { k: 'overridable', label: 'computed+overridable' },
 ];
 const flagOf = (s: any) => s?.overridable ? 'overridable' : s?.external ? 'external' : s?.computed ? 'computed' : 'input';
-const specOf = (type: string, flag: string) => {
+const specOf = (type: string, flag: string, label?: string) => {
   const s: any = { type };
   if (flag === 'computed') s.computed = true;
   if (flag === 'external') s.external = true;
   if (flag === 'overridable') { s.computed = true; s.overridable = true; }
+  if (label) s.label = label;
   return s;
 };
 
@@ -26,7 +27,7 @@ export function ModelDesigner({ ruleSet, meta, mutateRuleSet, isLibrary }: Props
   const node = localNodes[sel];
 
   const [newNode, setNewNode] = useState('');
-  const [fName, setFName] = useState(''); const [fType, setFType] = useState('decimal'); const [fFlag, setFFlag] = useState('input');
+  const [fName, setFName] = useState(''); const [fType, setFType] = useState('decimal'); const [fFlag, setFFlag] = useState('input'); const [fLabel, setFLabel] = useState('');
   const [slotName, setSlotName] = useState(''); const [slotType, setSlotType] = useState(allTypes[0] ?? ''); const [slotOptNew, setSlotOptNew] = useState(false);
   const [collName, setCollName] = useState(''); const [collType, setCollType] = useState(allTypes[0] ?? '');
 
@@ -82,23 +83,25 @@ export function ModelDesigner({ ruleSet, meta, mutateRuleSet, isLibrary }: Props
 
           <h4>字段</h4>
           <table className="ed-tbl">
-            <thead><tr><th>名</th><th>type</th><th>种类</th><th></th></tr></thead>
+            <thead><tr><th>名</th><th>描述 label</th><th>type</th><th>种类</th><th></th></tr></thead>
             <tbody>
               {Object.entries(node.fields || {}).map(([f, s]: any) => (
                 <tr key={f}>
                   <td><code>{f}</code></td>
-                  <td><select value={s.type} onChange={(e) => patchNode((n) => { n.fields[f] = specOf(e.target.value, flagOf(s)); })}><option>decimal</option><option>int</option><option>string</option><option>date</option></select></td>
-                  <td><select value={flagOf(s)} onChange={(e) => patchNode((n) => { n.fields[f] = specOf(s.type, e.target.value); })}>{FLAGS.map((x) => <option key={x.k} value={x.k}>{x.label}</option>)}</select></td>
+                  <td><input value={s.label ?? ''} placeholder={f} title="人类可读描述：页面标签兜底 + 报错 {字段:label} 引用" onChange={(e) => patchNode((n) => { n.fields[f] = specOf(s.type, flagOf(s), e.target.value); })} style={{ width: 130 }} /></td>
+                  <td><select value={s.type} onChange={(e) => patchNode((n) => { n.fields[f] = specOf(e.target.value, flagOf(s), s.label); })}><option>decimal</option><option>int</option><option>string</option><option>date</option></select></td>
+                  <td><select value={flagOf(s)} onChange={(e) => patchNode((n) => { n.fields[f] = specOf(s.type, e.target.value, s.label); })}>{FLAGS.map((x) => <option key={x.k} value={x.k}>{x.label}</option>)}</select></td>
                   <td className="ops"><button className="del" onClick={() => patchNode((n) => { delete n.fields[f]; })}>✕</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div className="ed-row">
-            <input value={fName} onChange={(e) => setFName(e.target.value)} placeholder="字段名" style={{ width: 120 }} />
+            <input value={fName} onChange={(e) => setFName(e.target.value)} placeholder="字段名" style={{ width: 110 }} />
+            <input value={fLabel} onChange={(e) => setFLabel(e.target.value)} placeholder="描述 label（可选）" style={{ width: 130 }} />
             <select value={fType} onChange={(e) => setFType(e.target.value)}><option>decimal</option><option>int</option><option>string</option><option>date</option></select>
             <select value={fFlag} onChange={(e) => setFFlag(e.target.value)}>{FLAGS.map((x) => <option key={x.k} value={x.k}>{x.label}</option>)}</select>
-            <button className="primary" disabled={!fName} onClick={() => { patchNode((n) => { (n.fields ??= {})[fName] = specOf(fType, fFlag); }); setFName(''); }}>加字段</button>
+            <button className="primary" disabled={!fName} onClick={() => { patchNode((n) => { (n.fields ??= {})[fName] = specOf(fType, fFlag, fLabel); }); setFName(''); setFLabel(''); }}>加字段</button>
           </div>
 
           <h4>具名槽位 slots（单子节点）</h4>

@@ -26,14 +26,14 @@ const rebase = (base: string, at: string): string => (at.startsWith('root') ? at
 function hydrateNode(n: PageNode, base: string, h: H): FormlyFieldConfig {
   switch (n.kind) {
     case 'field': {
-      const path = leafPath(n, base), f = lastSeg(path);
-      const fc: FormlyFieldConfig = { type: 'eg-field', props: { ctx: h.ctx, path, label: n.label ?? FIELD_LABEL[f] ?? f, control: n.control ?? controlOf(f) } };
+      const path = leafPath(n, base), f = lastSeg(path), spec = specAt(h.meta, h.state, path);
+      const fc: FormlyFieldConfig = { type: 'eg-field', props: { ctx: h.ctx, path, label: n.label ?? spec.label ?? FIELD_LABEL[f] ?? f, control: n.control ?? controlOf(f) } };
       if (n.className) fc.className = n.className;
       return fc;
     }
     case 'cell': {
       const path = leafPath(n, base), f = lastSeg(path), spec = specAt(h.meta, h.state, path);
-      const fc: FormlyFieldConfig = { type: 'eg-cell', props: { ctx: h.ctx, path, label: n.label ?? FIELD_LABEL[f] ?? f, overridable: !!spec.overridable, external: !!spec.external, big: !!n.emphasis } };
+      const fc: FormlyFieldConfig = { type: 'eg-cell', props: { ctx: h.ctx, path, label: n.label ?? spec.label ?? FIELD_LABEL[f] ?? f, overridable: !!spec.overridable, external: !!spec.external, big: !!n.emphasis } };
       if (n.className) fc.className = n.className;
       return fc;
     }
