@@ -66,7 +66,7 @@ code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px
 .pc-toolbar { position: absolute; top: -12px; left: 8px; z-index: 3; display: inline-flex; align-items: center; gap: 6px;
   padding: 2px 6px; font-size: 11px; background: #fff; border: 1px solid #cdd6e3; border-radius: 6px;
   box-shadow: 0 1px 3px rgba(0,0,0,.12); opacity: 0; pointer-events: none; transition: opacity .1s; }
-.pc-block:hover > .pc-toolbar, .pc-block.sel > .pc-toolbar { opacity: 1; pointer-events: auto; }
+.pc-block.sel > .pc-toolbar { opacity: 1; pointer-events: auto; }   /* 仅选中元素显工具条（避免嵌套悬停堆叠多条） */
 .pc-toolbar b { font-size: 11px; color: #334155; }
 .pc-toolbar .pc-ops { opacity: 1; margin-left: 2px; }              /* 工具条整体已随显隐，ops 常显 */
 .pc-grip { cursor: grab; color: #94a3b8; font-size: 12px; line-height: 1; user-select: none; }
@@ -83,7 +83,7 @@ code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px
 
 /* 通用 ops（容器头 + 芯片）：悬停显现 */
 .pc-ops { margin-left: auto; white-space: nowrap; display: inline-flex; gap: 2px; opacity: 0; transition: opacity .12s; }
-.pc-chip:hover .pc-ops, .pc-chip.sel .pc-ops { opacity: 1; }
+.pc-chip.sel .pc-ops { opacity: 1; }                                /* 芯片同理：仅选中显 ops */
 .pc-ops button { height: 20px; padding: 0 5px; border: 1px solid #cdd6e3; background: #fff; border-radius: 5px; cursor: pointer; font-size: 11px; color: #64748b; }
 .pc-ops button.del { color: #c0392b; border-color: #f0d2d2; }
 
