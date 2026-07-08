@@ -52,6 +52,9 @@ code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px
 .pc-dz-row > .pc-chip, .pc-dz-grid > .pc-chip { align-self: flex-start; }
 .pc-dz-row > .pc-block { flex: 1 1 180px; min-width: 160px; }        /* 行中的子容器（列）分享宽度 → 并排 */
 .pc-dz-row > .pc-chip { flex: 0 0 auto; }                            /* 行中的叶子芯片自然宽 */
+/* 表格/集合/标签页是整块结构，独占一行（不与兄弟并排/挤压） */
+.pc-dz-row > .pc-block.kind-collection, .pc-dz-row > .pc-block.kind-tabs { flex-basis: 100%; }
+.pc-dz-grid > .pc-block.kind-collection, .pc-dz-grid > .pc-block.kind-tabs { grid-column: 1 / -1; }
 
 /* 容器块（panel/group/collection/tabs）：无持久顶栏，悬停/选中浮现工具条 */
 .pc-block { position: relative; border: 1px solid #e2e8f2; border-radius: 8px; background: #fff; cursor: pointer; }

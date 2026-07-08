@@ -117,7 +117,8 @@ function dzLayout(node: any): { cls: string; style?: any } {
     if (node.grid === 'form') return { cls: 'pc-dz-grid', style: { gridTemplateColumns: 'repeat(2, 1fr)' } };
     return { cls: 'pc-dz-col' };
   }
-  if (node.kind === 'collection') return { cls: node.itemGrid === 'row' ? 'pc-dz-row' : 'pc-dz-col' };
+  // 表格：编辑区里每个列定义（拖入的"行"）各占一行（竖排）；卡片集合按 itemGrid。
+  if (node.kind === 'collection') return { cls: (node.layout === 'table' || node.itemGrid !== 'row') ? 'pc-dz-col' : 'pc-dz-row' };
   return { cls: 'pc-dz-col' };
 }
 
