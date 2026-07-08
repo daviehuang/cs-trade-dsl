@@ -43,6 +43,9 @@ code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px
 /* 放置区：按容器 grid 方向布局（所见即所得） */
 .pc-drop { min-height: 26px; border: 1px dashed #dde3ec; border-radius: 7px; padding: 6px; background: #fbfcfe; }
 .pc-drop.pc-root { min-height: 200px; border-color: #c7d2e0; padding: 8px; }
+/* 行/列/网格：去掉 drop 区的内层虚线边框与底色，减少页面线条（仅保留外层容器框） */
+.pc-block.kind-group > .pc-drop { border-color: transparent; background: transparent; padding: 4px; }
+.pc-block.kind-group > .pc-drop:empty { min-height: 0; }
 .pc-dz-col { display: flex; flex-direction: column; gap: 6px; }
 .pc-dz-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
 .pc-dz-grid { display: grid; gap: 8px; }
