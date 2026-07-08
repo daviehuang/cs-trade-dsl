@@ -49,7 +49,7 @@ export const DND_MIME = 'application/x-udsl-drag';
 export type DragPayload =
   | { src: 'field'; field: string; asKind: 'field' | 'cell'; label?: string }
   | { src: 'collection'; name: string; itemTemplate: any[] }
-  | { src: 'node'; at: string; label: string }
+  | { src: 'node'; at: string; label: string; fields: any[] }   // 整体拖入：panel(at) + 预填该节点字段
   | { src: 'palette'; node: any };            // 调色板：直接给一个新容器节点
 
 export const readPayload = (e: React.DragEvent): DragPayload | null => {
@@ -65,7 +65,7 @@ export function payloadToNode(p: DragPayload): any {
   switch (p.src) {
     case 'field': return { kind: p.asKind, field: p.field };
     case 'collection': return { kind: 'collection', name: p.name, itemGrid: 'row', itemTemplate: p.itemTemplate };
-    case 'node': return { kind: 'panel', title: p.label, at: p.at, grid: 'form', children: [] };
+    case 'node': return { kind: 'panel', title: p.label, at: p.at, grid: 'form', children: p.fields };
     case 'palette': return JSON.parse(JSON.stringify(p.node));
   }
 }

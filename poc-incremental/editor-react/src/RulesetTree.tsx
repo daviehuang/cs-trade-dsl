@@ -7,8 +7,8 @@ import { DragPayload, writePayload } from './layout-addr';
 type Props = { meta: EngineMeta };
 
 const isCell = (s: any) => !!(s?.computed || s?.external);
-// 子集合拖出时预填 itemTemplate（元素类型的所有字段，按 spec 定 field/cell）。
-const itemTemplateOf = (meta: EngineMeta, itemType: string) =>
+// 某类型的所有字段 → field/cell 节点（按 spec 定种类）。集合/槽位整体拖入时用它预填。
+const fieldsOf = (meta: EngineMeta, itemType: string) =>
   Object.entries(meta.effectiveFields(itemType)).map(([f, s]) => ({ kind: isCell(s) ? 'cell' : 'field', field: f }));
 
 export function RulesetTree({ meta }: Props) {
@@ -48,14 +48,14 @@ function TypeBlock({ meta, type, label, kk, depth, defaultOpen }: {
       {slots.map(([name, sub]) => (
         <ExpandRow key={'slot:' + name} kk={kk + '.s.' + name} depth={depth} badge="slot" badgeCls="slot"
           name={name} sub={String(sub)}
-          dragProps={{ draggable: true, onDragStart: drag({ src: 'node', at: name, label: name }) }}>
+          dragProps={{ draggable: true, onDragStart: drag({ src: 'node', at: name, label: name, fields: fieldsOf(meta, String(sub)) }) }}>
           <TypeBlock meta={meta} type={String(sub)} label={name} kk={kk + '.s.' + name} depth={depth + 1} />
         </ExpandRow>
       ))}
       {colls.map((c) => (
         <ExpandRow key={'coll:' + c.name} kk={kk + '.c.' + c.name} depth={depth} badge="集合" badgeCls="collection"
           name={c.name} sub={c.node}
-          dragProps={{ draggable: true, onDragStart: drag({ src: 'collection', name: c.name, itemTemplate: itemTemplateOf(meta, c.node) }) }}>
+          dragProps={{ draggable: true, onDragStart: drag({ src: 'collection', name: c.name, itemTemplate: fieldsOf(meta, c.node) }) }}>
           <TypeBlock meta={meta} type={c.node} label={c.name} kk={kk + '.c.' + c.name} depth={depth + 1} />
         </ExpandRow>
       ))}
