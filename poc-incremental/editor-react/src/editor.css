@@ -11,9 +11,45 @@ body { margin: 0; background: #eef1f6; color: #1c2430; font-family: "Segoe UI", 
 .ed-lintbar .li { font-size: 11px; color: #8a5a5a; } .ed-lintbar .li.warn { color: #a86609; }
 code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
-.ed-main { flex: 1; display: grid; grid-template-columns: 470px 1fr; min-height: 0; }
+.ed-main { flex: 1; display: grid; min-height: 0; }
+.ed-main.split { grid-template-columns: 210px 1fr; }
+.ed-main.full { grid-template-columns: 1fr; }
+.ed-aside { border-right: 1px solid #dde3ec; overflow: auto; padding: 12px 12px; background: #f7f9fc; }
+.ed-center { overflow: auto; padding: 14px 16px; }
 .ed-left { border-right: 1px solid #dde3ec; overflow: auto; padding: 12px 14px; background: #fbfcfe; }
 .ed-right { overflow: auto; padding: 14px; }
+
+/* 顶层分段主导航：规则集 / 库 / 页面 */
+.ed-nav { display: flex; align-items: center; gap: 4px; padding: 7px 16px; background: #f2f5fa; border-bottom: 1px solid #e1e6ee; }
+.ed-nav button { background: transparent; border: 1px solid transparent; color: #475569; padding: 6px 16px; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 8px; }
+.ed-nav button:hover { background: #e6edf7; }
+.ed-nav button.on { background: #1d5e96; color: #fff; }
+.ed-nav-ctx { margin-left: 10px; font-size: 12px; color: #64748b; } .ed-nav-ctx b { color: #1d5e96; }
+
+/* 顶栏视图切换 */
+.ed-view { font-size: 12px; color: #cfe0f0; display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; }
+.ed-view button.mini { background: #14507f; border: 1px solid #2a7bc0; color: #cfe0f0; }
+.ed-view button.mini.on { background: #fff; color: #0b3d6b; border-color: #fff; font-weight: 600; }
+
+/* 左侧方面竖列（复用 tree-row） */
+.ed-aside .tree-row { padding: 8px 10px; }
+.ed-aside .tree-row.sel { background: #e4eefb; font-weight: 600; }
+
+/* 库列表：窄栏里竖向紧凑卡片 */
+.lib-row { flex-direction: column; align-items: stretch; gap: 3px; }
+.lib-row-top { display: flex; align-items: center; gap: 6px; }
+.lib-row-top .tr-label { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-row-top .kind { white-space: nowrap; }
+.lib-row-sub { font-size: 10px; line-height: 1.3; }
+.lib-del { border: 1px solid #f0d2d2; color: #c0392b; background: #fff; border-radius: 5px; height: 20px; padding: 0 6px; cursor: pointer; font-size: 11px; }
+
+/* 模态弹窗（预览 / 仓库） */
+.ed-modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.ed-modal { background: #fff; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.3); width: 640px; max-width: 92vw; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+.ed-modal.wide { width: 1080px; }
+.ed-modal-h { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid #e6ebf2; background: #f7f9fc; }
+.ed-modal-h b { font-size: 14px; color: #0b3d6b; }
+.ed-modal-body { overflow: auto; padding: 14px 16px; }
 
 .ed-tabs { display: inline-flex; border: 1px solid #d4dbe6; border-radius: 9px; overflow: hidden; margin-bottom: 12px; }
 .ed-tabs button { background: #fff; border: none; color: #475569; padding: 7px 14px; font-size: 13px; cursor: pointer; border-right: 1px solid #e6ebf2; }

@@ -10,16 +10,23 @@ type Props = {
   setEditTarget: (t: string) => void;
   addLibrary: (ref: string, lib: RuleSet) => void;
   deleteLibrary: (ref: string) => void;
+  showScenarioRow?: boolean;                 // 库区传 false：只列库，不显示「场景」行
 };
 const kindOf = (lib: RuleSet) =>
   [lib.nodes && Object.keys(lib.nodes).length ? '类型库' : '', lib.modules && Object.keys(lib.modules).length ? '模块库' : ''].filter(Boolean).join('+') || '空库';
 const counts = (lib: RuleSet) =>
   `${Object.keys(lib.nodes ?? {}).length}节点 · ${Object.keys(lib.modules ?? {}).length}模块 · ${(lib.rules ?? []).length}规则 · ${(lib.dataSources ?? []).length}数据源`;
 
-export function LibraryManager({ libraries, scenarioName, editTarget, setEditTarget, addLibrary, deleteLibrary }: Props) {
+export function LibraryManager({ libraries, scenarioName, editTarget, setEditTarget, addLibrary, deleteLibrary, showScenarioRow = true }: Props) {
   const [id, setId] = useState('');
   const [ver, setVer] = useState('1.0.0');
   const [kind, setKind] = useState<'type' | 'module' | 'both'>('type');
+
+  // 删除某库后的回退目标：优先其余库的第一个；无库时回场景（若显示场景行）或空。
+  const fallbackAfterDelete = (removed: string) => {
+    const rest = Object.keys(libraries).filter((r) => r !== removed);
+    return rest[0] ?? (showScenarioRow ? 'scenario' : '');
+  };
 
   const create = () => {
     if (!id) return;
@@ -34,21 +41,24 @@ export function LibraryManager({ libraries, scenarioName, editTarget, setEditTar
 
   return (
     <div className="ed-sec">
-      <h4>编辑对象</h4>
+      <h4>{showScenarioRow ? '编辑对象' : '库列表'}</h4>
       <div className="tree">
-        <div className={'tree-row' + (editTarget === 'scenario' ? ' sel' : '')} onClick={() => setEditTarget('scenario')}>
-          <span className="kind panel">场景</span><b className="tr-label">{scenarioName}</b>
-          <span className="tr-ops"><button onClick={(e) => { e.stopPropagation(); setEditTarget('scenario'); }}>编辑</button></span>
-        </div>
+        {showScenarioRow && (
+          <div className={'tree-row' + (editTarget === 'scenario' ? ' sel' : '')} onClick={() => setEditTarget('scenario')}>
+            <span className="kind panel">场景</span><b className="tr-label">{scenarioName}</b>
+            <span className="tr-ops"><button onClick={(e) => { e.stopPropagation(); setEditTarget('scenario'); }}>编辑</button></span>
+          </div>
+        )}
+        {Object.keys(libraries).length === 0 && <div className="tree-row"><span className="muted">暂无库，下方新建。</span></div>}
         {Object.entries(libraries).map(([ref, lib]) => (
-          <div key={ref} className={'tree-row' + (editTarget === ref ? ' sel' : '')} onClick={() => setEditTarget(ref)}>
-            <span className="kind collection">{kindOf(lib)}</span>
-            <b className="tr-label">{ref}</b>
-            <span className="muted tr-type">{counts(lib)}</span>
-            <span className="tr-ops">
-              <button onClick={(e) => { e.stopPropagation(); setEditTarget(ref); }}>编辑</button>
-              <button className="del" onClick={(e) => { e.stopPropagation(); if (confirm(`删除库 ${ref}？引用它的场景/库将无法解析（发布前 lint 提示）。`)) { deleteLibrary(ref); if (editTarget === ref) setEditTarget('scenario'); } }}>✕</button>
-            </span>
+          <div key={ref} className={'tree-row lib-row' + (editTarget === ref ? ' sel' : '')} onClick={() => setEditTarget(ref)}>
+            <div className="lib-row-top">
+              <b className="tr-label">{ref}</b>
+              <span className="kind collection">{kindOf(lib)}</span>
+              <span style={{ flex: 1 }} />
+              <button className="lib-del" title="删除库" onClick={(e) => { e.stopPropagation(); if (confirm(`删除库 ${ref}？引用它的场景/库将无法解析（发布前 lint 提示）。`)) { const fb = fallbackAfterDelete(ref); deleteLibrary(ref); if (editTarget === ref) setEditTarget(fb); } }}>✕</button>
+            </div>
+            <div className="lib-row-sub muted">{counts(lib)}</div>
           </div>
         ))}
       </div>
