@@ -165,8 +165,9 @@ function BlockView({ node, addr, type, meta, selKey, setSel, onDropInto, setDrag
   );
 
   return (
-    <div className={'pc-block kind-' + node.kind + (sel ? ' sel' : '')} {...dragProps}>
-      <div className="pc-h" onClick={(e) => { e.stopPropagation(); setSel(key); }}>
+    <div className={'pc-block kind-' + node.kind + (sel ? ' sel' : '')} onClick={(e) => { e.stopPropagation(); setSel(key); }}>
+      <div className="pc-toolbar">
+        <span className="pc-grip" title="拖动" draggable onDragStart={(e) => { e.stopPropagation(); setDragAddr(addr); }} onDragEnd={() => setDragAddr(null)}>⠿</span>
         <span className={'kind ' + node.kind}>{node.kind}</span>
         <b>{labelOf(node)}</b>
         {node.kind === 'group' && <span className="muted">{node.cols ? `网格${node.cols}` : node.grid === 'row' ? '横排' : node.grid === 'col' ? '竖排' : node.grid}</span>}

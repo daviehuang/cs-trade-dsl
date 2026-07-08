@@ -50,14 +50,21 @@ code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px
 .pc-dz-row > .pc-block { flex: 1 1 180px; min-width: 160px; }        /* 行中的子容器（列）分享宽度 → 并排 */
 .pc-dz-row > .pc-chip { flex: 0 0 auto; }                            /* 行中的叶子芯片自然宽 */
 
-/* 容器块（panel/group/collection/tabs）：slim 头部 + 放置区 */
-.pc-block { border: 1px solid #dbe3ee; border-radius: 8px; background: #fff; }
+/* 容器块（panel/group/collection/tabs）：无持久顶栏，悬停/选中浮现工具条 */
+.pc-block { position: relative; border: 1px solid #e2e8f2; border-radius: 8px; background: #fff; cursor: pointer; }
+.pc-block:hover { border-color: #cbd5e6; }
 .pc-block.sel { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
 .pc-block .pc-drop { margin: 6px; }
-.pc-h { display: flex; align-items: center; gap: 6px; padding: 4px 8px; cursor: pointer; border-bottom: 1px solid #eef2f7; background: #f7f9fc; border-radius: 7px 7px 0 0; }
-.pc-h b { font-size: 12px; color: #334155; }
-.pc-block.kind-group > .pc-h { background: #f3f8f4; } .pc-block.kind-tabs > .pc-h { background: #f3f0fb; }
-.pc-block.kind-collection > .pc-h { background: #f0f9f4; }
+
+/* 浮动工具条：只在悬停/选中出现，浮在盒子上沿 */
+.pc-toolbar { position: absolute; top: -12px; left: 8px; z-index: 3; display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 6px; font-size: 11px; background: #fff; border: 1px solid #cdd6e3; border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12); opacity: 0; pointer-events: none; transition: opacity .1s; }
+.pc-block:hover > .pc-toolbar, .pc-block.sel > .pc-toolbar { opacity: 1; pointer-events: auto; }
+.pc-toolbar b { font-size: 11px; color: #334155; }
+.pc-toolbar .pc-ops { opacity: 1; margin-left: 2px; }              /* 工具条整体已随显隐，ops 常显 */
+.pc-grip { cursor: grab; color: #94a3b8; font-size: 12px; line-height: 1; user-select: none; }
+.pc-grip:active { cursor: grabbing; }
 
 /* 叶子：单行紧凑芯片 */
 .pc-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid #e2e8f2; border-radius: 7px; background: #fff; cursor: grab; font-size: 12px; }
@@ -70,7 +77,7 @@ code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px
 
 /* 通用 ops（容器头 + 芯片）：悬停显现 */
 .pc-ops { margin-left: auto; white-space: nowrap; display: inline-flex; gap: 2px; opacity: 0; transition: opacity .12s; }
-.pc-h:hover .pc-ops, .pc-chip:hover .pc-ops, .pc-block.sel > .pc-h .pc-ops, .pc-chip.sel .pc-ops { opacity: 1; }
+.pc-chip:hover .pc-ops, .pc-chip.sel .pc-ops { opacity: 1; }
 .pc-ops button { height: 20px; padding: 0 5px; border: 1px solid #cdd6e3; background: #fff; border-radius: 5px; cursor: pointer; font-size: 11px; color: #64748b; }
 .pc-ops button.del { color: #c0392b; border-color: #f0d2d2; }
 
