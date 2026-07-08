@@ -74,24 +74,32 @@ export function PageCanvas({ pageDef, meta, mutatePageDef }: Props) {
     return type;
   };
 
+  const selAddr = selKey.split('.').map((s) => /^\d+$/.test(s) ? +s : s);
   return (
     <div className="page-canvas">
-      <div className="pc-palette">
-        <span className="muted">元素：</span>
-        {PALETTE.map((p) => <button key={p.label} className="pc-pal" onClick={() => addFromPalette(p.node)}>＋{p.label}</button>)}
-        <span className="hint" style={{ marginLeft: 8 }}>（加到选中容器，未选则加到顶层；字段从左树拖入）</span>
+      <div className="pc-main">
+        <div className="pc-palette">
+          <span className="muted">元素：</span>
+          {PALETTE.map((p) => <button key={p.label} className="pc-pal" onClick={() => addFromPalette(p.node)}>＋{p.label}</button>)}
+          <span className="hint" style={{ marginLeft: 8 }}>（加到选中容器，未选则加到顶层；字段从左树拖入）</span>
+        </div>
+
+        <div className="pc-drop pc-root" onDragOver={(e) => e.preventDefault()} onDrop={onDropInto([])}>
+          {pageDef.layout.length === 0 && <div className="pc-empty">空页面：点上方元素或从左侧拖字段进来</div>}
+          {pageDef.layout.map((n, i) => (
+            <BlockView key={i} node={n} addr={[i]} type={meta.root} meta={meta}
+              selKey={selKey} setSel={setSelKey} onDropInto={onDropInto} setDragAddr={setDragAddr}
+              move2={move2} remove={remove} patch={patch} pushInto={pushInto} />
+          ))}
+        </div>
       </div>
 
-      <div className="pc-drop pc-root" onDragOver={(e) => e.preventDefault()} onDrop={onDropInto([])}>
-        {pageDef.layout.length === 0 && <div className="pc-empty">空页面：点上方元素或从左侧拖字段进来</div>}
-        {pageDef.layout.map((n, i) => (
-          <BlockView key={i} node={n} addr={[i]} type={meta.root} meta={meta}
-            selKey={selKey} setSel={setSelKey} onDropInto={onDropInto} setDragAddr={setDragAddr}
-            move2={move2} remove={remove} patch={patch} pushInto={pushInto} />
-        ))}
+      <div className="pc-side">
+        <div className="pc-side-h">属性</div>
+        {sel?.node
+          ? <Inspector node={sel.node} addr={selAddr} type={ctxOf(selAddr)} meta={meta} patch={patch} />
+          : <div className="pc-side-empty">点选画布中的元素以编辑其属性。</div>}
       </div>
-
-      {sel?.node && <Inspector node={sel.node} addr={selKey.split('.').map((s) => /^\d+$/.test(s) ? +s : s)} type={ctxOf(selKey.split('.').map((s) => /^\d+$/.test(s) ? +s : s))} meta={meta} patch={patch} />}
     </div>
   );
 }
