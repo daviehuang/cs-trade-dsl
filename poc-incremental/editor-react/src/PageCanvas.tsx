@@ -39,9 +39,11 @@ export function PageCanvas({ pageDef, meta, mutatePageDef }: Props) {
   const move = (from: Addr, toArr: Addr) => {
     if (isPrefix(from, toArr)) return;                       // 禁止拖入自身子树
     mutatePageDef((pd) => {
+      // 先按引用取到目标数组，再删源——否则删源会让目标 addr 的下标错位（如同层 panel 拖进 tabs）。
+      const target = resolveArr(pd.layout, toArr);
       const { arr, index } = resolveAddr(pd.layout, from);
       const [m] = arr.splice(index, 1);
-      resolveArr(pd.layout, toArr).push(m);
+      target.push(m);
     });
   };
   const onDropInto = (arrAddr: Addr) => (e: React.DragEvent) => {
