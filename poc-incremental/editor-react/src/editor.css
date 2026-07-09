@@ -147,6 +147,8 @@ input, select { height: 32px; padding: 0 8px; border: 1px solid #cdd6e3; border-
 input:focus, select:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
 button.primary { background: #1d5e96; border: 1px solid #2a7bc0; color: #fff; border-radius: 7px; padding: 7px 14px; font-size: 17px; cursor: pointer; margin-top: 6px; }
 button.primary:disabled { background: #b6c0cf; border-color: #b6c0cf; cursor: not-allowed; }
+/* ed-row 里的按钮不被无宽度输入挤压、文字不竖排换行 */
+.ed-row > button { flex: 0 0 auto; white-space: nowrap; align-self: center; }
 .hint { color: #94a3b8; font-size: 11px; margin: 8px 0 0; } .muted { color: #94a3b8; }
 
 .ed-tbl { width: 100%; border-collapse: collapse; font-size: 12px; margin: 4px 0; }

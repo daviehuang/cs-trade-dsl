@@ -98,7 +98,7 @@ function ModuleForm({ mod, dataSources, patchMod }: { mod: any; dataSources: any
       <div className="ds-sub">fields（模块内字段）</div>
       {Object.entries(mod.fields ?? {}).map(([n, s]: any) => (
         <div key={n} className="ed-row"><code style={{ minWidth: 90 }}>{n}</code>
-          <select value={s.external ? 'external' : 'computed'} onChange={(e) => patchMod((m) => { m.fields[n] = e.target.value === 'external' ? { type: s.type ?? 'decimal', external: true } : { type: s.type ?? 'decimal', computed: true }; })} style={{ width: 150 }}>
+          <select value={s.external ? 'external' : 'computed'} onChange={(e) => patchMod((m) => { m.fields[n] = e.target.value === 'external' ? { type: s.type ?? 'decimal', external: true } : { type: s.type ?? 'decimal', computed: true }; })} style={{ width: 210 }}>
             <option value="computed">computed（公式算）</option><option value="external">external（resolver 取）</option></select>
           <select value={s.type ?? 'decimal'} onChange={(e) => patchMod((m) => { m.fields[n].type = e.target.value; })} style={{ width: 100 }}>{TYPES.map((x) => <option key={x}>{x}</option>)}</select>
           <button className="del" onClick={() => patchMod((m) => { delete m.fields[n]; })}>✕</button>
@@ -106,7 +106,7 @@ function ModuleForm({ mod, dataSources, patchMod }: { mod: any; dataSources: any
       ))}
       <div className="ed-row">
         <input value={fName} onChange={(e) => setFName(e.target.value)} placeholder="字段名，如 conv" style={{ width: 130 }} />
-        <select value={fKind} onChange={(e) => setFKind(e.target.value)} style={{ width: 150 }}><option value="computed">computed（公式算）</option><option value="external">external（resolver 取）</option></select>
+        <select value={fKind} onChange={(e) => setFKind(e.target.value)} style={{ width: 210 }}><option value="computed">computed（公式算）</option><option value="external">external（resolver 取）</option></select>
         <button className="primary" disabled={!fName} onClick={() => { patchMod((m) => { (m.fields ??= {})[fName] = fKind === 'external' ? { type: 'decimal', external: true } : { type: 'decimal', computed: true }; }); setFName(''); }}>加字段</button>
       </div>
 
@@ -141,7 +141,7 @@ function ModuleRules({ mod, dataSources, fieldNames, patchMod }: { mod: any; dat
     <>
       <div className="ds-sub">rules（模块内规则）</div>
       {rules.map((r, i) => (
-        <div key={i} className="ed-row" style={{ flexWrap: 'wrap', borderBottom: '1px dashed #e6ebf2', paddingBottom: 6 }}>
+        <div key={i} className="ed-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end', borderBottom: '1px dashed #e6ebf2', paddingBottom: 6 }}>
           <span className="kind">{r.type}</span>
           <input value={r.id ?? ''} onChange={(e) => patchRule(i, { id: e.target.value })} placeholder="id" style={{ width: 90 }} />
           {r.type !== 'validation' && (
