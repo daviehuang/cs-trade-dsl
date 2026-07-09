@@ -21,6 +21,16 @@ const jput = async (p: string, body: unknown) => {
 
 export const getCatalog = (): Promise<Catalog> => jget('/catalog');
 
+const jdel = async (p: string) => { const r = await fetch(BASE + p, { method: 'DELETE' }); if (!r.ok) throw new Error(`DELETE ${p} → ${r.status}`); };
+
+// 从仓库删除一笔交易：删 feature + 其规则集/页面/数据（库为共享，保留）。
+export async function deleteFeature(feat: { id: string; ruleSet?: string; page?: string; data?: string }): Promise<void> {
+  await jdel('/feature/' + feat.id);
+  if (feat.ruleSet) await jdel('/ruleset/' + feat.ruleSet);
+  if (feat.page) await jdel('/page/' + feat.page);
+  if (feat.data) await jdel('/data/' + feat.data);
+}
+
 const refOf = (rs: RuleSet) => `${rs.ruleSetId}@${(rs as any).version ?? '0'}`;
 
 // 保存整份工作区到仓库：拆成 库/规则集/页面/数据/feature 分别 PUT。featureId/pageId 用场景 ruleSetId。
