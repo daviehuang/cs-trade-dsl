@@ -114,16 +114,16 @@ code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px
 .ed-view button.mini { background: #14507f; border: 1px solid #2a7bc0; color: #cfe0f0; }
 .ed-view button.mini.on { background: #fff; color: #0b3d6b; border-color: #fff; font-weight: 600; }
 
-/* 左侧方面竖列（复用 tree-row） */
-.ed-aside .tree-row { padding: 8px 10px; }
+/* 左侧方面竖列（复用 tree-row）——列表字体 17px */
+.ed-aside .tree-row { padding: 8px 10px; font-size: 17px; }
 .ed-aside .tree-row.sel { background: #e4eefb; font-weight: 600; }
 
 /* 库列表：窄栏里竖向紧凑卡片 */
 .lib-row { flex-direction: column; align-items: stretch; gap: 3px; }
 .lib-row-top { display: flex; align-items: center; gap: 6px; }
-.lib-row-top .tr-label { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-row-top .tr-label { font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-row-top .kind { white-space: nowrap; }
-.lib-row-sub { font-size: 10px; line-height: 1.3; }
+.lib-row-sub { font-size: 12px; line-height: 1.3; }
 .lib-del { border: 1px solid #f0d2d2; color: #c0392b; background: #fff; border-radius: 5px; height: 20px; padding: 0 6px; cursor: pointer; font-size: 11px; }
 
 /* 模态弹窗（预览 / 仓库） */
