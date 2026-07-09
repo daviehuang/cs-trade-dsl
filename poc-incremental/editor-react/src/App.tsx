@@ -58,7 +58,7 @@ const LIB_ASPECTS = [
 
 // 库 ↔ RuleSet 形状适配：库用顶层 nodes/…；包成 { model:{nodes} } 供编辑器复用，写回时脱去 model 包装。
 const libToRS = (lib: RuleSet): RuleSet => ({ ...lib, model: { root: Object.keys(lib.nodes ?? {})[0] ?? '', nodes: lib.nodes ?? {} } } as any);
-const writeRS = (rs: any, lib: any) => { lib.nodes = rs.model?.nodes ?? {}; lib.rules = rs.rules; lib.modules = rs.modules; lib.uses = rs.uses; lib.context = rs.context; lib.dataSources = rs.dataSources; lib.imports = rs.imports; delete lib.model; };
+const writeRS = (rs: any, lib: any) => { lib.nodes = rs.model?.nodes ?? {}; lib.rules = rs.rules; lib.modules = rs.modules; lib.uses = rs.uses; lib.context = rs.context; lib.contextKeys = rs.contextKeys; lib.dataSources = rs.dataSources; lib.imports = rs.imports; delete lib.model; };
 const EMPTY_RS = { model: { root: '', nodes: {} } } as unknown as RuleSet;
 
 export default function App() {
