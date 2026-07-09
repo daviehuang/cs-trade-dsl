@@ -110,18 +110,58 @@
 ## 5. Context `ctx`：跨切面头部数据
 
 RuleSet 声明一次 `ctx` 到来源的映射；模块与规则到处可用 `ctx.*`，**与位置无关**。
+两种写法要分清：
 
 ```jsonc
+// 场景 / 库 RuleSet —— 映射形式 { 名: 表达式 }：提供值
 "context": {
   "baseCcy":   "root.baseCcy",       // 映射到 model 字段
   "valueDate": "root.valueDate",
   "entity":    "root.entity"
 }
 ```
+```jsonc
+// 模块 —— 数组形式 [名]：声明依赖（"我用到哪些 ctx"，宿主须提供同名值）
+"context": ["valueDate"]
+```
 
 - 来源可以是 `root.*` 字段，也可以是**注入值**（如 `businessDate` 由运行时注入，呼应 ADR-7 的"外部数据=注入输入"）。
-- 为什么要 `ctx` 而不是每次都 bind？头部数据每个模块/每层都要用，逐个 binding 传太啰嗦；`ctx` 声明一次、全局可见。
 - `ctx` 是**只读**的；它是"头部快照"，不被规则改写。
+
+### 5.1 作用域：全局 / 位置无关（实现见 §11.5）
+- 引擎为每个 `context` 项建一个 `__ctx.<名>` **计算 cell**，表达式在 **root 作用域**求值（如 `ctx.baseCcy = root.baseCcy`）。
+- 求值上下文向**每个节点**注入 `ctx`，所以任意深度的任意节点、任意规则都能直接读 `ctx.*`——不管它在树的哪个位置。
+- 对比：普通字段是**节点实例局部**的（`root.charges[0].items[0].amount` 只在那条明细存在）；`ctx.*` 是**环境作用域**、全局可读。
+- `ctx` 是**响应式单一源**：改 `root.baseCcy` → `ctx.baseCcy` 重算 → 所有消费者自动更新。
+
+### 5.2 为什么要 ctx，而不是全用 `input + bind`
+`ctx` 在功能上**可以**用 `input + bind` 等价实现（把 `valueDate` 声明成 input，每个 use 去 bind）。但这样：
+- 同一模块挂多处（fxConvert on ChargeItem + on Payment = 两次 uses）→ `valueDate` 要 **bind 两次**；多模块多宿主 → 绑 N 次，分散、易漏、易写歪。
+- `ctx` 把它**定义一次**，所有读 `ctx.valueDate` 的模块/规则自动拿到，**零重复绑定**。
+
+更本质：`ctx` 是对**两类输入的刻意分离**——
+
+| | `input + bind` | `ctx / context` |
+|---|---|---|
+| 性质 | **每处不同的实例参数** | **整单一致的头部/环境值** |
+| 例子 | `amount`（每行金额）、`fromCcy`（每行币种） | `baseCcy`、`valueDate`、`entity` |
+| 绑定 | **必须**逐处显式绑（本来就不一样） | 定义一次，`ctx.*` 全局取 |
+
+> **经验法则**：值**因挂载点/节点而异** → `input + bind`；值是**整单统一的头部/环境** → `context`。
+> 把头部数据硬塞成 input 也能跑，但会丢掉"这是整单属性、不该逐行变"的语义，也失去单一响应式源的好处。
+
+### 5.3 context 跟随 RuleSet，但 ctx 名字是共享契约
+- `context` **映射**是 **per-RuleSet** 的：换/建另一个 RuleSet，要在它自己里定义 context，映射到**它自己的 model 字段**。
+- 但 **ctx 的名字是跨 RuleSet 的共享接口**——你复用的模块/库声明要用 `ctx.valueDate`，那任何宿主 RuleSet 都必须提供**同名**的 `valueDate`（否则模块取数拿到 undefined）。
+
+  ```jsonc
+  // ruleset A（信用证）                          // ruleset B（保函，字段叫 issueDate）
+  "context": { "valueDate": "root.valueDate" }    "context": { "valueDate": "root.issueDate" }
+  ```
+  名字都得是 `valueDate`（模块认这个），映射各自指向自己的字段。
+- **库可带默认**：`mergedContext = { ...import 的库 context, ...本 RuleSet 的 context }`——import 的库可提供部分 ctx 默认，场景只需补充/覆盖，不必全从零写。
+
+> 一句话：**ctx 名字 = 跨 RuleSet 的共享接口（由模块/库约定、须一致）；context 映射 = 每个 RuleSet 各自把这些名字接到自己模型的哪个字段。**
 
 ---
 
