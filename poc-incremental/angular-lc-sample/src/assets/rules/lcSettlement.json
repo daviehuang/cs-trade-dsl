@@ -65,6 +65,10 @@
       "tolerance": { "type": "relative", "value": "0.0005" } }
   ],
 
+  "contextKeys": {
+    "baseCcy": { "type": "string", "desc": "整单基准币种（换算目标币）" }
+  },
+
   "context": {
     "baseCcy": "root.baseCcy",
     "valueDate": "root.valueDate"

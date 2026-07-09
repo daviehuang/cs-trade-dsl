@@ -7,6 +7,9 @@
       "keySchema": { "from": "string", "to": "string", "valueDate": "date" },
       "authority": "server", "tolerance": { "type": "relative", "value": "0.0005" } }
   ],
+  "contextKeys": {
+    "valueDate": { "type": "date", "desc": "起息日/业务日（fxConvert 取汇率按此日）" }
+  },
   "modules": {
     "fxConvert": {
       "moduleId": "fxConvert", "version": "1.0.0",
