@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createSession } from '@udsl/engine';
 import {
-  PageDef, RuleSet, buildMeta, buildRootIR, hydratePage, lintPageDef,
+  PageDef, RuleSet, buildMeta, buildRootIR, hydratePage, lintPageDef, treeToData,
 } from '@udsl/ui-kit-core';
 import { UiRenderer, useEngineSession } from '@udsl/ui-kit-react';
 import '@udsl/ui-kit-react';     // 引入渲染 kit 样式
@@ -14,6 +14,9 @@ interface Bundle { feature: FeatureSummary; ruleSet: RuleSet; imports: Record<st
 
 const resolve = makeResolve(600);
 const api = (p: string) => fetch(p).then((r) => { if (!r.ok) throw new Error(`${p} → HTTP ${r.status}`); return r.json(); });
+const apiPut = (p: string, body: unknown) =>
+  fetch(p, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    .then((r) => { if (!r.ok) throw new Error(`${p} → HTTP ${r.status}`); return r.json(); });
 
 export default function App() {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
@@ -68,8 +71,20 @@ export default function App() {
 // 拿到运行时 bundle 后才建引擎会话（hook 不能条件调用，故拆为子组件 + key 重挂）。
 function RuntimeView({ bundle }: { bundle: Bundle }) {
   const { ruleSet, imports, pageDef, data } = bundle;
-  const { ctx, getState, structVersion } = useEngineSession({ createSession, ruleSet, imports, data, resolve });
+  const { ctx, getState, structVersion } = useEngineSession({ createSession, ruleSet, imports, data, resolve, reconstructOverrides: true });
   const meta = useMemo(() => buildMeta(ruleSet, imports), [ruleSet, imports]);
+  const [saveMsg, setSaveMsg] = useState('');
+  // 保存运行时页面数据回仓库：treeToData(实时树) → PUT /api/data/<feature.data>。
+  //   重新加载（切走再切回 / 刷新）即以此建 session 并重建非外部覆盖态。
+  const onSaveData = async () => {
+    setSaveMsg('保存中…');
+    try {
+      await apiPut('/api/data/' + encodeURIComponent(bundle.feature.data), treeToData(getState().tree));
+      setSaveMsg('✅ 已保存到仓库');
+    } catch (e: any) {
+      setSaveMsg('⛔ ' + (e?.message ?? String(e)));
+    }
+  };
   const lint = useMemo(() => lintPageDef(pageDef, ruleSet, imports), [pageDef, ruleSet, imports]);
   const errorCount = lint.filter((i) => i.level === 'error').length;
   const warnCount = lint.filter((i) => i.level === 'warn').length;
@@ -90,6 +105,9 @@ function RuntimeView({ bundle }: { bundle: Bundle }) {
           ? (warnCount ? <span className="lint warn">⚠ PageDef 校验通过（{warnCount} 提醒）</span>
             : <span className="lint ok">✔ PageDef 校验通过（lint）</span>)
           : <span className="lint bad">⛔ PageDef {errorCount} 个错误 —— 已回退模型自动布局</span>}
+        <span style={{ flex: 1 }} />
+        {saveMsg && <span className="muted" style={{ fontSize: 12 }}>{saveMsg}</span>}
+        <button className="mini" disabled={st.anyPending} title="把当前填好的数据（含计算值）存回仓库；重新加载即复原、并重建非外部覆盖态" onClick={onSaveData}>💾 保存数据</button>
       </div>
       <UiRenderer ir={ir} ctx={ctx} />
     </div>

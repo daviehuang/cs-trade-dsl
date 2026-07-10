@@ -21,6 +21,10 @@ const jput = async (p: string, body: unknown) => {
 
 export const getCatalog = (): Promise<Catalog> => jget('/catalog');
 
+// 把预览里"填好的运行时页面数据"（treeToData 结果）回存仓库 → PUT /api/data/:id。
+//   dataId 用 feature 的 data（一般=场景 ruleSetId）。重新加载时会以此建 session（并重建覆盖态）。
+export const saveData = (dataId: string, data: unknown): Promise<any> => jput('/data/' + dataId, data);
+
 const jdel = async (p: string) => { const r = await fetch(BASE + p, { method: 'DELETE' }); if (!r.ok) throw new Error(`DELETE ${p} → ${r.status}`); };
 
 // 从仓库删除一笔交易：删 feature + 其规则集/页面/数据（库为共享，保留）。

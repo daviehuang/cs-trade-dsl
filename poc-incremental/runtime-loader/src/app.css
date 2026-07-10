@@ -9,6 +9,9 @@ body { margin: 0; background: #f3f5f9; color: #1c2430; font-family: "Segoe UI", 
 code { background: #eef2f8; padding: 1px 5px; border-radius: 4px; }
 .status { font-size: 12px; padding: 5px 11px; border-radius: 8px; }
 .status.pending { background: #fdf0d5; color: #a86609; } .status.settled { background: #e3f5ea; color: #1c8a4e; }
+.mini { font-size: 12px; padding: 5px 11px; border: 1px solid #cdd7e6; background: #fff; border-radius: 8px; cursor: pointer; }
+.mini:hover:not(:disabled) { background: #eef4ff; border-color: #9ec1f0; }
+.mini:disabled { opacity: .5; cursor: not-allowed; }
 .wrap { max-width: 1180px; margin: 14px auto; padding: 0 16px; }
 .srcbar { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; margin: 2px 0 13px; }
 .srcbar .lbl { font-size: 12px; color: #64748b; font-weight: 500; }

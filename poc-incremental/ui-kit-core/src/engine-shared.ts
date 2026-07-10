@@ -70,6 +70,16 @@ export function resolveNode(state: SessionState, path: string): ViewNode | undef
   return node;
 }
 
+/** 引擎实时视图树 → 普通数据对象（递归 fields + collections + slots）：供保存/提交页面数据。
+ *   含计算值（便于加载时 reconstructOverrides 从值反推覆盖）；重新加载走 createSession(ruleSet, data)。 */
+export function treeToData(node: ViewNode): any {
+  const o: any = {};
+  for (const [f, c] of Object.entries(node.fields)) o[f] = c.value;
+  for (const [coll, arr] of Object.entries(node.collections)) o[coll] = arr.map(treeToData);
+  for (const [slot, sn] of Object.entries(node.slots)) o[slot] = treeToData(sn);
+  return o;
+}
+
 /** 字段路径 → cell（末段为字段名）。 */
 export function resolveCell(state: SessionState, path: string): Cell | undefined {
   const i = path.lastIndexOf('.');

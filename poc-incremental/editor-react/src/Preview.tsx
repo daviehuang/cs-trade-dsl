@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { createSession } from '@udsl/engine';
-import { PageDef, RuleSet, SessionState, buildMeta, buildRootIR, hydratePage } from '@udsl/ui-kit-core';
+import { PageDef, RuleSet, SessionState, buildMeta, buildRootIR, hydratePage, treeToData } from '@udsl/ui-kit-core';
 import { UiRenderer, useEngineSession } from '@udsl/ui-kit-react';
 import { Mocks, makeResolveFromMocks } from './mock';
+import { saveData } from './store/remoteStore';
 
 // 实时预览 + 检查器：用【当前 RuleSet】建真 session，渲染【当前 PageDef】。
 //   resolve 由「取数模拟」的 mocks 生成；App 用 key={sessionRev} 让 RuleSet/库/mocks 变化时 remount。
@@ -12,6 +13,18 @@ export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr }: {
   const resolve = useMemo(() => makeResolveFromMocks(mocks), [mocks]);
   const { ctx, getState, structVersion, error } = useEngineSession({ createSession, ruleSet, imports, data, resolve, reconstructOverrides: true });
   const meta = useMemo(() => buildMeta(ruleSet, imports), [ruleSet, imports]);
+  const [saveMsg, setSaveMsg] = useState('');
+  // 保存运行时页面数据到仓库：treeToData(实时树) → PUT /api/data/<场景 ruleSetId>。
+  //   存的是「值树」（含计算值），reload 时 createSession(ruleSet, data) 复原、reconstructOverrides 反推非外部覆盖。
+  const onSaveData = async () => {
+    setSaveMsg('保存中…');
+    try {
+      await saveData(ruleSet.ruleSetId, treeToData(getState().tree));
+      setSaveMsg('✅ 已保存到仓库');
+    } catch (e: any) {
+      setSaveMsg('⛔ ' + (e?.message ?? String(e)));
+    }
+  };
   const st = getState();
   const ir = useMemo(
     () => (lintErr > 0 ? buildRootIR(getState(), meta) : hydratePage(pageDef, getState(), meta)),
@@ -26,6 +39,8 @@ export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr }: {
         <span className={'status ' + (st.anyPending ? 'pending' : 'settled')}>{st.anyPending ? '⏳ 取数中' : '✅ 已结算'}</span>
         {lintErr > 0 && <span className="lint bad">⛔ PageDef 有 {lintErr} 个错误 —— 暂以自动布局预览</span>}
         <span style={{ flex: 1 }} />
+        {saveMsg && <span className="muted" style={{ fontSize: 12 }}>{saveMsg}</span>}
+        <button className="mini" disabled={!!error || st.anyPending} title="把当前填好的运行时数据（含计算值）存回仓库；重新加载即复原" onClick={onSaveData}>💾 保存数据</button>
         <button className="mini" onClick={() => setShowInspector((s) => !s)}>{showInspector ? '隐藏检查器' : '检查器'}</button>
       </div>
       {error
