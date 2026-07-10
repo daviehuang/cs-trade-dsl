@@ -28,7 +28,16 @@ function authResolve(source, key) {
   return r ? Promise.resolve({ value: r, asOf: "server", rateId: "srv_" + key.from }) : Promise.reject(new Error("无权威汇率 " + key.from + "→" + key.to));
 }
 
-const childColls = (type) => { const c = model.nodes[type].children; return !c ? [] : Array.isArray(c) ? c : [c]; };
+// 合并节点表（含 import 的类型库，如 commonParty 的 Party/CustomerParty/BankParty）+ 继承感知，
+//   与引擎同构——否则 slots 引用的 CustomerParty 等不在本地 model.nodes 里、且继承字段取不到。
+const importedNodes = {};
+for (const imp of RULES.imports || []) { const lib = IMPORTS[imp.ref]; if (lib?.nodes) Object.assign(importedNodes, lib.nodes); }
+const mergedNodes = { ...importedNodes, ...model.nodes };
+const typeChain = (t) => { const ch = []; let x = t; while (x) { ch.unshift(x); x = mergedNodes[x]?.extends; } return ch; };            // [基类…自身]
+const effFields = (t) => { const o = {}; for (const x of typeChain(t)) Object.assign(o, mergedNodes[x]?.fields || {}); return o; };
+const normColls = (c) => (!c ? [] : Array.isArray(c) ? c : [c]);
+const childColls = (t) => { const out = [], seen = new Set(); for (const x of typeChain(t)) for (const c of normColls(mergedNodes[x]?.children)) if (!seen.has(c.name)) { seen.add(c.name); out.push(c); } return out; };
+const effSlots = (t) => { const o = {}; for (const x of typeChain(t)) for (const [k, v] of Object.entries(mergedNodes[x]?.slots || {})) o[k] = (typeof v === "string" ? v : v.node); return o; };
 
 // 条件可输入字段集（formula + when + fallback:input）：守卫为假时它们是用户输入，需作为输入喂给引擎。
 const conditionalTargets = new Set();
@@ -38,24 +47,24 @@ for (const r of RULES.rules) if (r.type === "formula" && r.fallback === "input")
 // 从提交的数据树抽取"原始输入"（剔除普通 computed / external；条件可输入字段保留）。
 // 节点类型由【模型】自顶向下推导，不依赖客户端提供的 _type。
 function extractInputs(node, type) {
-  const def = model.nodes[type];
   const out = {};
-  for (const [f, spec] of Object.entries(def.fields)) {
+  for (const [f, spec] of Object.entries(effFields(type))) {
     if (spec.external) continue;
     if (spec.computed && !conditionalTargets.has(type + "." + f)) continue; // 普通计算字段跳过；条件字段保留为输入
-    out[f] = node[f];
+    out[f] = node?.[f];
   }
   for (const coll of childColls(type))
-    if (Array.isArray(node[coll.name])) out[coll.name] = node[coll.name].map((c) => extractInputs(c, coll.node));
+    if (Array.isArray(node?.[coll.name])) out[coll.name] = node[coll.name].map((c) => extractInputs(c, coll.node));
+  for (const [slotName, sub] of Object.entries(effSlots(type)))            // 具名槽位（当事方等）：递归抽取其输入
+    if (node?.[slotName]) out[slotName] = extractInputs(node[slotName], sub);
   return out;
 }
 
 // 并行遍历"提交树"与"中台重算树"，比对所有 computed 字段（计算值篡改）
 function compare(sub, srv, out) {
-  const def = model.nodes[srv.type];
-  for (const [f, spec] of Object.entries(def.fields)) {
+  for (const [f, spec] of Object.entries(effFields(srv.type))) {
     if (!spec.computed) continue;                          // 外部值（汇率）走钉值复核，见下
-    const client = sub[f];
+    const client = sub?.[f];
     if (client === undefined || client === null) continue; // 客户端未提供该计算值（如纯数据第三方）→ 不比对，以中台重算为准
     const cell = srv.fields[f];
     // resolved=公式态(比对防篡改)；overridden=合法覆盖；input=条件可输入态(中台据守卫判定，持用户值，不算篡改)
@@ -64,9 +73,11 @@ function compare(sub, srv, out) {
       out.push({ field: srv.path + "." + f, kind: "computed", client, server });
   }
   for (const coll of childColls(srv.type)) {
-    const a = sub[coll.name] || [], b = srv.collections[coll.name] || [];
+    const a = sub?.[coll.name] || [], b = srv.collections[coll.name] || [];
     for (let i = 0; i < Math.min(a.length, b.length); i++) compare(a[i], b[i], out);
   }
+  for (const slotName of Object.keys(effSlots(srv.type)))                 // 递归比对槽位（当事方）里的计算值
+    if (sub?.[slotName] && srv.slots?.[slotName]) compare(sub[slotName], srv.slots[slotName], out);
 }
 
 // 钉值汇率权威复核（ADR-9）：拿中台权威汇率源，按容差复核前端提交的每条钉值。
