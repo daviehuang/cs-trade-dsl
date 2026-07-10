@@ -10,7 +10,7 @@ export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr }: {
   ruleSet: RuleSet; imports: Record<string, RuleSet>; data: any; pageDef: PageDef; mocks: Mocks; lintErr: number;
 }) {
   const resolve = useMemo(() => makeResolveFromMocks(mocks), [mocks]);
-  const { ctx, getState, structVersion, error } = useEngineSession({ createSession, ruleSet, imports, data, resolve });
+  const { ctx, getState, structVersion, error } = useEngineSession({ createSession, ruleSet, imports, data, resolve, reconstructOverrides: true });
   const meta = useMemo(() => buildMeta(ruleSet, imports), [ruleSet, imports]);
   const st = getState();
   const ir = useMemo(

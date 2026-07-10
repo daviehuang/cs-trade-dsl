@@ -23,6 +23,8 @@ export interface UseEngineOpts {
   imports: Record<string, RuleSet>;
   data: any;
   resolve: ResolveFn;
+  /** 加载后从"已存字段值"重建覆盖态（默认只反推非外部依赖字段，避免汇率漂移误判）。 */
+  reconstructOverrides?: boolean;
 }
 
 const EMPTY_STATE: SessionState = {
@@ -52,6 +54,8 @@ function createStore(opts: UseEngineOpts): EngineStore {
       imports: opts.imports,
       onUpdate: () => { valueVer++; fire(); },                  // 值刷新（含异步取数完成）
     });
+    // 加载后重建覆盖态：从已存字段值反推人工覆盖（只非外部依赖字段）。纯计算字段同步即可判定；外部依赖字段自动跳过。
+    if (opts.reconstructOverrides) { try { session.reconstructOverrides(structuredClone(opts.data), { skipExternalDependent: true }); } catch { /* 忽略 */ } }
     const built = makeCtx(session, () => session.getState(), () => { structVer++; fire(); });  // 增删 → 结构刷新
     return { ...base, ctx: built.ctx, getState: () => session.getState() };
   } catch (e: any) {

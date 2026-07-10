@@ -355,6 +355,12 @@ digit          = "0".."9" ;
 > 引擎实现见 `poc-incremental/src/incremental.js`（recompute 先定位命中 case 再决定覆盖；`setOverride` 按命中分支放行）；
 > 中台复算见 `bff/validate.js`（`setOverride` throw → `unauth-override`）。
 
+**加载时重建覆盖态（无需单独持久化 override 列表）**：override 是会话状态、不在扁平数据里，但若后台存了字段的
+**计算值**，加载时可反推——某计算字段的【存值】≠【重算值】且当前分支可覆盖 → 判定当初被覆盖 → 回放为 override
+（`session.reconstructOverrides(data, { skipExternalDependent })`）。这是 §BFF `compare` 的逆用，结论与服务器一致
+（落锁死分支的存值会被 `setOverride` 拒 → 不反推）。**默认只反推非外部依赖字段**：依赖 resolver 的字段重算含汇率漂移、
+存值 vs 重算易误判，故跳过（要精确复现须另存/回灌 pinned 汇率）。
+
 ---
 
 ## 11. 示例

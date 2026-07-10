@@ -435,6 +435,52 @@ export function createSession(ruleSet, data, opts = {}) {
     onUpdate(getState());
   }
 
+  // ── 从"已存的字段值"重建覆盖态（无需单独持久化 override 列表）──
+  //   逻辑：某计算字段的【存值】≠【重算值】且当前分支可覆盖 → 判定它当初被人工覆盖 → 回放。
+  //   默认只对【非外部依赖】字段反推（skipExternalDependent=true）：依赖 resolver 的字段重算含汇率漂移，易误判。
+  //   迭代 fixpoint：上游覆盖先落，下游按更新后的重算值再比对——避免"下游值只因上游覆盖而变"被误判为覆盖。
+  function reconstructOverrides(data, opts = {}) {
+    const skipExt = opts.skipExternalDependent !== false;
+    settle();                                          // 干净重算基线（尚无 override）
+    // 传递外部依赖判定（基于纯公式依赖图，预填 memo）
+    const extMemo = new Map();
+    const dependsOnExternal = (id, seen = new Set()) => {
+      if (extMemo.has(id)) return extMemo.get(id);
+      if (seen.has(id)) return false; seen.add(id);
+      const c = cells.get(id); let r = false;
+      if (c) for (const d of c.deps) { const dc = cells.get(d); if (dc && dc.kind === "resolver") { r = true; break; } if (dependsOnExternal(d, seen)) { r = true; break; } }
+      extMemo.set(id, r); return r;
+    };
+    for (const c of cells.values()) if (c.kind === "computed") dependsOnExternal(c.id);
+    // 从 raw data 树按 cell.id（如 root.charges[0].items[0].base）取存值
+    const storedAt = (id) => {
+      let cur = data;
+      for (const tok of id.split(".").slice(1)) {
+        const m = tok.match(/^(\w+)\[(\d+)\]$/);
+        cur = m ? cur?.[m[1]]?.[+m[2]] : cur?.[tok];
+        if (cur == null) return undefined;
+      }
+      return cur;
+    };
+    const applied = [];
+    for (let guard = 0; guard <= cells.size + 2; guard++) {
+      let pick = null;
+      for (const c of cells.values()) {
+        if (c.kind !== "computed" || c.override !== undefined) continue;   // 未覆盖的计算字段
+        if (!c.activeOverridable) continue;                                // 当前分支须可覆盖（锁死则不反推）
+        if (skipExt && extMemo.get(c.id)) continue;                        // 只反推非外部依赖
+        const stored = storedAt(c.id);
+        if (stored == null) continue;                                      // 存值缺失 → 无从反推
+        if (eq(coerce(c.type, stored), c.value)) continue;                 // 存值 == 当前重算值 → 非覆盖
+        pick = { id: c.id, stored }; break;
+      }
+      if (!pick) break;
+      setOverride(pick.id, String(pick.stored));                           // 回放（内部结算，下游按新值更新）
+      applied.push(pick.id);
+    }
+    return applied;                                                        // 返回被重建为覆盖的字段列表
+  }
+
   // 递归视图
   function viewNode(path, type) {
     const fields = {};
@@ -515,5 +561,5 @@ export function createSession(ruleSet, data, opts = {}) {
   for (const c of cells.values()) if (c.kind !== "input") dirty.add(c.id);
   settle();
 
-  return { setInput, setOverride, clearOverride, addChild, removeChild, getState, idle, _cells: cells, _nodes: nodes };
+  return { setInput, setOverride, clearOverride, reconstructOverrides, addChild, removeChild, getState, idle, _cells: cells, _nodes: nodes };
 }
