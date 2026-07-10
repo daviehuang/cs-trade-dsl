@@ -288,7 +288,57 @@ digit          = "0".."9" ;
 
 ---
 
-## 10. 示例
+## 10. 条件分支：`cases` / `fallback`（多分支与 else）
+
+`formula` 规则除单一 `expr` 外，支持 `cases` 多分支：**按序取首个 `when` 成立的分支的 `expr`**；
+全不匹配时走 `fallback`。语义已在 `poc-incremental` 引擎实现（`src/incremental.js`）。
+
+```jsonc
+{ "type": "formula", "scope": "LetterOfCredit", "target": "adjustment",
+  "cases": [
+    { "when": "adjustMode == \"auto-high\"", "expr": "round(chargeTotal * 0.5, 2)" },
+    { "when": "adjustMode == \"auto-low\"",  "expr": "round(chargeTotal * 0.1, 2)" }
+  ],
+  "fallback": "input" }
+```
+
+### 10.1 求值顺序
+- 从上到下遍历 `cases`，**首个** `when` 求值为 `true` 的分支胜出、用其 `expr`，即停（first-match-wins）。
+- `when` 是布尔表达式；`null` 或非 `true` 视为**不匹配**（呼应 §5.4 逻辑 null 语义）。
+- 全部不匹配 → 走 `fallback`（见 §10.3）。
+
+### 10.2 表达 else（"其余情况"）的两种写法
+
+**A. 末尾放一个不带 `when` 的分支**——无 `when` = 恒匹配 = 默认分支：
+```jsonc
+"cases": [
+  { "when": "adjustMode == \"auto-high\"", "expr": "round(chargeTotal * 0.5, 2)" },
+  { "when": "adjustMode == \"auto-low\"",  "expr": "round(chargeTotal * 0.1, 2)" },
+  { "expr": "0" }        // ← else：无 when，恒匹配，必须放最后
+]
+```
+用于 else 也是一个**计算值**（公式/常量）。⚠ 因 first-match-wins，无 `when` 分支**必须放最后**；放前面会吞掉后续所有分支。
+
+**B. 用 rule 级 `fallback`**——无分支匹配时的兜底（见 §10.3）。
+
+### 10.3 `fallback` 取值语义
+
+| `fallback` | 无 `when` 匹配时 |
+|---|---|
+| `"input"` | 字段转为**可人工录入态**，取用户在该字段手填的值（例：`adjustMode == "manual"` 时人工录入 adjustment） |
+| 省略 / 其它值 | 值为 **`null`**（空） |
+
+> `fallback` **不是表达式**，当前仅特殊值 `"input"` 有效。若 else 需要一个"公式/常量"，用写法 A（末尾无 `when` 分支），不要用 `fallback`。
+
+### 10.4 二选一，别混用
+若 `cases` 末尾已放无 `when` 的默认分支，它恒匹配 → `fallback` 永远轮不到。因此：
+- **else = 算出来的值**（公式/常量）→ 写法 A（末尾无 `when` 分支）
+- **else = 让用户手填** → `"fallback": "input"`
+- **else = 空/null** → 两者都不写
+
+---
+
+## 11. 示例
 
 ```jsonc
 // 1) 子项费用 = 金额 * 费率，落到 charge（写入时按 charge 标度 HALF_UP 舍入）
@@ -314,7 +364,7 @@ digit          = "0".."9" ;
 
 ---
 
-## 11. 未决 / 留给后续
+## 12. 未决 / 留给后续
 
 1. 是否支持用户自定义聚合谓词（`every(v, pred)` 的 `pred` 表达方式）—— 暂留接口，未定义。
 2. `date`/`datetime` 的运算（加减天数、比较）算子清单 —— 下一轮补充内置日期函数。
