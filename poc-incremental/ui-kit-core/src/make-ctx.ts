@@ -16,6 +16,7 @@ export function makeCtx(
     valueOf: (p) => resolveCell(getState(), p)?.value ?? '',
     cellText: (p) => text(resolveCell(getState(), p)),
     cellState: (p) => resolveCell(getState(), p)?.state,
+    overridableFor: (p) => resolveCell(getState(), p)?.overridable,   // 实时可覆盖（随命中分支变化）
     onInput: (p, v) => session.setInput(p, v),
     onOverride: (p, v) => { try { session.setOverride(p, v); } catch { /* 非 overridable 忽略 */ } },
     clearOverride: (p) => session.clearOverride(p),

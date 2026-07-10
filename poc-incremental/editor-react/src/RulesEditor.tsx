@@ -152,8 +152,9 @@ function FormulaBody({ draft, set }: any) {
           <div key={i} className="case-row">
             <div className="case-n">#{i + 1}</div>
             <div style={{ flex: 1 }}>
-              <label className="full">when<ExprField value={c.when || ''} onChange={(v) => setCase(i, { when: v })} /></label>
+              <label className="full">when（省略=else，须放最后）<ExprField value={c.when || ''} onChange={(v) => setCase(i, { when: v || undefined })} /></label>
               <label className="full">expr<ExprField value={c.expr || ''} onChange={(v) => setCase(i, { expr: v })} /></label>
+              <label className="ck" title="命中此分支时允许人工覆盖；中台对覆盖值不做计算比对（锁死分支则权威验算）"><input type="checkbox" checked={!!c.overridable} onChange={(e) => setCase(i, { overridable: e.target.checked || undefined })} />可覆盖（命中此分支时）</label>
             </div>
             <button className="del" onClick={() => set({ cases: cases.filter((_, k) => k !== i) })}>✕</button>
           </div>

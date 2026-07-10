@@ -31,6 +31,8 @@ export interface SessionOpts {
 export interface Cell {
   value: any;
   state: 'resolved' | 'pending' | 'error' | 'overridden' | 'input';
+  /** 该字段此刻是否允许人工覆盖（分支级，随命中的 cases 分支变化）。 */
+  overridable?: boolean;
 }
 
 export interface ViewNode {

@@ -9,6 +9,8 @@ export interface EngineCtx {
   valueOf(path: string): string;
   cellText(path: string): string;
   cellState(path: string): Cell['state'] | undefined;
+  /** 该字段此刻是否允许人工覆盖（分支级：随命中的 cases 分支实时变化）。 */
+  overridableFor(path: string): boolean | undefined;
   onInput(path: string, v: string): void;
   onOverride(path: string, v: string): void;
   clearOverride(path: string): void;

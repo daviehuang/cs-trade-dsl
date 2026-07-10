@@ -61,7 +61,7 @@ function egCell(node: CellUI, ctx: EngineCtx): HTMLElement {
   if (st === 'input') {
     body = h('input', { class: 'cond', value: ctx.valueOf(node.path), 'data-path': node.path, title: '条件可输入（守卫为假时合法录入）',
       oninput: (e: any) => ctx.onInput(node.path, e.target.value) });
-  } else if (node.overridable) {
+  } else if (ctx.overridableFor(node.path)) {    // 实时可覆盖（随命中分支变化）
     body = h('span', { class: 'row' },
       h('input', { class: cx('ovr', st === 'overridden' && 'on'), value: txt, 'data-path': node.path, title: '可人工覆盖',
         oninput: (e: any) => ctx.onOverride(node.path, e.target.value) }),

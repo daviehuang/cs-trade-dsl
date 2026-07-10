@@ -28,6 +28,7 @@ export function makeCtx(session: Session, getState: () => SessionState, rebuild:
     valueOf: (p) => resolveCell(getState(), p)?.value ?? '',
     cellText: (p) => text(resolveCell(getState(), p)),
     cellState: (p) => resolveCell(getState(), p)?.state,
+    overridableFor: (p) => resolveCell(getState(), p)?.overridable,   // 实时可覆盖（随命中分支变化）
     onInput: (p, v) => session.setInput(p, v),
     onOverride: (p, v) => { try { session.setOverride(p, v); } catch { /* 非 overridable 忽略 */ } },
     clearOverride: (p) => session.clearOverride(p),
@@ -193,7 +194,7 @@ export class EgFieldType extends TickAwareType {
     <label class="l">{{ props.label }}
       @if (st()==='input') {
         <input class="cond" [value]="val()" (input)="inp($any($event.target).value)" title="条件可输入（守卫为假时合法录入）" />
-      } @else if (props['overridable']) {
+      } @else if (ovridable()) {
         <span class="row">
           <input class="ovr" [class.on]="st()==='overridden'" [value]="txt()" (input)="ovr($any($event.target).value)" title="可人工覆盖" />
           <button type="button" (click)="rv()" title="恢复计算">⟲</button>
@@ -220,6 +221,7 @@ export class EgFieldType extends TickAwareType {
 export class EgCellType extends TickAwareType {
   txt() { return this.props['ctx'].cellText(this.props['path']); }
   st() { return this.props['ctx'].cellState(this.props['path']); }
+  ovridable() { return this.props['ctx'].overridableFor(this.props['path']); }   // 实时可覆盖（随命中分支变化）
   val() { return this.props['ctx'].valueOf(this.props['path']); }
   inp(v: string) { this.props['ctx'].onInput(this.props['path'], v); }
   ovr(v: string) { this.props['ctx'].onOverride(this.props['path'], v); }

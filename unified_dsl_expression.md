@@ -336,6 +336,25 @@ digit          = "0".."9" ;
 - **else = 让用户手填** → `"fallback": "input"`
 - **else = 空/null** → 两者都不写
 
+### 10.5 分支级可覆盖 `case.overridable`（计算值 + 可覆盖，服务器可验证）
+每条 `case` 可选 `"overridable": true`——**命中此分支时该字段允许人工覆盖**（可给一个计算默认值再让用户改）：
+```jsonc
+"cases": [
+  { "when":"adjustMode == \"auto-high\"", "expr":"round(chargeTotal*0.5, 2)" },              // 锁死：中台权威验算
+  { "when":"adjustMode == \"auto-low\"",  "expr":"round(chargeTotal*0.1, 2)" },              // 锁死
+  { "expr":"round(chargeTotal*0.2, 2)", "overridable":true }                                  // else：计算默认值 + 可覆盖
+]
+```
+语义：**字段此刻是否可覆盖 = 当前命中分支的 `overridable`**（不限于 else，任意分支可独立标）。
+- 命中锁死分支：忽略任何覆盖，值 = `expr`；**中台按 expr 权威重算比对**，不一致即 `REJECT_TAMPER`。
+- 命中可覆盖分支：有覆盖用覆盖值（`overridden` 态），否则用 `expr`；**中台接受覆盖值、跳过该字段计算值比对**。
+
+整套判定在**服务器**用原始输入重算命中哪条 case，不信前端任何标记——所以"部分条件锁死可验、else 计算值可覆盖不验"是
+**服务器可验证**的，而非仅靠 UI 限制。归一化：`case.overridable ?? 字段级 overridable`（未标退化到字段级，向后兼容）。
+
+> 引擎实现见 `poc-incremental/src/incremental.js`（recompute 先定位命中 case 再决定覆盖；`setOverride` 按命中分支放行）；
+> 中台复算见 `bff/validate.js`（`setOverride` throw → `unauth-override`）。
+
 ---
 
 ## 11. 示例

@@ -183,7 +183,8 @@ export function createSession(ruleSet, data, opts = {}) {
       const spec = effectiveFields(ntype)[rule.target] || {};
       // 归一化为 cases 列表：cases 多分支 / 单 when / 无条件，统一成 [{whenExpr, compute}]
       const rawCases = rule.cases || (rule.when ? [{ when: rule.when, expr: rule.expr }] : [{ when: null, expr: rule.expr }]);
-      const cases = rawCases.map((cs) => ({ whenExpr: cs.when || null, compute: () => evaluate(cs.expr, ctxFor(path)).value }));
+      // 每条 case 带 overridable：命中此分支时该字段是否允许人工覆盖（分支级；未标则退化到字段级）。
+      const cases = rawCases.map((cs) => ({ whenExpr: cs.when || null, overridable: cs.overridable, compute: () => evaluate(cs.expr, ctxFor(path)).value }));
       cells.set(id, { ...base, id, kind: "computed", type: spec.type, overridable: !!spec.overridable,
         cases, fallback: rule.fallback || null,                                   // 所有 when 都不匹配 → fallback
         manual: rule.fallback === "input" ? nodes.get(path).data[rule.target] : undefined });
@@ -311,22 +312,29 @@ export function createSession(ruleSet, data, opts = {}) {
         value = r === true;
         cell.failMsg = value ? null : interp(cell.message, gctx, cell.scope);
       } else { // computed
-        if (cell.override !== undefined) {
-          value = coerce(cell.type, cell.override);   // 人工覆盖：持有该值，不跑公式
-          state = "overridden";
-        } else if (cell.cases) {                       // 多分支：按序取首个 when 成立的 expr
+        // 分支级可覆盖：先定位命中的 case，再决定是否应用 override（覆盖性 = 命中分支的属性）。
+        let ovr = !!cell.overridable;                  // 无 cases / case 未标记 时的默认（向后兼容字段级）
+        if (cell.cases) {
           let matched = false;
-          for (const cs of cell.cases) {
+          for (const cs of cell.cases) {               // 首个 when 成立即停；即便将被覆盖也求 when，使 cell 依赖分支输入
             const ok = cs.whenExpr === null || evaluate(cs.whenExpr, ctxFor(cell.nodePath)).value === true;
-            if (ok) { value = cs.compute(); matched = true; break; }
+            if (ok) {
+              ovr = (cs.overridable === undefined ? !!cell.overridable : !!cs.overridable);
+              if (ovr && cell.override !== undefined) { value = coerce(cell.type, cell.override); state = "overridden"; }
+              else value = cs.compute();
+              matched = true; break;
+            }
           }
           if (!matched) {                              // 都不匹配 → fallback
+            ovr = false;
             if (cell.fallback === "input") { value = coerce(cell.type, cell.manual); state = "input"; } // 可输入态
             else value = null;
           }
-        } else {
-          value = cell.compute();                      // pipeline
+        } else {                                       // pipeline / produce（单一 compute，无 cases）
+          if (cell.overridable && cell.override !== undefined) { value = coerce(cell.type, cell.override); state = "overridden"; }
+          else value = cell.compute();
         }
+        cell.activeOverridable = ovr;                  // 暴露给 setOverride / viewNode（实时可覆盖）
       }
     } catch (e) {
       if (e === PENDING) { state = "pending"; value = null; }
@@ -410,7 +418,9 @@ export function createSession(ruleSet, data, opts = {}) {
   function setOverride(id, value) {
     const c = cells.get(id);
     if (!c || c.kind !== "computed") throw new Error("不是计算字段，不能覆盖: " + id);
-    if (!c.overridable) throw new Error("该计算字段不允许覆盖: " + id);
+    // 分支级门槛：以当前命中分支的可覆盖性为准（未算过则退化到字段级）。锁死分支覆盖 → throw（BFF 据此判越权）。
+    const canOv = c.activeOverridable !== undefined ? c.activeOverridable : !!c.overridable;
+    if (!canOv) throw new Error("该计算字段当前分支不允许覆盖: " + id);
     c.override = value;
     dirty.add(c.id);
     settle();
@@ -430,7 +440,7 @@ export function createSession(ruleSet, data, opts = {}) {
     const fields = {};
     for (const f of Object.keys(effectiveFields(type))) {                 // 含继承字段
       const c = cells.get(path + "." + f);
-      fields[f] = c ? { value: disp(c.value), state: c.state } : { value: null, state: "resolved" };
+      fields[f] = c ? { value: disp(c.value), state: c.state, overridable: !!(c.activeOverridable !== undefined ? c.activeOverridable : c.overridable) } : { value: null, state: "resolved", overridable: false };
     }
     const collections = {};
     for (const coll of childCollections(type)) {

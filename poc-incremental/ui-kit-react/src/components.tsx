@@ -55,7 +55,7 @@ function cellBody(node: CellUI, ctx: EngineCtx): React.ReactNode {
   if (st === 'input')
     return <input className="cond" value={ctx.valueOf(node.path)} title="条件可输入（守卫为假时合法录入）"
                   onChange={(e) => ctx.onInput(node.path, e.target.value)} />;
-  if (node.overridable)
+  if (ctx.overridableFor(node.path))    // 实时可覆盖（随命中分支变化），非静态 node.overridable
     return (
       <span className="row">
         <input className={cx('ovr', st === 'overridden' && 'on')} value={txt} title="可人工覆盖"

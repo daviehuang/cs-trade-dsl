@@ -30,7 +30,7 @@ const EMPTY_STATE: SessionState = {
   validations: [], pinned: [], overrides: [], anyPending: false,
 };
 const NOOP_CTX: EngineCtx = {
-  ccys: [], valueOf: () => '', cellText: () => '—', cellState: () => undefined,
+  ccys: [], valueOf: () => '', cellText: () => '—', cellState: () => undefined, overridableFor: () => undefined,
   onInput: () => {}, onOverride: () => {}, clearOverride: () => {},
   addChild: () => {}, removeChild: () => {}, validationsFor: () => [], onTick: () => () => {},
 };

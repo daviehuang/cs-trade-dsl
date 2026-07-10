@@ -100,9 +100,9 @@
       "target": "adjustment",
       "cases": [
         { "when": "adjustMode == \"auto-high\"", "expr": "round(chargeTotal * 0.5, 2)" },
-        { "when": "adjustMode == \"auto-low\"",  "expr": "round(chargeTotal * 0.1, 2)" }
-      ],
-      "fallback": "input" },
+        { "when": "adjustMode == \"auto-low\"",  "expr": "round(chargeTotal * 0.1, 2)" },
+        { "expr": "round(chargeTotal * 0.2, 2)", "overridable": true }
+      ] },
 
     { "id": "net", "type": "formula", "scope": "LetterOfCredit", "trigger": "calc",
       "target": "net", "expr": "round(chargeTotal - paymentTotal + adjustment, 2)" },

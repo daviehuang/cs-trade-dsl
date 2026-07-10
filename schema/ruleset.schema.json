@@ -150,9 +150,13 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["when", "expr"],
+            "required": ["expr"],
             "additionalProperties": false,
-            "properties": { "when": { "type": "string" }, "expr": { "type": "string" } }
+            "properties": {
+              "when": { "type": "string", "description": "分支条件；省略=默认分支（else，须放最后）" },
+              "expr": { "type": "string" },
+              "overridable": { "type": "boolean", "description": "命中此分支时允许人工覆盖（分支级；中台对覆盖值不做计算比对）" }
+            }
           }
         },
         "fallback": { "enum": ["input"] }
