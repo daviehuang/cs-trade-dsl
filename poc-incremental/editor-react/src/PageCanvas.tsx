@@ -81,10 +81,12 @@ export function PageCanvas({ pageDef, meta, mutatePageDef }: Props) {
         <div className="pc-palette">
           <span className="muted">元素：</span>
           {PALETTE.map((p) => <button key={p.label} className="pc-pal" onClick={() => addFromPalette(p.node)}>＋{p.label}</button>)}
-          <span className="hint" style={{ marginLeft: 8 }}>（加到选中容器，未选则加到顶层；字段从左树拖入）</span>
+          <span className="hint" style={{ marginLeft: 8 }}>（加到选中容器；点画布空白处选中「页面」→ 加到页面顶层；字段从左树拖入）</span>
         </div>
 
-        <div className="pc-drop pc-root" onDragOver={(e) => e.preventDefault()} onDrop={onDropInto([])}>
+        <div className={'pc-drop pc-root' + (selKey === '' ? ' page-sel' : '')}
+          onClick={() => setSelKey('')}
+          onDragOver={(e) => e.preventDefault()} onDrop={onDropInto([])}>
           {pageDef.layout.length === 0 && <div className="pc-empty">空页面：点上方元素或从左侧拖字段进来</div>}
           {pageDef.layout.map((n, i) => (
             <BlockView key={i} node={n} addr={[i]} type={meta.root} meta={meta}
@@ -98,7 +100,7 @@ export function PageCanvas({ pageDef, meta, mutatePageDef }: Props) {
         <div className="pc-side-h">属性</div>
         {sel?.node
           ? <Inspector node={sel.node} addr={selAddr} type={ctxOf(selAddr)} meta={meta} patch={patch} />
-          : <div className="pc-side-empty">点选画布中的元素以编辑其属性。</div>}
+          : <div className="pc-side-empty"><b>页面（顶层 {meta.root}）</b>已选中。<br />点上方「＋元素」把面板/行/列等加到页面；点选画布中的元素可编辑其属性。</div>}
       </div>
     </div>
   );
@@ -165,8 +167,9 @@ function BlockView({ node, addr, type, meta, selKey, setSel, onDropInto, setDrag
     </div>
   );
 
+  const shareWidth = node.kind === 'group' && node.grid === 'col';   // 只有「列」并排分享宽度；其它容器独占一行
   return (
-    <div className={'pc-block kind-' + node.kind + (sel ? ' sel' : '')} onClick={(e) => { e.stopPropagation(); setSel(key); }}>
+    <div className={'pc-block kind-' + node.kind + (shareWidth ? ' g-col' : '') + (sel ? ' sel' : '')} onClick={(e) => { e.stopPropagation(); setSel(key); }}>
       <div className="pc-toolbar">
         <span className="pc-grip" title="拖动" draggable onDragStart={(e) => { e.stopPropagation(); setDragAddr(addr); }} onDragEnd={() => setDragAddr(null)}>⠿</span>
         <span className={'kind ' + node.kind}>{node.kind}</span>
@@ -175,6 +178,13 @@ function BlockView({ node, addr, type, meta, selKey, setSel, onDropInto, setDrag
         {node.kind === 'collection' && node.layout === 'table' && <span className="muted">表格</span>}
         {ops}
       </div>
+      {node.kind === 'panel' && node.title && (
+        <div className="pc-block-title" title="面板标题（Panel.title）—— 运行时显示在面板头部">
+          <span className="kind panel">panel</span>
+          <b>{node.title}</b>
+          {node.badge && <span className="pc-bt-badge">{node.badge}</span>}
+        </div>
+      )}
       {node.kind === 'panel' && dropZone([...addr, 'children'], node.children, childType)}
       {node.kind === 'group' && dropZone([...addr, 'children'], node.children, childType)}
       {node.kind === 'collection' && dropZone([...addr, 'itemTemplate'], node.itemTemplate, childType)}
@@ -227,7 +237,7 @@ function Inspector({ node, addr, type, meta, patch }: any) {
         <label>field（相对）<input value={n.field ?? ''} onChange={(e) => patch(a, { field: e.target.value, path: undefined })} /></label>
         <label>path（绝对，覆盖 field）<input value={n.path ?? ''} onChange={(e) => patch(a, { path: e.target.value })} /></label>
         <label>label<input value={n.label ?? ''} onChange={(e) => patch(a, { label: e.target.value })} /></label>
-        {n.kind === 'field' && <label>control<select value={n.control ?? 'text'} onChange={(e) => patch(a, { control: e.target.value })}><option>text</option><option>ccy</option><option>adjust</option></select></label>}
+        {n.kind === 'field' && <label>control<select value={n.control ?? 'text'} onChange={(e) => patch(a, { control: e.target.value })}><option>text</option><option>ccy</option><option>adjust</option><option value="party-lookup">party-lookup（主数据查询）</option></select></label>}
         {n.kind === 'cell' && <label className="ck"><input type="checkbox" checked={!!n.emphasis} onChange={(e) => patch(a, { emphasis: e.target.checked || undefined })} />emphasis（大字）</label>}
       </div>}
 

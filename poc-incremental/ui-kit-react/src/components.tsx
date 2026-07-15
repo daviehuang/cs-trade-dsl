@@ -1,10 +1,11 @@
 // React 渲染 kit：UINode → React 控件，一一镜像 Angular 的 eg-* 组件。
 //   受控输入 = 引擎是真相源：value 读 ctx.valueOf(path)，onChange 写 ctx.onInput(path)，
 //   不在 React 里存值。复用与 Angular 同名的 CSS class（styles.css），两框架视觉一致。
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, TabsUI, UINode, ValidationsUI,
 } from '@udsl/ui-kit-core';
+import { getLookupService, LookupCandidate } from './lookup';
 
 const cx = (...xs: (string | undefined | false)[]) => xs.filter(Boolean).join(' ');
 
@@ -37,7 +38,8 @@ function fieldControl(node: FieldUI, ctx: EngineCtx): React.ReactNode {
   const v = ctx.valueOf(node.path);
   const set = (val: string) => ctx.onInput(node.path, val);
   if (node.control === 'ccy')
-    return <select value={v} onChange={(e) => set(e.target.value)}>{ctx.ccys.map((c) => <option key={c} value={c}>{c}</option>)}</select>;
+    // 值为空时插占位空项：避免受控 select 无匹配值时浏览器"显示第一项、模型却是空"的错位
+    return <select value={v} onChange={(e) => set(e.target.value)}>{!v && <option value="">— 请选择 —</option>}{ctx.ccys.map((c) => <option key={c} value={c}>{c}</option>)}</select>;
   if (node.control === 'adjust')
     return (
       <select value={v} onChange={(e) => set(e.target.value)}>
@@ -46,7 +48,62 @@ function fieldControl(node: FieldUI, ctx: EngineCtx): React.ReactNode {
         <option value="manual">manual（人工录入）</option>
       </select>
     );
+  if (node.control === 'party-lookup') return <PartyLookup node={node} ctx={ctx} />;
   return <input value={v} data-path={node.path} data-value={v} onChange={(e) => set(e.target.value)} />;
+}
+
+// 当事方主数据查询控件：名称模糊查 → 候选下拉 → 选中据 key 取记录 → mapping 到同节点各字段。
+//   搜索/候选是纯 UI（不进引擎）；选中后只经 ctx.onInput 把记录写进引擎输入字段（可再手改；不选则手工填）。
+function PartyLookup({ node, ctx }: { node: FieldUI; ctx: EngineCtx }) {
+  const v = ctx.valueOf(node.path);
+  const base = node.path.slice(0, node.path.lastIndexOf('.'));   // 同节点（如 root.buyer）→ 兄弟字段路径前缀
+  const [cands, setCands] = useState<LookupCandidate[]>([]);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const timer = useRef<any>(null);
+  const seq = useRef(0);
+  const svc = getLookupService();
+
+  const onType = (val: string) => {
+    ctx.onInput(node.path, val);                                 // 名称字段本身随输入更新（不选也是手工输入）
+    if (timer.current) clearTimeout(timer.current);
+    if (!svc || !val.trim()) { setCands([]); setOpen(false); return; }
+    const my = ++seq.current;
+    setBusy(true);
+    timer.current = setTimeout(() => {                            // 防抖 250ms
+      svc.search('customer', val.trim()).then((rows) => {
+        if (my !== seq.current) return;                          // 丢弃过期结果
+        setCands(rows); setOpen(true); setBusy(false);
+      });
+    }, 250);
+  };
+  const pick = async (c: LookupCandidate) => {
+    setOpen(false); setCands([]);
+    if (!svc) return;
+    const rec = await svc.get('customer', c.id);                 // 据选中 key 取整条记录
+    for (const [k, val] of Object.entries(rec))                  // mapping：记录各字段 → 同节点兄弟字段
+      if (k !== 'id') ctx.onInput(`${base}.${k}`, String(val ?? ''));
+  };
+
+  return (
+    <span className="eg-lookup">
+      <input className="eg-lookup-in" value={v} data-path={node.path} placeholder="输入客户名称模糊查询…"
+        onChange={(e) => onType(e.target.value)}
+        onFocus={() => cands.length && setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)} />
+      {busy && <span className="eg-lookup-busy">⏳</span>}
+      {open && cands.length > 0 && (
+        <div className="eg-lookup-menu">
+          {cands.map((c) => (
+            <div key={c.id} className="eg-lookup-item" onMouseDown={() => pick(c)}>{c.label}</div>
+          ))}
+        </div>
+      )}
+      {open && !busy && cands.length === 0 && v.trim() && (
+        <div className="eg-lookup-menu"><div className="eg-lookup-empty">无匹配客户 —— 直接手工填写各字段</div></div>
+      )}
+    </span>
+  );
 }
 
 function cellBody(node: CellUI, ctx: EngineCtx): React.ReactNode {

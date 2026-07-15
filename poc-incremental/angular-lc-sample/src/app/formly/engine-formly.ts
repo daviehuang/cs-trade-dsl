@@ -161,6 +161,7 @@ export function buildRootFields(state: SessionState, ruleSet: any, imports: any,
       @switch (props['control']) {
         @case ('ccy') {
           <select [value]="v()" (change)="set($any($event.target).value)">
+            @if (!v()) { <option value="">— 请选择 —</option> }
             @for (c of props['ctx'].ccys; track c) { <option [value]="c">{{ c }}</option> }
           </select>
         }

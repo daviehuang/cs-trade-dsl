@@ -39,7 +39,9 @@ function egField(node: FieldUI, ctx: EngineCtx): HTMLElement {
   const v = ctx.valueOf(node.path);
   let control: HTMLElement;
   if (node.control === 'ccy') {
+    // 值为空时插占位空项：让空值有匹配 option（显示"请选择"），避免回退首项造成"显示≠模型"
     control = h('select', { onchange: (e: any) => ctx.onInput(node.path, e.target.value), 'data-path': node.path },
+      ...(v ? [] : [h('option', { value: '' }, '— 请选择 —')]),
       ...ctx.ccys.map((c) => h('option', { value: c }, c)));
     (control as HTMLSelectElement).value = v;   // append 后再设，确保选中项匹配（否则回退首项）
   } else if (node.control === 'adjust') {

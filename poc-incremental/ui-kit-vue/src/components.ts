@@ -28,8 +28,10 @@ function egField(node: FieldUI, ctx: EngineCtx): VNode {
   const set = (e: Event) => ctx.onInput(node.path, (e.target as HTMLInputElement).value);
   let control: VNode;
   if (node.control === 'ccy')
+    // 值为空时插占位空项：避免 select 无匹配值时"显示第一项、模型却是空"的错位
     control = h('select', { value: v, onChange: set, 'data-path': node.path },
-      ctx.ccys.map((c) => h('option', { value: c, selected: c === v }, c)));
+      [...(v ? [] : [h('option', { value: '', selected: true }, '— 请选择 —')]),
+       ...ctx.ccys.map((c) => h('option', { value: c, selected: c === v }, c))]);
   else if (node.control === 'adjust')
     control = h('select', { value: v, onChange: set, 'data-path': node.path }, [
       h('option', { value: 'auto-high', selected: v === 'auto-high' }, 'auto-high（收费50%）'),

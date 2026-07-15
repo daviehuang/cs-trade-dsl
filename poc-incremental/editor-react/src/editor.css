@@ -42,25 +42,36 @@ code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px
 
 /* 放置区：按容器 grid 方向布局（所见即所得） */
 .pc-drop { min-height: 26px; border: 1px dashed transparent; border-radius: 7px; padding: 6px; background: transparent; }
-.pc-drop.pc-root { min-height: 200px; border-color: #c7d2e0; padding: 8px; }
-/* 所有容器拖拽区默认隐藏边框；仅被选中的容器显示自己的拖拽区边框 */
+.pc-drop.pc-root { min-height: 200px; border-color: #c7d2e0; padding: 8px; cursor: default; }
+.pc-drop.pc-root.page-sel { border-color: #2563eb; border-style: solid; box-shadow: 0 0 0 2px rgba(37,99,235,.12); background: #f9fbff; }  /* 点空白选中「页面」态：调色板加到顶层 */
+/* 选中容器：只用外层块轮廓标识，内层放置区仅加淡底、不再画第二道框（避免"框套框"）。 */
 .pc-block.sel > .pc-drop,
-.pc-block.sel > .pc-tabs .pc-tab-body > .pc-drop { border-color: #93b4e6; background: #f6f9ff; }
+.pc-block.sel > .pc-tabs .pc-tab-body > .pc-drop { background: #f6f9ff; }
 .pc-dz-col { display: flex; flex-direction: column; gap: 6px; }
 .pc-dz-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
-.pc-dz-grid { display: grid; gap: 8px; }
+.pc-dz-grid { display: grid; gap: 4px 8px; }   /* 行距(row-gap)减半=4px，列距(column-gap)保持 8px */
 .pc-dz-row > .pc-chip, .pc-dz-grid > .pc-chip { align-self: flex-start; }
-.pc-dz-row > .pc-block { flex: 1 1 180px; min-width: 160px; }        /* 行中的子容器（列）分享宽度 → 并排 */
-.pc-dz-row > .pc-chip { flex: 0 0 auto; }                            /* 行中的叶子芯片自然宽 */
-/* 表格/集合/标签页是整块结构，独占一行（不与兄弟并排/挤压） */
-.pc-dz-row > .pc-block.kind-collection, .pc-dz-row > .pc-block.kind-tabs { flex-basis: 100%; }
-.pc-dz-grid > .pc-block.kind-collection, .pc-dz-grid > .pc-block.kind-tabs { grid-column: 1 / -1; }
+.pc-dz-row > .pc-chip { flex: 0 0 auto; }                            /* 叶子芯片自然宽 */
+/* 容器默认独占一行；只有「列」(grid:col) 并排分享宽度 */
+.pc-dz-row > .pc-block { flex-basis: 100%; }
+.pc-dz-row > .pc-block.g-col { flex: 1 1 180px; min-width: 160px; }
+.pc-dz-grid > .pc-block { grid-column: 1 / -1; }
+.pc-dz-grid > .pc-block.g-col { grid-column: auto; }
 
 /* 容器块（panel/group/collection/tabs）：无持久顶栏，悬停/选中浮现工具条 */
 .pc-block { position: relative; border: 1px solid #e2e8f2; border-radius: 8px; background: #fff; cursor: pointer; }
 .pc-block:hover { border-color: #cbd5e6; }
 .pc-block.sel { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+/* 布局组（行/列/网格）是结构而非内容：静息不画实体框（只保留放置区），仅悬停/选中时显轮廓 → 少一层盒子 */
+.pc-block.kind-group:not(.sel) { border-color: transparent; background: transparent; }
+.pc-block.kind-group:not(.sel):hover { border-color: #d7dfea; }
+/* 布局组无实体框 → 放置区去掉上下 margin/padding，堆叠时只留父容器 gap 的间距（不再每行多出留白） */
+.pc-block.kind-group > .pc-drop { margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; }
 .pc-block .pc-drop { margin: 6px; }
+/* 面板常显标题条（左上角）：不随工具条显隐，让操作者一眼看出面板作用 */
+.pc-block.kind-panel > .pc-block-title { display: flex; align-items: center; gap: 7px; padding: 7px 10px 0; }
+.pc-block.kind-panel > .pc-block-title b { font-size: 12.5px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-block-title .pc-bt-badge { font-size: 10px; font-weight: 600; color: #2563eb; background: #eff4ff; border: 1px solid #d6e2fb; border-radius: 20px; padding: 1px 8px; }
 
 /* 浮动工具条：只在悬停/选中出现，浮在盒子上沿 */
 .pc-toolbar { position: absolute; top: -12px; left: 8px; z-index: 3; display: inline-flex; align-items: center; gap: 6px;
@@ -73,8 +84,8 @@ code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px
 .pc-grip:active { cursor: grabbing; }
 
 /* 叶子：单行紧凑芯片 */
-.pc-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid #e2e8f2; border-radius: 7px; background: #fff; cursor: grab; font-size: 12px; }
-.pc-chip:hover { border-color: #c7d2e0; }
+.pc-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid #eaeef4; border-radius: 7px; background: #fff; cursor: grab; font-size: 12px; }
+.pc-chip:hover { border-color: #cbd5e6; }
 .pc-chip.sel { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
 .pc-chip.kind-field { background: #f7faff; } .pc-chip.kind-cell { background: #f5fbf7; } .pc-chip.kind-validations { background: #fdf7ef; }
 .pc-chip .pc-chip-name { color: #334155; font-family: ui-monospace, Consolas, monospace; }

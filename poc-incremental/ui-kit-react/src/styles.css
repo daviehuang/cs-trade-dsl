@@ -34,6 +34,16 @@
 .eg-field input:focus, .eg-field select:focus, .eg-cell .cond:focus, .eg-cell .ovr:focus {
   outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.13);
 }
+/* ── 当事方主数据查询控件（party-lookup）── */
+.eg-lookup { position: relative; display: block; width: 100%; }
+.eg-lookup .eg-lookup-in { width: 100%; }
+.eg-lookup-busy { position: absolute; right: 10px; top: 9px; font-size: 12px; pointer-events: none; }
+.eg-lookup-menu { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 3px); background: #fff; border: 1px solid #cfd9e8; border-radius: 9px; box-shadow: 0 8px 22px rgba(15,40,80,.14); overflow: hidden; max-height: 240px; overflow-y: auto; }
+.eg-lookup-item { padding: 8px 11px; font-size: 13px; color: #1e293b; cursor: pointer; border-top: 1px solid #f0f4f9; font-family: ui-monospace, Consolas, monospace; }
+.eg-lookup-item:first-child { border-top: none; }
+.eg-lookup-item:hover { background: #eff4ff; color: #2563eb; }
+.eg-lookup-empty { padding: 8px 11px; font-size: 12px; color: #94a3b8; }
+
 .eg-cell .row { display: flex; gap: 5px; align-items: center; }
 .eg-cell .cv { height: 36px; display: flex; align-items: center; padding: 0 11px; border: 1px dashed #cfd9e8; border-radius: 8px; background: #f8fafc; color: #2563eb; font-family: ui-monospace, Consolas, monospace; font-size: 13px; box-sizing: border-box; }
 .eg-cell .cv.big { height: auto; padding: 8px 13px; font-size: 21px; font-weight: 700; color: #0b3d6b; background: #eef4ff; border-style: solid; border-color: #cfe0f7; }
@@ -64,7 +74,8 @@
 .eg-collection .idx { flex: none; width: 22px; height: 22px; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #64748b; background: #f1f5fb; border-radius: 50%; }
 .eg-collection .add { background: #ecfaf1; border: 1px solid #bfe3cd; color: #0e7a4f; border-radius: 8px; padding: 5px 13px; cursor: pointer; font-size: 12px; font-weight: 600; }
 .eg-collection .add:hover { background: #dcf3e6; }
-.eg-collection .x { position: absolute; right: 9px; top: 11px; background: #fdf0f0; border: 1px solid #f0d2d2; color: #c0392b; border-radius: 7px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
+.eg-collection .x { background: #fdf0f0; border: 1px solid #f0d2d2; color: #c0392b; border-radius: 7px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
+.eg-collection .item .x { position: absolute; right: 9px; top: 11px; }  /* 仅卡片模式绝对定位到卡片右上；表格模式 .x 用静态定位待在单元格里 */
 .eg-collection .x:hover { background: #fbe0e0; }
 .eg-collection .empty { color: #94a3b8; font-size: 12px; padding: 4px 2px; }
 
@@ -73,6 +84,7 @@
 .eg-collection .eg-table th { text-align: left; color: #64748b; font-weight: 600; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #e6ebf2; white-space: nowrap; }
 .eg-collection .eg-table td { padding: 5px 8px; border-bottom: 1px solid #f0f4f9; vertical-align: middle; }
 .eg-collection .eg-table th.ti, .eg-collection .eg-table td.ti { width: 30px; color: #94a3b8; text-align: center; }
+.eg-collection .eg-table td:last-child { width: 1%; white-space: nowrap; text-align: right; }  /* 删除按钮列：贴右、不换行 */
 .eg-collection .eg-table input, .eg-collection .eg-table select { height: 32px; }
 .eg-collection .eg-table .cv { border: none; background: transparent; padding: 0 4px; }
 
