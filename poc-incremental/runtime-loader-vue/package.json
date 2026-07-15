@@ -1,0 +1,21 @@
+{
+  "name": "runtime-loader-vue",
+  "version": "0.1.0",
+  "description": "运行时加载器（Vue）：启动即从规则仓库按 feature 拉取 ruleSet+库+页面+数据，用 ui-kit-vue 渲染。零静态规则 import。",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.4.38",
+    "decimal.js": "^10.4.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.3",
+    "typescript": "~5.4.0",
+    "vite": "^5.4.0",
+    "vue-tsc": "^2.1.6"
+  }
+}

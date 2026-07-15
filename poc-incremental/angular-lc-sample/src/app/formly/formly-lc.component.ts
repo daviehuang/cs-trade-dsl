@@ -6,7 +6,7 @@ import { FormlyModule, FormlyFieldConfig } from '@ngx-formly/core';
 
 import { EngineService } from '../engine.service';
 import { FxService } from '../fx.service';
-import { RuleRepositoryService } from '../rule-repository.service';
+import { RuleRepositoryService, FeatureSummary } from '../rule-repository.service';
 import {
   RuleSet, Session, SessionState, ViewNode,
   EngineCtx, buildMeta, EngineMeta, lintPageDef, LintIssue, PageDef,
@@ -28,8 +28,8 @@ const BFF_URL = 'http://localhost:8787/api/settle';
   template: `
   <div class="feat">
     <label>功能 feature：
-      <select [value]="featureId" disabled>
-        <option [value]="featureId">信用证结算（多层嵌套 + 模块化汇率）</option>
+      <select [value]="featureId" (change)="selectFeature($any($event.target).value)">
+        @for (f of features; track f.id) { <option [value]="f.id">{{ f.title || f.id }}</option> }
       </select>
     </label>
     @if (ruleSet) {
@@ -125,7 +125,8 @@ export class FormlyLcComponent implements OnInit {
   private repo = inject(RuleRepositoryService);
   private http = inject(HttpClient);
 
-  featureId = 'lcSettlement';
+  featureId = '';
+  features: FeatureSummary[] = [];
   loading = false;
   error: string | null = null;
   ruleSet: RuleSet | null = null;
@@ -152,9 +153,26 @@ export class FormlyLcComponent implements OnInit {
   get warnCount(): number { return this.lintIssues.filter((i) => i.level === 'warn').length; }
 
   ngOnInit(): void {
-    this.loading = true;
-    this.repo.loadFeature(this.featureId).subscribe({
-      next: ({ ruleSet, imports, data }) => {
+    // 先拉仓库目录 → 默认选第一笔交易 → 运行时按 feature 拉齐 bundle。
+    this.repo.catalog().subscribe({
+      next: (feats) => {
+        this.features = feats;
+        this.featureId = feats[0]?.id ?? '';
+        if (this.featureId) this.load(this.featureId);
+        else this.error = '仓库暂无 feature（先在编辑器「保存到仓库」）';
+      },
+      error: (e) => { this.error = '加载仓库目录失败：' + (e?.message ?? e) + '（store-server 是否已启动？node store-server.js）'; },
+    });
+  }
+
+  /** 下拉切换 feature：重新运行时加载。 */
+  selectFeature(id: string): void { if (id && id !== this.featureId) { this.featureId = id; this.load(id); } }
+
+  /** 运行时按 featureId 拉齐 bundle（规则集 + 库 + 页面 + 数据），建会话并渲染。 */
+  private load(featureId: string): void {
+    this.loading = true; this.error = null; this.bffHtml = '';
+    this.repo.loadFeature(featureId).subscribe({
+      next: ({ ruleSet, imports, data, pageDef }) => {
         this.ruleSet = ruleSet;
         this.importNames = Object.keys(imports);
         this.importsReg = imports;
@@ -170,19 +188,15 @@ export class FormlyLcComponent implements OnInit {
         const built = makeCtx(this.session, () => this.session!.getState(), () => this.rebuild());
         this.ctx = built.ctx;
         this.notify = built.notify;
+        // 自定义 PageDef 直接来自仓库 bundle（编辑器产物）；加载后用 model 做 lint（发布期护栏）。
+        this.pageDef = pageDef ?? null;
+        this.lintIssues = pageDef ? lintPageDef(pageDef, ruleSet, this.importsReg) : [];
+        // 有页面且校验通过 → 默认展示自定义页面；否则回退模型自动布局。
+        this.layoutSource = pageDef && this.errorCount === 0 ? 'page' : 'auto';
         this.rebuild();
         this.loading = false;
-        // 运行时加载自定义 PageDef（模拟页面编辑器产物），加载后用 model 做 lint（发布期护栏）。
-        this.http.get<PageDef>('assets/pages/lcSettlement.page.json').subscribe({
-          next: (pd) => {
-            this.pageDef = pd;
-            this.lintIssues = lintPageDef(pd, this.ruleSet!, this.importsReg);
-            if (this.layoutSource === 'page') this.rebuild();   // PageDef 异步到达后重建
-          },
-          error: () => { /* 没有自定义页就只用自动布局 */ },
-        });
       },
-      error: (e) => { this.error = '运行时加载规则失败：' + (e?.message ?? e); this.loading = false; },
+      error: (e) => { this.error = '运行时加载 feature「' + featureId + '」失败：' + (e?.message ?? e); this.loading = false; },
     });
   }
 

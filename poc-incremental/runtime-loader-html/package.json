@@ -1,0 +1,18 @@
+{
+  "name": "runtime-loader-html",
+  "version": "0.1.0",
+  "description": "运行时加载器（原生 HTML）：启动即从规则仓库按 feature 拉取 ruleSet+库+页面+数据，用 ui-kit-html 渲染。零静态规则 import。",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "decimal.js": "^10.4.3"
+  },
+  "devDependencies": {
+    "typescript": "~5.4.0",
+    "vite": "^5.4.0"
+  }
+}
