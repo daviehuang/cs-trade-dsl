@@ -58,8 +58,10 @@ function hydrateNode(n: PageNode, base: string, h: H): UINode {
     case 'collection': {
       const parent = base, node = resolveNode(h.state, parent);
       const rows = node?.collections?.[n.name] ?? [];
-      const items = rows.map((_, i) => {
-        const itemPath = `${parent}.${n.name}[${i}]`;
+      // 用每行携带的真实 path（引擎已跳过墓碑，删后再增时原始下标不连续，如 goodsInfo[2]）；
+      //   不能按可见位置 i 重拼 goodsInfo[i]，否则会指到已删除的墓碑 cell → setInput「not an input」。
+      const items = rows.map((row: any, i: number) => {
+        const itemPath = row?.path ?? `${parent}.${n.name}[${i}]`;
         return { nodePath: itemPath, group: hydrateGroup(n.itemTemplate, itemPath, n.itemGrid ?? 'row', h) };
       });
       const layout = n.layout === 'table' ? 'table' : undefined;
