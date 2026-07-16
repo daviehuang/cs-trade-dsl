@@ -3,11 +3,13 @@
 //   异步 resolver 完成 / 增量更新 → 引擎 onUpdate → 值版本++ → useSyncExternalStore 重渲染 →
 //   所有 cell 重新读引擎，显示 resolved/pending/error。这是 Angular 端 markForCheck 修复的 React 等价物。
 import { useState, useSyncExternalStore } from 'react';
-import { CreateSession, EngineCtx, RuleSet, ResolveFn, Session, SessionState, makeCtx } from '@udsl/ui-kit-core';
+import { CreateSession, EngineCtx, ExplainCell, RuleSet, ResolveFn, Session, SessionState, makeCtx } from '@udsl/ui-kit-core';
 
 export interface EngineStore {
   ctx: EngineCtx;
   getState: () => SessionState;
+  /** 调试：导出计算图（供计算链面板）。 */
+  explain: () => ExplainCell[];
   subscribe: (cb: () => void) => () => void;
   /** 值+结构版本之和（驱动 useSyncExternalStore）。 */
   getVersion: () => number;
@@ -57,10 +59,10 @@ function createStore(opts: UseEngineOpts): EngineStore {
     // 加载后重建覆盖态：从已存字段值反推人工覆盖（只非外部依赖字段）。纯计算字段同步即可判定；外部依赖字段自动跳过。
     if (opts.reconstructOverrides) { try { session.reconstructOverrides(structuredClone(opts.data), { skipExternalDependent: true }); } catch { /* 忽略 */ } }
     const built = makeCtx(session, () => session.getState(), () => { structVer++; fire(); });  // 增删 → 结构刷新
-    return { ...base, ctx: built.ctx, getState: () => session.getState() };
+    return { ...base, ctx: built.ctx, getState: () => session.getState(), explain: () => session.explain() };
   } catch (e: any) {
     // 建会话失败（常见：某 import ref 未解析）——不崩溃，返回错误态供渲染层提示。
-    return { ...base, ctx: NOOP_CTX, getState: () => EMPTY_STATE, error: e?.message ?? String(e) };
+    return { ...base, ctx: NOOP_CTX, getState: () => EMPTY_STATE, explain: () => [], error: e?.message ?? String(e) };
   }
 }
 
@@ -68,11 +70,12 @@ function createStore(opts: UseEngineOpts): EngineStore {
 export function useEngineSession(opts: UseEngineOpts): {
   ctx: EngineCtx;
   getState: () => SessionState;
+  explain: () => ExplainCell[];
   structVersion: number;
   version: number;
   error?: string;
 } {
   const [store] = useState(() => createStore(opts));            // 仅建一次
   const version = useSyncExternalStore(store.subscribe, store.getVersion, store.getVersion);
-  return { ctx: store.ctx, getState: store.getState, structVersion: store.getStructVersion(), version, error: store.error };
+  return { ctx: store.ctx, getState: store.getState, explain: store.explain, structVersion: store.getStructVersion(), version, error: store.error };
 }

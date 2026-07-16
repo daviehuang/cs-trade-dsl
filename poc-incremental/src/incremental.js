@@ -184,7 +184,7 @@ export function createSession(ruleSet, data, opts = {}) {
       // 归一化为 cases 列表：cases 多分支 / 单 when / 无条件，统一成 [{whenExpr, compute}]
       const rawCases = rule.cases || (rule.when ? [{ when: rule.when, expr: rule.expr }] : [{ when: null, expr: rule.expr }]);
       // 每条 case 带 overridable：命中此分支时该字段是否允许人工覆盖（分支级；未标则退化到字段级）。
-      const cases = rawCases.map((cs) => ({ whenExpr: cs.when || null, overridable: cs.overridable, compute: () => evaluate(cs.expr, ctxFor(path)).value }));
+      const cases = rawCases.map((cs) => ({ whenExpr: cs.when || null, expr: cs.expr, overridable: cs.overridable, compute: () => evaluate(cs.expr, ctxFor(path)).value }));
       cells.set(id, { ...base, id, kind: "computed", type: spec.type, overridable: !!spec.overridable,
         cases, fallback: rule.fallback || null,                                   // 所有 when 都不匹配 → fallback
         manual: rule.fallback === "input" ? nodes.get(path).data[rule.target] : undefined });
@@ -316,13 +316,15 @@ export function createSession(ruleSet, data, opts = {}) {
         let ovr = !!cell.overridable;                  // 无 cases / case 未标记 时的默认（向后兼容字段级）
         if (cell.cases) {
           let matched = false;
-          for (const cs of cell.cases) {               // 首个 when 成立即停；即便将被覆盖也求 when，使 cell 依赖分支输入
+          cell.activeCase = -1;                        // 供 explain() 显示命中哪条分支
+          for (let ci = 0; ci < cell.cases.length; ci++) {   // 首个 when 成立即停；即便将被覆盖也求 when，使 cell 依赖分支输入
+            const cs = cell.cases[ci];
             const ok = cs.whenExpr === null || evaluate(cs.whenExpr, ctxFor(cell.nodePath)).value === true;
             if (ok) {
               ovr = (cs.overridable === undefined ? !!cell.overridable : !!cs.overridable);
               if (ovr && cell.override !== undefined) { value = coerce(cell.type, cell.override); state = "overridden"; }
               else value = cs.compute();
-              matched = true; break;
+              matched = true; cell.activeCase = ci; break;
             }
           }
           if (!matched) {                              // 都不匹配 → fallback
@@ -516,6 +518,29 @@ export function createSession(ruleSet, data, opts = {}) {
   }
   function idle() { return outstanding === 0 ? Promise.resolve() : new Promise((r) => idleWaiters.push(r)); }
 
+  // 调试：导出可序列化的"计算图"——每个 cell 的 id/kind/值/态/表达式/依赖边，供 UI 摊开规则计算链。
+  function explain() {
+    const out = [];
+    for (const c of cells.values()) {
+      const e = { id: c.id, kind: c.kind, nodePath: c.nodePath, state: c.state, value: disp(c.value), deps: [...c.deps] };
+      if (c.kind === "computed") {
+        if (c.cases) e.cases = c.cases.map((cs, i) => ({ when: cs.whenExpr, expr: cs.expr, active: i === c.activeCase }));
+        e.fallback = c.fallback || null;
+        e.overridden = c.state === "overridden";
+        e.overridable = !!(c.activeOverridable !== undefined ? c.activeOverridable : c.overridable);
+      } else if (c.kind === "resolver") {
+        e.source = c.source; e.key = c.key; e.lastKey = c.lastKey;
+      } else if (c.kind === "validation") {
+        e.expr = c.expr; e.ruleId = c.ruleId; e.severity = c.severity;
+        e.ok = c.state === "resolved" ? c.value === true : null;
+        e.message = c.state === "resolved" && c.value !== true ? c.failMsg : null;
+      }
+      if (c.error) e.error = c.error;
+      out.push(e);
+    }
+    return out;
+  }
+
   // ── 子记录增删 ──
   const subtreePaths = (rootPath) => [...nodes.keys()].filter((p) => p === rootPath || p.startsWith(rootPath + "."));
   const cellsOfNode = (path) => [...cells.values()].filter((c) => c.nodePath === path);
@@ -561,5 +586,5 @@ export function createSession(ruleSet, data, opts = {}) {
   for (const c of cells.values()) if (c.kind !== "input") dirty.add(c.id);
   settle();
 
-  return { setInput, setOverride, clearOverride, reconstructOverrides, addChild, removeChild, getState, idle, _cells: cells, _nodes: nodes };
+  return { setInput, setOverride, clearOverride, reconstructOverrides, addChild, removeChild, getState, explain, idle, _cells: cells, _nodes: nodes };
 }

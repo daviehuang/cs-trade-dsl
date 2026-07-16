@@ -139,11 +139,14 @@ code { background: #f1f5fb; color: #475569; padding: 1px 5px; border-radius: 4px
 
 /* 模态弹窗（预览 / 仓库） */
 .ed-modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
-.ed-modal { background: #fff; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.3); width: 640px; max-width: 92vw; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+.ed-modal { position: relative; background: #fff; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.3); width: 640px; max-width: 92vw; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
 .ed-modal.wide { width: 1080px; }
 .ed-modal-h { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid #e6ebf2; background: #f7f9fc; }
 .ed-modal-h b { font-size: 14px; color: #0b3d6b; }
-.ed-modal-body { overflow: auto; padding: 14px 16px; }
+.ed-modal-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 14px 16px; }
+/* 右下角拖拽把手：斜纹三角，nwse 光标 */
+.ed-modal-grip { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 16px; cursor: nwse-resize; z-index: 3;
+  background: linear-gradient(135deg, transparent 45%, #9db4cc 45%, #9db4cc 55%, transparent 55%, transparent 68%, #9db4cc 68%, #9db4cc 78%, transparent 78%); }
 
 .ed-tabs { display: inline-flex; border: 1px solid #d4dbe6; border-radius: 9px; overflow: hidden; margin-bottom: 12px; }
 .ed-tabs button { background: #fff; border: none; color: #475569; padding: 7px 14px; font-size: 17px; cursor: pointer; border-right: 1px solid #e6ebf2; }
@@ -179,6 +182,12 @@ button.primary:disabled { background: #b6c0cf; border-color: #b6c0cf; cursor: no
 
 .preview { } .pv-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .pv-head b { font-size: 17px; color: #334155; }
+/* 预览主区：表单左、计算链右（实时侧栏） */
+.pv-main { display: flex; gap: 12px; align-items: flex-start; }
+.pv-main .pv-body { flex: 1; min-width: 0; }
+.pv-main .chain { flex: 0 0 440px; margin-bottom: 0; position: sticky; top: 8px; }
+.pv-main .chain .chain-body { max-height: 74vh; }
+@media (max-width: 1100px) { .pv-main { flex-direction: column; } .pv-main .chain { flex: none; width: 100%; position: static; } }
 .status { font-size: 11px; padding: 3px 9px; border-radius: 8px; }
 .status.pending { background: #fdf0d5; color: #a86609; } .status.settled { background: #e3f5ea; color: #1c8a4e; }
 
@@ -227,6 +236,32 @@ button.mini.primary { background: #1d5e96; border-color: #2a7bc0; color: #fff; }
 .ins-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 3px 0; font-size: 12px; }
 .ins-tag { font-size: 11px; color: #64748b; font-weight: 600; min-width: 96px; }
 .ins-fail { font-size: 11px; color: #c0392b; background: #fdecec; border: 1px solid #f3c9c9; border-radius: 6px; padding: 1px 7px; }
+
+/* 规则计算链（调试面板） */
+button.mini.on { background: #1d5e96; border-color: #2a7bc0; color: #fff; }
+.chain { border: 1px solid #dbe4f0; border-radius: 8px; background: #0f1b2d; color: #cdd7e6; margin-bottom: 10px; overflow: hidden; }
+.chain-h { padding: 7px 11px; font-size: 12px; font-weight: 600; color: #e7eefb; background: #16273f; border-bottom: 1px solid #24344d; }
+.chain-h .muted { color: #7f92ac; font-weight: 400; margin-left: 6px; }
+.chain-body { max-height: 320px; overflow-y: auto; padding: 6px 0; }
+.chain-empty { padding: 18px 12px; text-align: center; font-size: 12px; color: #7f92ac; }
+/* 拓扑层级分隔（上游→下游），滚动时吸顶 */
+.chain-lvl { position: sticky; top: 0; z-index: 1; font-size: 10px; letter-spacing: .05em; color: #8ea6c8; background: #13233c; padding: 5px 11px 3px; border-top: 1px solid #24344d; }
+.chain-lvl:first-child { border-top: none; }
+/* 行内节点标签：该计算值属于哪个 record */
+.chain-np-inline { font-size: 9px; color: #8aa0c0; background: #1b2c47; border: 1px solid #2a3d5a; border-radius: 5px; padding: 0 5px; letter-spacing: .02em; white-space: nowrap; }
+.chain-row { padding: 3px 11px; border-left: 2px solid transparent; }
+.chain-row.ok { border-left-color: #2f7d55; } .chain-row.pend { border-left-color: #b07d1e; }
+.chain-row.err { border-left-color: #b5433a; } .chain-row.ovr { border-left-color: #7c5bd0; } .chain-row.inp { border-left-color: #3a6ea5; }
+.chain-line { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.chain-f { color: #7fd0ff; font-weight: 600; }
+.chain-op { color: #6f86a6; }
+.chain-expr { color: #d7c58a; background: transparent; padding: 0; }
+.chain-val { color: #9be3b4; font-weight: 700; }
+.chain-badge { font-size: 9px; padding: 0 6px; border-radius: 9px; color: #0f1b2d; background: #9be3b4; }
+.chain-badge.pend { background: #f0c674; } .chain-badge.err { background: #e79890; } .chain-badge.ovr { background: #c3aef2; } .chain-badge.inp { background: #8fbce8; }
+.chain-deps { padding: 1px 0 0 14px; font-size: 11px; color: #6f86a6; font-family: ui-monospace, Consolas, monospace; }
+.chain-deps code { background: transparent; color: #93a6c2; padding: 0; margin-right: 10px; }
+.chain-deps code b { color: #b9c9e0; }
 
 /* 测试数据编辑 */
 .data-edit { width: 100%; box-sizing: border-box; height: 460px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; line-height: 1.5; border: 1px solid #cdd6e3; border-radius: 8px; padding: 10px; background: #fff; color: #1e293b; resize: vertical; }

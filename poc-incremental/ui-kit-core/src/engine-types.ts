@@ -76,9 +76,34 @@ export interface Session {
   addChild(parentPath: string, collName: string, childObj: any): string;
   removeChild(childPath: string): void;
   getState(): SessionState;
+  /** 调试：导出计算图（每个 cell 的 id/kind/值/态/表达式/依赖边），供 UI 摊开规则计算链。 */
+  explain(): ExplainCell[];
   idle(): Promise<void>;
   _cells: Map<string, any>;
   _nodes: Map<string, any>;
+}
+
+/** explain() 导出的单个 cell 的调试信息。 */
+export interface ExplainCell {
+  id: string;
+  kind: 'input' | 'computed' | 'resolver' | 'validation';
+  nodePath: string;
+  state: string;
+  value: string | null;
+  deps: string[];
+  cases?: { when: string | null; expr: string; active: boolean }[];
+  fallback?: string | null;
+  overridden?: boolean;
+  overridable?: boolean;
+  source?: string;
+  key?: Record<string, string>;
+  lastKey?: string | null;
+  expr?: string;
+  ruleId?: string;
+  severity?: string;
+  ok?: boolean | null;
+  message?: string | null;
+  error?: string;
 }
 
 export type CreateSession = (ruleSet: RuleSet, data: any, opts?: SessionOpts) => Session;
