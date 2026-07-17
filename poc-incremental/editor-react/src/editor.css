@@ -263,6 +263,22 @@ button.mini.on { background: #1d5e96; border-color: #2a7bc0; color: #fff; }
 .chain-deps code { background: transparent; color: #93a6c2; padding: 0; margin-right: 10px; }
 .chain-deps code b { color: #b9c9e0; }
 
+/* 中台校验结果面板（预览「提交中台」返回） */
+.bff-panel { margin: 0 0 12px; border: 1px solid #dbe4f0; border-radius: 9px; background: #fff; padding: 10px 13px; }
+.bff-panel.ok { border-color: #c3e6d2; background: #f3fbf6; }
+.bff-panel.bad { border-color: #f0d2d2; background: #fdf6f6; }
+.bff-h { display: flex; align-items: center; gap: 10px; }
+.bff-h b { font-size: 17px; }
+.bff-panel.ok .bff-h b { color: #0e7a4f; } .bff-panel.bad .bff-h b { color: #c0392b; }
+.bff-x { margin-left: auto; border: none; background: none; font-size: 18px; color: #94a3b8; cursor: pointer; line-height: 1; }
+.bff-x:hover { color: #c0392b; }
+.bff-msg { color: #c0392b; margin: 6px 0; font-family: ui-monospace, Consolas, monospace; font-size: 15px; }
+.bff-tbl { width: 100%; border-collapse: collapse; font-size: 15px; margin: 8px 0 4px; }
+.bff-tbl th { text-align: left; color: #8893a3; font-weight: 500; padding: 4px 8px; font-size: 14px; }
+.bff-tbl td { padding: 4px 8px; border-top: 1px solid #eef2f7; vertical-align: top; font-family: ui-monospace, Consolas, monospace; }
+.bff-tbl td.cl { color: #c0392b; } .bff-tbl td.sv { color: #0e7a4f; }
+.bff-val { font-size: 15px; padding: 3px 2px; } .bff-val.ok { color: #0e7a4f; } .bff-val.bad { color: #c0392b; }
+
 /* 测试数据编辑 */
 .data-edit { width: 100%; box-sizing: border-box; height: 460px; font-family: ui-monospace, Consolas, monospace; font-size:17px; line-height: 1.5; border: 1px solid #cdd6e3; border-radius: 8px; padding: 10px; background: #fff; color: #1e293b; resize: vertical; }
 .data-edit:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }

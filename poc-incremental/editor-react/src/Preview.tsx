@@ -43,6 +43,25 @@ export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr }: {
   const [showInspector, setShowInspector] = useState(true);
   const [showChain, setShowChain] = useState(false);
 
+  // 提交到中台（BFF :8787）：中台按 ruleSetId 从仓库拉规则、用原始输入权威重算 + 钉值复核，实时返回裁决。
+  //   需 BFF(:8787) 与规则仓库(:8788) 已启动，且该场景规则已保存到仓库（中台以仓库版本为权威）。
+  const [bff, setBff] = useState<{ busy?: boolean; err?: string; res?: any }>({});
+  const onSubmit = async () => {
+    setBff({ busy: true });
+    try {
+      const s2 = getState();
+      const resp = await fetch('http://localhost:8787/api/settle', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ data: treeToData(s2.tree), ruleSetId: ruleSet.ruleSetId, overrides: s2.overrides, pinned: s2.pinned }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || ('HTTP ' + resp.status));
+      setBff({ res: json });
+    } catch (e: any) {
+      setBff({ err: e?.message ?? String(e) });
+    }
+  };
+
   return (
     <div className="preview">
       <div className="pv-head">
@@ -54,8 +73,10 @@ export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr }: {
         {showChain && <button className="mini" disabled={!!error} title="清屏计算链：以当前值为基线，之后只显示有变化的计算，方便观察下一次改动触发的链路（不清数据）" onClick={clearChain}>🧹 清空</button>}
         <button className={'mini' + (showChain ? ' on' : '')} disabled={!!error} title="右侧实时摊开每个计算值的规则表达式、结果与依赖，方便调试" onClick={() => setShowChain((s) => !s)}>🔗 计算链</button>
         <button className="mini" disabled={!!error || st.anyPending} title="把当前填好的运行时数据（含计算值）存回仓库；重新加载即复原" onClick={onSaveData}>💾 保存数据</button>
+        <button className="mini primary" disabled={!!error || st.anyPending || bff.busy} title="把当前数据提交到中台（BFF）权威重算校验，实时返回裁决（需 BFF:8787 + 仓库:8788 已启动、场景已存仓库）" onClick={onSubmit}>⬆ 提交中台</button>
         <button className="mini" onClick={() => setShowInspector((s) => !s)}>{showInspector ? '隐藏检查器' : '检查器'}</button>
       </div>
+      {(bff.busy || bff.err || bff.res) && <BffResult bff={bff} onClose={() => setBff({})} />}
       {error
         ? <div className="lib-note" style={{ borderColor: '#f0d2d2', color: '#c0392b' }}>⛔ 建立会话失败：{error}<br /><span className="muted">常见原因：场景 import 的库未在库目录中（可能被删或版本不匹配）。到「库」面板补齐/修正 import 后即恢复。</span></div>
         : <>
@@ -65,6 +86,40 @@ export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr }: {
             {showChain && <ComputeChain explain={explain} baseline={baselineRef.current} />}
           </div>
         </>}
+    </div>
+  );
+}
+
+// 中台校验结果面板：裁决徽章 + 篡改/越权项（前端值 vs 中台权威值）+ 未过的业务校验。
+function BffResult({ bff, onClose }: { bff: { busy?: boolean; err?: string; res?: any }; onClose: () => void }) {
+  if (bff.busy) return <div className="bff-panel"><span className="muted">⏳ 提交中台权威重算中…</span></div>;
+  if (bff.err) return (
+    <div className="bff-panel bad">
+      <div className="bff-h"><b>⛔ 提交失败</b><button className="bff-x" onClick={onClose}>×</button></div>
+      <div className="bff-msg">{bff.err}</div>
+      <div className="muted">需 BFF(:8787) 与规则仓库(:8788) 已启动，且该场景规则已保存到仓库（中台以仓库版本为权威重算）。</div>
+    </div>
+  );
+  const r = bff.res;
+  const ok = r.verdict === 'ACCEPT';
+  const valFails = (r.validations ?? []).filter((v: any) => v.state === 'resolved' && !v.ok);
+  return (
+    <div className={'bff-panel ' + (ok ? 'ok' : 'bad')}>
+      <div className="bff-h">
+        <b>{ok ? '✅ ACCEPT' : r.verdict === 'REJECT_TAMPER' ? '⛔ REJECT_TAMPER（计算值/钉值被篡改）' : '⛔ REJECT_VALIDATION（业务校验未过）'}</b>
+        <span className="muted">中台按 <code>{r.ruleSetId}</code> 权威重算 · 钉值复核 {r.rateChecked} 条</span>
+        <button className="bff-x" onClick={onClose}>×</button>
+      </div>
+      {r.divergences?.length > 0 && (
+        <table className="bff-tbl">
+          <thead><tr><th>字段</th><th>类型</th><th>前端提交值</th><th>中台权威值</th></tr></thead>
+          <tbody>{r.divergences.map((d: any, i: number) => (
+            <tr key={i}><td><code>{d.field}</code></td><td>{d.kind}</td><td className="cl">{String(d.client)}</td><td className="sv">{String(d.server)}</td></tr>
+          ))}</tbody>
+        </table>
+      )}
+      {valFails.map((v: any, i: number) => <div key={i} className="bff-val bad">✘ {v.id}：{v.message}</div>)}
+      {ok && <div className="bff-val ok">✔ 计算值与钉值一致、业务校验全过 —— 中台已接受本次提交。</div>}
     </div>
   );
 }
