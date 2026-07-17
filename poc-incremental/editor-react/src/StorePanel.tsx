@@ -118,7 +118,7 @@ export function StorePanel({ currentBundle, importBundle, scenarioName }: Props)
                   <b>{f.title || f.id}</b>
                   <span className="kind" style={{ marginLeft: 8 }}>{f.id}</span>
                   {isCur && <span className="lint ok" style={{ marginLeft: 8 }}>当前</span>}
-                  <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>ruleSet {f.ruleSet} · 页面 {f.page}</span>
+                  <span className="muted" style={{ marginLeft: 8, fontSize: 17 }}>ruleSet {f.ruleSet} · 页面 {f.page}</span>
                   <span style={{ flex: 1 }} />
                   <button className="mini" disabled={busy || isCur} onClick={() => doLoad(f.id)}>{isCur ? '已加载' : '切换'}</button>
                   <button className="del" disabled={busy} onClick={() => doDelete(f)}>删除</button>

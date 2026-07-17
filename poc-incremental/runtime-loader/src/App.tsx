@@ -106,7 +106,7 @@ function RuntimeView({ bundle }: { bundle: Bundle }) {
             : <span className="lint ok">✔ PageDef 校验通过（lint）</span>)
           : <span className="lint bad">⛔ PageDef {errorCount} 个错误 —— 已回退模型自动布局</span>}
         <span style={{ flex: 1 }} />
-        {saveMsg && <span className="muted" style={{ fontSize: 12 }}>{saveMsg}</span>}
+        {saveMsg && <span className="muted" style={{ fontSize: 17 }}>{saveMsg}</span>}
         <button className="mini" disabled={st.anyPending} title="把当前填好的数据（含计算值）存回仓库；重新加载即复原、并重建非外部覆盖态" onClick={onSaveData}>💾 保存数据</button>
       </div>
       <UiRenderer ir={ir} ctx={ctx} />

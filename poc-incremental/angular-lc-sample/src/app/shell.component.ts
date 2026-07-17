@@ -30,9 +30,9 @@ import { FormlyLcComponent } from './formly/formly-lc.component';
   styles: [`
     :host{display:block;background:#f3f5f9;color:#1c2430;font-family:"Segoe UI","Microsoft YaHei",sans-serif;min-height:100vh}
     .top{background:#0b3d6b;color:#fff;padding:13px 26px;display:flex;align-items:center;gap:10px}
-    .top b{font-size:16px}.top .tag{font-size:11px;background:#1d5e96;padding:3px 9px;border-radius:10px}
+    .top b{font-size:21px}.top .tag{font-size:16px;background:#1d5e96;padding:3px 9px;border-radius:10px}
     .tabs{display:flex;gap:6px}
-    .tab{background:#0d4a82;border:1px solid #1d5e96;color:#cfe0f2;border-radius:7px;padding:6px 13px;font-size:13px;cursor:pointer}
+    .tab{background:#0d4a82;border:1px solid #1d5e96;color:#cfe0f2;border-radius:7px;padding:6px 13px;font-size:18px;cursor:pointer}
     .tab.on{background:#fff;color:#0b3d6b;border-color:#fff;font-weight:bold}
   `],
 })

@@ -88,34 +88,34 @@ const BFF_URL = 'http://localhost:8787/api/settle';
   styles: [`
     :host{display:block}
     .feat{max-width:1180px;margin:14px auto 0;padding:0 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-    .muted{color:#6b7688;font-size:13px}.muted b{color:#0b6bc2}
+    .muted{color:#6b7688;font-size:18px}.muted b{color:#0b6bc2}
     code{background:#eef2f8;padding:1px 5px;border-radius:4px}
-    label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7688}
-    select{padding:6px 8px;border:1px solid #c8d0dc;border-radius:6px;font-size:13px;background:#fff}
-    .status{font-size:12px;padding:5px 11px;border-radius:8px}
+    label{display:flex;flex-direction:column;gap:3px;font-size:17px;color:#6b7688}
+    select{padding:6px 8px;border:1px solid #c8d0dc;border-radius:6px;font-size:18px;background:#fff}
+    .status{font-size:17px;padding:5px 11px;border-radius:8px}
     .status.pending{background:#fdf0d5;color:#a86609}.status.settled{background:#e3f5ea;color:#1c8a4e}
     .wrap{max-width:1180px;margin:14px auto;padding:0 16px}
     .ph{background:#fff;border:1px solid #e1e6ee;border-radius:9px;padding:15px}.ph.err{color:#c0392b}
     .actions{margin:6px 0 11px;display:flex;gap:12px;align-items:center}
-    .topbtn{background:#1d5e96;border:1px solid #2a7bc0;color:#fff;padding:6px 13px;font-size:13px;border-radius:6px;cursor:pointer}
+    .topbtn{background:#1d5e96;border:1px solid #2a7bc0;color:#fff;padding:6px 13px;font-size:18px;border-radius:6px;cursor:pointer}
     .topbtn:hover{background:#2a7bc0}
-    .hint{color:#8893a3;font-size:12px}
+    .hint{color:#8893a3;font-size:17px}
     .srcbar{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin:2px 0 13px}
-    .srcbar .lbl{font-size:12px;color:#64748b;font-weight:500}
+    .srcbar .lbl{font-size:17px;color:#64748b;font-weight:500}
     .seg{display:inline-flex;border:1px solid #d4dbe6;border-radius:9px;overflow:hidden}
-    .seg button{background:#fff;border:none;color:#475569;padding:7px 14px;font-size:13px;cursor:pointer;border-right:1px solid #e6ebf2}
+    .seg button{background:#fff;border:none;color:#475569;padding:7px 14px;font-size:18px;cursor:pointer;border-right:1px solid #e6ebf2}
     .seg button:last-child{border-right:none}
     .seg button.on{background:#1d5e96;color:#fff;font-weight:600}
     .seg button:disabled{color:#b6c0cf;cursor:not-allowed}
-    .lint{font-size:12px;padding:4px 11px;border-radius:8px;font-weight:500}
+    .lint{font-size:17px;padding:4px 11px;border-radius:8px;font-weight:500}
     .lint.ok{background:#e9f7ef;color:#0e7a4f}.lint.warn{background:#fdf3e0;color:#a86609}.lint.bad{background:#fdecec;color:#c0392b}
     .lintlist{margin:0 0 13px;border:1px solid #f0d9d9;border-radius:9px;overflow:hidden}
-    .lintlist .li{font-size:12px;padding:6px 12px;border-top:1px solid #f6e8e8;background:#fffafa;color:#8a5a5a}
+    .lintlist .li{font-size:17px;padding:6px 12px;border-top:1px solid #f6e8e8;background:#fffafa;color:#8a5a5a}
     .lintlist .li:first-child{border-top:none}
     .lintlist .li.bad{color:#c0392b}.lintlist .li.warn{color:#a86609;background:#fffdf6}
     .lintlist code{background:#f1f5fb;color:#475569;padding:1px 5px;border-radius:4px}
-    .bff-ok{color:#1c8a4e;font-weight:bold;font-size:14px}.bff-bad{color:#c0392b;font-weight:bold;font-size:14px}
-    table.dv{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+    .bff-ok{color:#1c8a4e;font-weight:bold;font-size:19px}.bff-bad{color:#c0392b;font-weight:bold;font-size:19px}
+    table.dv{width:100%;border-collapse:collapse;font-size:17px;margin-top:6px}
     table.dv th{text-align:left;color:#8893a3;padding:4px 8px}table.dv td{padding:3px 8px;border-top:1px solid #f0f3f8;font-family:Consolas,monospace}
   `],
 })

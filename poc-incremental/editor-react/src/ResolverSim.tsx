@@ -53,7 +53,7 @@ export function ResolverSim({ ruleSet, imports, mocks, mutateMocks }: Props) {
             </table>
             <div className="ed-row">
               <button className="primary" onClick={() => setCfg(d.sourceId, { rows: [...cfg.rows, { when: Object.fromEntries(schema.map((k) => [k, ''])), value: '' }] })}>＋ 加一行</button>
-              <span className="muted" style={{ fontSize: 12 }}>按顺序取第一条全部条件命中的行</span>
+              <span className="muted" style={{ fontSize: 17 }}>按顺序取第一条全部条件命中的行</span>
             </div>
           </div>
         );

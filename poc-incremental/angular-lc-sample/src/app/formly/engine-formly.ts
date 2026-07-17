@@ -187,8 +187,8 @@ export function buildRootFields(state: SessionState, ruleSet: any, imports: any,
     </label>`,
   styles: [`
     :host{display:block;min-width:0}
-    .l{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#94a3b8;font-weight:500;letter-spacing:.01em}
-    input,select{height:36px;padding:0 10px;border:1px solid #d4dbe6;border-radius:8px;font-size:13px;font-family:ui-monospace,Consolas,monospace;background:#fff;color:#1e293b;width:100%;box-sizing:border-box;transition:border-color .12s,box-shadow .12s}
+    .l{display:flex;flex-direction:column;gap:5px;font-size:16px;color:#94a3b8;font-weight:500;letter-spacing:.01em}
+    input,select{height:36px;padding:0 10px;border:1px solid #d4dbe6;border-radius:8px;font-size:18px;font-family:ui-monospace,Consolas,monospace;background:#fff;color:#1e293b;width:100%;box-sizing:border-box;transition:border-color .12s,box-shadow .12s}
     select{padding-right:4px;cursor:pointer}
     input:hover,select:hover{border-color:#b9c4d6}
     input:focus,select:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.13)}`],
@@ -217,17 +217,17 @@ export class EgFieldType extends TickAwareType {
     </label>`,
   styles: [`
     :host{display:block;min-width:0}
-    .l{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#94a3b8;font-weight:500;letter-spacing:.01em}
+    .l{display:flex;flex-direction:column;gap:5px;font-size:16px;color:#94a3b8;font-weight:500;letter-spacing:.01em}
     .row{display:flex;gap:5px;align-items:center}
-    .cv{height:36px;display:flex;align-items:center;padding:0 11px;border:1px dashed #cfd9e8;border-radius:8px;background:#f8fafc;color:#2563eb;font-family:ui-monospace,Consolas,monospace;font-size:13px;box-sizing:border-box}
-    .cv.big{height:auto;padding:8px 13px;font-size:21px;font-weight:700;color:#0b3d6b;background:#eef4ff;border-style:solid;border-color:#cfe0f7}
+    .cv{height:36px;display:flex;align-items:center;padding:0 11px;border:1px dashed #cfd9e8;border-radius:8px;background:#f8fafc;color:#2563eb;font-family:ui-monospace,Consolas,monospace;font-size:18px;box-sizing:border-box}
+    .cv.big{height:auto;padding:8px 13px;font-size:26px;font-weight:700;color:#0b3d6b;background:#eef4ff;border-style:solid;border-color:#cfe0f7}
     .cv.pend{color:#c2790b;border-color:#ecd6a8;background:#fdf8ee}.cv.err{color:#c0392b;border-color:#f0caca}
-    .ovr{height:36px;flex:1;min-width:0;padding:0 11px;border:1px dashed #cfd9e8;border-radius:8px;background:#f8fafc;color:#2563eb;font-family:ui-monospace,Consolas,monospace;font-size:13px;box-sizing:border-box}
+    .ovr{height:36px;flex:1;min-width:0;padding:0 11px;border:1px dashed #cfd9e8;border-radius:8px;background:#f8fafc;color:#2563eb;font-family:ui-monospace,Consolas,monospace;font-size:18px;box-sizing:border-box}
     .ovr:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.13)}
     .ovr.on{border:2px solid #2563eb;background:#eef5ff;font-weight:700}
-    .cond{height:36px;padding:0 11px;border:2px solid #d98a26;border-radius:8px;background:#fffaf0;color:#a86609;font-weight:700;font-family:ui-monospace,Consolas,monospace;font-size:13px;width:100%;box-sizing:border-box}
+    .cond{height:36px;padding:0 11px;border:2px solid #d98a26;border-radius:8px;background:#fffaf0;color:#a86609;font-weight:700;font-family:ui-monospace,Consolas,monospace;font-size:18px;width:100%;box-sizing:border-box}
     .cond:focus{outline:none;box-shadow:0 0 0 3px rgba(217,138,38,.18)}
-    button{height:30px;background:#f1f6ff;border:1px solid #cfd9e8;color:#2563eb;border-radius:7px;padding:0 8px;cursor:pointer;font-size:13px}
+    button{height:30px;background:#f1f6ff;border:1px solid #cfd9e8;color:#2563eb;border-radius:7px;padding:0 8px;cursor:pointer;font-size:18px}
     button:hover{background:#e4eeff;border-color:#9cb8e8}`],
 })
 export class EgCellType extends TickAwareType {
@@ -256,7 +256,7 @@ export class EgCellType extends TickAwareType {
   styles: [`
     :host{display:block}
     .vl{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
-    .chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;border:1px solid}
+    .chip{display:inline-flex;align-items:center;gap:5px;font-size:16px;font-weight:500;padding:3px 10px;border-radius:20px;border:1px solid}
     .chip i{font-style:normal}
     .chip em{font-style:normal;opacity:.9}
     .chip.ok{color:#0e7a4f;background:#eaf7f0;border-color:#c3e6d2}
@@ -285,17 +285,17 @@ export class EgValidationsType extends TickAwareType {
     :host{display:block;grid-column:1/-1}
     .coll{border:1px solid #e6ebf2;border-radius:11px;padding:13px;background:#fafcff}
     .ch{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}
-    .ch b{color:#334155;font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px}
-    .ch .n{font-size:11px;font-weight:600;color:#64748b;background:#eef2f8;border-radius:20px;padding:1px 8px}
+    .ch b{color:#334155;font-size:18px;font-weight:600;display:flex;align-items:center;gap:7px}
+    .ch .n{font-size:16px;font-weight:600;color:#64748b;background:#eef2f8;border-radius:20px;padding:1px 8px}
     .item{position:relative;display:flex;align-items:flex-start;gap:10px;border:1px solid #eef2f7;border-radius:10px;background:#fff;padding:12px 40px 12px 12px;margin-bottom:9px}
     .item:last-of-type{margin-bottom:0}
     .item .body{flex:1;min-width:0}
-    .idx{flex:none;width:22px;height:22px;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#64748b;background:#f1f5fb;border-radius:50%}
-    .add{background:#ecfaf1;border:1px solid #bfe3cd;color:#0e7a4f;border-radius:8px;padding:5px 13px;cursor:pointer;font-size:12px;font-weight:600}
+    .idx{flex:none;width:22px;height:22px;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:#64748b;background:#f1f5fb;border-radius:50%}
+    .add{background:#ecfaf1;border:1px solid #bfe3cd;color:#0e7a4f;border-radius:8px;padding:5px 13px;cursor:pointer;font-size:17px;font-weight:600}
     .add:hover{background:#dcf3e6}
-    .x{position:absolute;right:9px;top:11px;background:#fdf0f0;border:1px solid #f0d2d2;color:#c0392b;border-radius:7px;padding:3px 8px;cursor:pointer;font-size:12px}
+    .x{position:absolute;right:9px;top:11px;background:#fdf0f0;border:1px solid #f0d2d2;color:#c0392b;border-radius:7px;padding:3px 8px;cursor:pointer;font-size:17px}
     .x:hover{background:#fbe0e0}
-    .empty{color:#94a3b8;font-size:12px;padding:4px 2px}`],
+    .empty{color:#94a3b8;font-size:17px;padding:4px 2px}`],
 })
 export class EgCollectionType extends TickAwareType {
   add() {
@@ -327,13 +327,13 @@ export class EgCollectionType extends TickAwareType {
     :host{display:block;min-width:0}
     .panel{background:#fff;border:1px solid #e6ebf2;border-radius:13px;padding:17px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
     .ph{display:flex;align-items:center;gap:9px;margin-bottom:14px;flex-wrap:wrap}
-    .ttl{font-size:12px;font-weight:700;color:#334155;letter-spacing:.05em;text-transform:uppercase}
-    .badge{font-size:10px;font-weight:600;color:#2563eb;background:#eff4ff;border:1px solid #d6e2fb;border-radius:20px;padding:2px 10px;letter-spacing:.02em}
+    .ttl{font-size:17px;font-weight:700;color:#334155;letter-spacing:.05em;text-transform:uppercase}
+    .badge{font-size:15px;font-weight:600;color:#2563eb;background:#eff4ff;border:1px solid #d6e2fb;border-radius:20px;padding:2px 10px;letter-spacing:.02em}
     .body{display:block}
     /* 当事方卡片 */
     .v-party{padding:14px;margin-bottom:0;border-radius:12px;background:#fbfcfe;height:100%;box-shadow:none}
     .v-party .ph{margin-bottom:12px}
-    .v-party .ttl{font-size:11px;color:#475569;letter-spacing:.02em}
+    .v-party .ttl{font-size:16px;color:#475569;letter-spacing:.02em}
     .tone-bank.v-party{background:#f4f9ff;border-color:#d4e6fb}
     .tone-bank .badge{color:#0e7a4f;background:#e9f7ef;border-color:#c3e6d2}
     .tone-cust.v-party{background:#fcfbff;border-color:#e4e0fa}

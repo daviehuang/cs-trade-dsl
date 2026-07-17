@@ -98,10 +98,10 @@ export function ContextSeams({ ruleSet, imports, mutateRuleSet }: Props) {
         <tbody>
           {allKeys.map((k) => (
             <tr key={k}>
-              <td><code>ctx.{k}</code>{descOf(k) && <div className="muted" style={{ fontSize: 11 }}>{descOf(k)}</div>}</td>
+              <td><code>ctx.{k}</code>{descOf(k) && <div className="muted" style={{ fontSize: 16 }}>{descOf(k)}</div>}</td>
               <td className="muted">{typeOf(k)}</td>
               <td><ExprField value={ctx[k] ?? ''} onChange={(v) => setMap(k, v)} placeholder="如 root.baseCcy（留空=不映射）" /></td>
-              <td style={{ fontSize: 11 }}>
+              <td style={{ fontSize: 16 }}>
                 {k in ctx ? <span className="lint ok">已映射</span> : <span className="lint bad">未映射</span>}
                 {!isDeclared(k) && <span className="lint warn" style={{ marginLeft: 4 }}>未声明</span>}
                 {consumed[k] && <div className="muted">用于：{consumed[k].join('、')}</div>}

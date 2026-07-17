@@ -50,7 +50,7 @@ export function VersionPanel({ ruleSet, mutateRuleSet, snapshots, publish, rollb
             <div className="rf-h">
               <b>{snap.label}</b>
               <span className="kind" style={{ marginLeft: 8 }}>v{snap.version}</span>
-              <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>{new Date(snap.at).toLocaleString()}</span>
+              <span className="muted" style={{ marginLeft: 8, fontSize: 17 }}>{new Date(snap.at).toLocaleString()}</span>
               <span style={{ flex: 1 }} />
               <span className={n ? 'lint warn' : 'lint ok'} style={{ marginRight: 8 }}>{n ? `与当前差异 ${n}` : '与当前一致'}</span>
               <button className="mini" onClick={() => setOpenId(open ? null : snap.id)}>{open ? '收起' : '对比当前'}</button>
@@ -78,7 +78,7 @@ function DiffView({ d }: { d: BundleDiff }) {
         <div key={title} style={{ marginTop: 4 }}>
           <div className="ds-sub">{title}（{entries.length}）</div>
           <div className="ed-row" style={{ flexWrap: 'wrap', gap: 6 }}>
-            {entries.map((e) => <span key={e.kind + e.key} style={{ color: tone(e.kind), fontSize: 12 }} title={e.kind}>{icon(e.kind)} <code>{e.key}</code></span>)}
+            {entries.map((e) => <span key={e.kind + e.key} style={{ color: tone(e.kind), fontSize: 17 }} title={e.kind}>{icon(e.kind)} <code>{e.key}</code></span>)}
           </div>
         </div>
       ))}

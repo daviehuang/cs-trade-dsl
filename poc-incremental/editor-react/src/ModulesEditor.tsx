@@ -175,11 +175,11 @@ function ModuleRules({ mod, dataSources, fieldNames, patchMod }: { mod: any; dat
 function ResolverKey({ r, dataSources, onChange }: { r: any; dataSources: any[]; onChange: (key: any) => void }) {
   const ds = dataSources.find((d) => d.sourceId === r.source);
   const schema = Object.keys(ds?.keySchema ?? {});
-  if (!schema.length) return <span className="muted" style={{ fontSize: 12 }}>（选 source 后按 keySchema 填映射）</span>;
+  if (!schema.length) return <span className="muted" style={{ fontSize: 17 }}>（选 source 后按 keySchema 填映射）</span>;
   return (
     <span className="ed-row" style={{ gap: 4, flexWrap: 'wrap' }}>
       {schema.map((k) => (
-        <label key={k} style={{ fontSize: 12 }}>{k}=<input value={r.key?.[k] ?? ''} onChange={(e) => onChange({ ...(r.key ?? {}), [k]: e.target.value })} placeholder="expr" style={{ width: 90 }} /></label>
+        <label key={k} style={{ fontSize: 17 }}>{k}=<input value={r.key?.[k] ?? ''} onChange={(e) => onChange({ ...(r.key ?? {}), [k]: e.target.value })} placeholder="expr" style={{ width: 90 }} /></label>
       ))}
     </span>
   );
@@ -213,14 +213,14 @@ function UsesEditor({ ruleSet, allTypes, meta, catalog, resolveUseDef, mutateRul
             </div>
 
             <div className="ds-sub">bind（入参 ← 宿主表达式）</div>
-            {inputs.length === 0 ? <span className="muted" style={{ fontSize: 12 }}>（该模块无 inputs）</span> : inputs.map((inp) => (
+            {inputs.length === 0 ? <span className="muted" style={{ fontSize: 17 }}>（该模块无 inputs）</span> : inputs.map((inp) => (
               <div key={inp} className="ed-row"><code style={{ minWidth: 90 }}>{inp}</code>←
                 <input value={u.bind?.[inp] ?? ''} onChange={(e) => patchUse(i, { bind: { ...(u.bind ?? {}), [inp]: e.target.value } })} placeholder="宿主字段 / ctx.*，如 amount 或 ctx.baseCcy" style={{ flex: 1, minWidth: 200 }} />
               </div>
             ))}
 
             <div className="ds-sub">produce（输出 → 宿主字段）</div>
-            {outputs.length === 0 ? <span className="muted" style={{ fontSize: 12 }}>（该模块无 outputs）</span> : outputs.map((o) => (
+            {outputs.length === 0 ? <span className="muted" style={{ fontSize: 17 }}>（该模块无 outputs）</span> : outputs.map((o) => (
               <div key={o} className="ed-row"><code style={{ minWidth: 90 }}>{o}</code>→
                 <select value={u.produce?.[o] ?? ''} onChange={(e) => patchUse(i, { produce: { ...(u.produce ?? {}), [o]: e.target.value } })}>
                   <option value="">（不写回）</option>

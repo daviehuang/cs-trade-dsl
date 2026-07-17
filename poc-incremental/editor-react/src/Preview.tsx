@@ -50,7 +50,7 @@ export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr }: {
         <span className={'status ' + (st.anyPending ? 'pending' : 'settled')}>{st.anyPending ? '⏳ 取数中' : '✅ 已结算'}</span>
         {lintErr > 0 && <span className="lint bad">⛔ PageDef 有 {lintErr} 个错误 —— 暂以自动布局预览</span>}
         <span style={{ flex: 1 }} />
-        {saveMsg && <span className="muted" style={{ fontSize: 12 }}>{saveMsg}</span>}
+        {saveMsg && <span className="muted" style={{ fontSize: 17 }}>{saveMsg}</span>}
         {showChain && <button className="mini" disabled={!!error} title="清屏计算链：以当前值为基线，之后只显示有变化的计算，方便观察下一次改动触发的链路（不清数据）" onClick={clearChain}>🧹 清空</button>}
         <button className={'mini' + (showChain ? ' on' : '')} disabled={!!error} title="右侧实时摊开每个计算值的规则表达式、结果与依赖，方便调试" onClick={() => setShowChain((s) => !s)}>🔗 计算链</button>
         <button className="mini" disabled={!!error || st.anyPending} title="把当前填好的运行时数据（含计算值）存回仓库；重新加载即复原" onClick={onSaveData}>💾 保存数据</button>
