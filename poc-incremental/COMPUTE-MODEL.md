@@ -68,6 +68,41 @@ resolver 的 `key` 变化 → 置 `pending` + 发起取数 → 下游读到 `pen
   流处理的状态依赖到达顺序与时间，难以「同输入同输出」地复算。
 - **增量即性能**：脏传播 + 值相等截断，让「上千栏位、嵌套子记录、计算含取数」也只付出 O(受影响子图) 的代价。
 
+## 为什么不开放裸 field.onChange 副作用
+
+> 常被问：「给字段开个 onChange 事件、变化时顺手改别的数据，会不会干扰这套机制？」
+
+要看**在哪一层、用什么方式改**。引擎里「改输入」本来就是合法且唯一的入口——
+`setInput` 就是干这个：置值 → 下游标脏 → `settle()` 到稳态 → `onUpdate` 通知（`incremental.js:413-416`）。
+所以「字段变 → 改别的字段」本身不违背机制。危险的是写法：
+
+- **A. 绕过引擎直接改原始 data 对象** → **一定坏**。每个 cell 持有自己的值副本，
+  改 data 树引擎根本不知道（没人标脏），UI/引擎当场脱节、BFF 重算对不上。直接否掉。
+- **B. 在 onChange 里再 `setInput` 改别的输入字段** → 不炸内核，但有三个隐蔽坑：
+
+1. **重入死循环**：`setInput` 全同步，`settle()` 跑完才 `onUpdate`。若把回写挂在 `onUpdate` 上，
+   就成 `setInput(A)→settle→onUpdate→写 setInput(B)→…→写 setInput(A)` 的乒乓。
+   `eq` 幂等守卫（`incremental.js:412`）只在值收敛时能刹住；逻辑一旦不幂等（累加/追加/翻转），
+   宿主层这个环**没有 guard**（引擎内部 `settle` 有 1e6 保护，跨 `onUpdate` 的环没有）。
+2. **改值时机**：安全时机只有 `onUpdate`（此刻图已稳态）。若把回写塞进 `recompute` 或 resolver 回调，
+   会在 `settle` 迭代中途改 `dirty`/改值（`incremental.js:379` 正按拓扑挑 cell）→ 拓扑序被打乱。
+3. **服务器可验证性（最致命）**：架构地基是「稳态 = 当前输入的纯函数」，BFF 才能同源重算防篡改。
+   onChange 变成引擎与 BFF 都看不见的副作用后，结果依赖「编辑的先后顺序与历史」，BFF 无法 replay，
+   「同输入→同输出」不再成立，防篡改被戳穿。这不是 bug，是把引擎从声明式纯函数拉回命令式副作用。
+4. **四端发散**：onChange 写在各端渲染器里，同一逻辑散在 React/Vue/Angular/HTML 4 处，违背「声明一次、四端一致」。
+
+**正确做法**（不开放裸 onChange）：
+
+- **声明式 + 集中执行**：一份 `{ scope, when, targets }` 声明放配置；`ui-kit-core` 一个共享 watcher
+  **只订阅 `onUpdate`**（唯一安全时机），四端 wire 一次；**边沿触发**（`false→true` 才动，记忆上次真值）
+  从根上杜绝坑①；target 约束为 input、禁回喂自身 `when`（禁 A↔B 互改）。
+- **要服务器可验证的联动**：干脆不用 onChange，把该字段建成**计算字段**（`fallback:"input"` 或公式规则），
+  让联动进 DAG——BFF 天然看得见、能复算。两者可共存：纯清空走 watcher，带计算味的走计算字段。
+
+一句话：**「字段变→改数据」只能走「声明式规则 + `onUpdate` 后集中回写 + 边沿防环」，
+绝不能开裸 onChange 同步改数据**——前者是多一次合法的 `setInput` 循环，
+后者会一次戳穿重入、时机、服务器可验证性三道防线。
+
 ## 术语澄清（避免混淆）
 
 - **「dataflow（数据流）」** 是个宽泛词：Excel 是 dataflow，Flink 也是 dataflow。
