@@ -62,7 +62,7 @@ export function mountEngineSession(opts: MountOpts): MountHandle {
       imports: opts.imports,
       onUpdate: () => { watcherRun(); notify(); },    // 值刷新（含异步取数完成）→ 先跑联动重置 → onTick
     });
-    const resetWatcher = attachResetWatcher(session, opts.resetRules, () => render());  // 联动重置（计划 ②）；删行 → 重渲染
+    const resetWatcher = attachResetWatcher(session, opts.resetRules, { onStructChange: () => render() });  // 联动重置（计划 ②）；删行 → 重渲染，二次确认默认走浏览器 confirm
     resetWatcher.seed();                              // 记录加载后真值基线（不触发，尊重既有数据）
     watcherRun = resetWatcher.run;
     const built = makeCtx(session, () => session.getState(), () => render());  // 增删子记录 → 结构重建

@@ -258,6 +258,12 @@ function PageInspector({ pageDef, meta, mutate }: { pageDef: PageDef; meta: Engi
           <label style={{ gridColumn: '1 / -1' }}>targets（逗号/空格分隔；字段名=清值，slot 名=递归清子树，集合名=删所有行）
             <input key={'rt-' + i} defaultValue={r.targets.join(', ')} placeholder="lcNo, applicant, charges"
               onChange={(e) => setRule(i, { targets: e.target.value.split(/[,\s]+/).filter(Boolean) })} /></label>
+          <label className="ck" style={{ gridColumn: '1 / -1' }}>
+            <input type="checkbox" checked={!!r.confirm} onChange={(e) => setRule(i, { confirm: e.target.checked || undefined })} />
+            重置前二次确认（删 children / 重置 slot 等不可逆操作建议开）</label>
+          {r.confirm && <label style={{ gridColumn: '1 / -1' }}>确认提示语（可选，留空用默认）
+            <input key={'rc-' + i} defaultValue={typeof r.confirm === 'string' ? r.confirm : ''} placeholder="确认清空申请人并删除所有收费明细？"
+              onChange={(e) => setRule(i, { confirm: e.target.value || true })} /></label>}
           <button className="del" style={{ gridColumn: '1 / -1' }} onClick={() => delRule(i)}>✕ 删除此规则</button>
         </div>
       ))}

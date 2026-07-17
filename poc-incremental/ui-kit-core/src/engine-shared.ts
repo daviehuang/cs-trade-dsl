@@ -61,6 +61,23 @@ function collectScopeNodes(node: ViewNode, scope: string, out: ViewNode[]): void
   for (const sn of Object.values(node.slots)) collectScopeNodes(sn, scope, out);
 }
 
+/** 重置的一次确认请求（传给宿主 confirm 处理器）。 */
+export interface ResetConfirmInfo {
+  message: string;
+  rule: ResetRule;
+  nodePath: string;
+}
+
+/** attachResetWatcher 的宿主选项。 */
+export interface ResetWatchOpts {
+  /** 删行等结构变更后调用（各端 store 传自己的 rebuild / structVer++）；不传则结构变更后 UI 不重建。 */
+  onStructChange?: () => void;
+  /** 二次确认处理器（仅对声明了 confirm 的规则触发）。返回 true 立即执行、false 取消；
+   *   返回 Promise<boolean> 则等用户在弹窗中确认后再执行（异步）。不传则回退浏览器原生 confirm，
+   *   若环境无 confirm（如无头/测试）则默认放行。 */
+  confirm?: (info: ResetConfirmInfo) => boolean | Promise<boolean>;
+}
+
 /** 挂接联动重置 watcher。返回 { seed, run }：
  *   - seed()：记录初值真值基线，【不触发】——避免加载既有数据时误清空（尊重已存记录）。
  *   - run()：每次引擎 onUpdate 时调；对每条规则的每个匹配节点求 when，仅 false→true 边沿重置 targets。
@@ -68,20 +85,34 @@ function collectScopeNodes(node: ViewNode, scope: string, out: ViewNode[]): void
  *
  *   target 支持三种粒度（按匹配节点结构自动判定）：
  *   ① 字段名 → 清该字段值（input/条件可输入 setInput(null)；可覆盖 clearOverride）；
- *   ② slot 名 → 递归清该 slot 子树所有字段值（结构保留）；
+ *   ② slot 名 → 整体重置子树（字段清值 + 嵌套 children 删记录）；
  *   ③ children 集合名 → 删除该集合的所有子记录（结构变更！删完调 onStructChange 触发 UI-IR 重建）。
  *   其余（如 "applicant.name" 点号相对路径）→ 回退按 cell 路径清值。
  *
- *   onStructChange：删行等结构变更后调用（各端 store 传自己的 rebuild / structVer++）；不传则结构变更后 UI 不重建。 */
+ *   rule.confirm：声明了则该规则触发前先走 opts.confirm（或浏览器原生 confirm）二次确认；
+ *   同步 true→立即重置、false→取消；异步 Promise→用户确认后再重置。边沿真值在【询问时】即记账，
+ *   故异步确认期间不会重复弹窗（pendingConfirm 再兜一层，防 when 反复翻转时叠框）。 */
 export function attachResetWatcher(
   session: ResetWatchSession,
   rules: ResetRule[] | undefined,
-  onStructChange?: () => void,
+  opts: ResetWatchOpts = {},
 ): { seed: () => void; run: () => void } {
   if (!rules || !rules.length) return { seed: () => {}, run: () => {} };
+  const onStructChange = opts.onStructChange;
   const lastTrue = new Map<string, boolean>();
+  const pendingConfirm = new Set<string>();          // rule@node：已有确认框挂起，避免重复弹
   let running = false;
   let structDirty = false;
+
+  // 二次确认：opts.confirm > 浏览器原生 confirm > 放行（无头/测试环境无从询问）。
+  const askConfirm = (info: ResetConfirmInfo): boolean | Promise<boolean> => {
+    if (opts.confirm) return opts.confirm(info);
+    const g = globalThis as any;
+    if (typeof g.confirm === 'function') return !!g.confirm(info.message);
+    return true;
+  };
+  const defaultMsg = (rule: ResetRule, nodePath: string) =>
+    `确认重置 ${nodePath} 的：${rule.targets.join('、')}？（含删除子记录，不可撤销）`;
 
   // 按字段类型选正确的「清值」语义：
   //   - 普通 input / 条件可输入(fallback:"input") → setInput(null) 清空（引擎内置分流，见 incremental.js setInput）；
@@ -122,9 +153,24 @@ export function attachResetWatcher(
         try { now = session.evalAt(sn.path, rule.when) === true; } catch { now = false; }  // 引用 pending 字段等 → 视为假
         const key = ri + '@' + sn.path;
         const was = lastTrue.get(key) === true;
-        lastTrue.set(key, now);
-        if (fire && now && !was)                          // 仅 false→true 边沿触发
-          for (const t of rule.targets) applyTarget(sn, t);
+        lastTrue.set(key, now);                           // 边沿真值即刻记账（异步确认期间不重复触发）
+        if (fire && now && !was) {                        // 仅 false→true 边沿触发
+          const node = sn;
+          const doReset = () => { for (const t of rule.targets) applyTarget(node, t); };
+          if (!rule.confirm) { doReset(); continue; }     // 未声明确认 → 直接执行
+          if (pendingConfirm.has(key)) continue;          // 已有确认框挂起 → 不重复弹
+          const msg = typeof rule.confirm === 'string' ? rule.confirm : defaultMsg(rule, sn.path);
+          const ans = askConfirm({ message: msg, rule, nodePath: sn.path });
+          if (ans === true) doReset();                    // 同步确认
+          else if (ans && typeof (ans as any).then === 'function') {   // 异步确认：用户点确认后再执行
+            pendingConfirm.add(key);
+            (ans as Promise<boolean>).then((ok) => {
+              pendingConfirm.delete(key);
+              if (ok) { doReset(); onStructChange?.(); }   // 异步分支自行触发结构重建
+            });
+          }
+          // ans === false → 取消，本次不重置（保留数据）
+        }
       }
     }
   };

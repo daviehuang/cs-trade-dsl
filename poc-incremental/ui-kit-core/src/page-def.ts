@@ -20,8 +20,11 @@ export interface ResetRule {
   scope: string;
   /** 触发表达式（与 validation/formula 同一套 DSL；字符串用双引号）。在 scope 节点作用域求值。 */
   when: string;
-  /** when 由假变真时要清空的输入字段名（相对 scope；非 input 字段忽略）。 */
+  /** when 由假变真时要重置的对象名（相对 scope）：字段名→清值 / slot 名→整体重置 / children 集合名→删所有记录。 */
   targets: string[];
+  /** 重置前二次确认（删 children / 重置 slot 等不可逆操作建议开）：true=默认提示语；字符串=自定义提示语。
+   *   用户确认后才执行；拒绝则本次不重置（当前边沿不再追问，直到 when 再次由假变真）。 */
+  confirm?: boolean | string;
 }
 
 export type PageNode = PanelNode | GroupNode | TabsNode | FieldNode | CellNode | CollectionNode | ValidationsNode;

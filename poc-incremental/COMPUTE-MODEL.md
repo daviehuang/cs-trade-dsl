@@ -164,8 +164,21 @@ resolver 的 `key` 变化 → 置 `pending` + 发起取数 → 下游读到 `pen
 回归见 `verify-resetwatcher.mjs`（边沿触发 / 非电平 / 重入不死循环 / seed 不误清 / 类型作用域逐节点 /
 case-when 字段分流 / slot 递归清字段 / children 删行带重建）。
 
-> ⚠️ **删 children 是不可逆的破坏性操作**：`when` 若因异步结算等瞬时为真而误触发，会删光用户子记录且无 undo。
-> 用它前务必确认 `when` 稳定（不依赖 pending/中间态）；必要时在应用层对该动作加二次确认。
+**二次确认（`ResetRule.confirm`）**：删 children / 重置 slot 不可逆，给规则加 `confirm` 即在重置前弹确认框，
+用户确认后才执行：
+
+```jsonc
+{ "scope": "root", "when": "settleType == \"wire\"", "targets": ["applicant", "charges"],
+  "confirm": "确认清空申请人并删除所有收费明细？（不可撤销）" }   // true=默认提示语；字符串=自定义
+```
+
+- **默认**走浏览器原生 `confirm`（同步，四端都有）——零接线即生效。
+- **自定义弹窗**：`attachResetWatcher(session, rules, { onStructChange, confirm })` 传 `confirm` 处理器，
+  返回 `boolean`（同步）或 **`Promise<boolean>`（异步）**——异步时重置挂起，等用户在你的模态框里点确认后才执行。
+- **边沿即记账**：询问的一刻就记下真值，故异步确认期间 `when` 不会重复弹框；用户点「取消」则本次不重置，
+  直到 `when` 再次由假变真才会再问。
+
+> ⚠️ 即便有确认，删 children 仍不可逆：务必确认 `when` 稳定（不依赖 pending/中间态），避免误触发弹框骚扰。
 
 > 边界：watcher 是**纯 UI 便利，BFF 不感知**（中台不知道「某字段本应被重置」）。
 > 若某重置是合规硬要求、须服务器可验证，改把该字段建成计算字段（`fallback:"input"` 或公式）进 DAG。两者可共存。

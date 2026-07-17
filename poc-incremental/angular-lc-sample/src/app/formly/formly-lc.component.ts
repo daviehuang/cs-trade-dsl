@@ -185,7 +185,7 @@ export class FormlyLcComponent implements OnInit {
           onUpdate: (s) => { this.resetWatch?.run(); this.state = this.session ? this.session.getState() : s; this.notify(); },
         });
         // 联动重置 watcher（计划 ②）：规则来自 pageDef.resetRules；删行走 rebuild 重建 formly 树；seed 记基线（不触发）。
-        this.resetWatch = attachResetWatcher(this.session, pageDef?.resetRules, () => this.rebuild());
+        this.resetWatch = attachResetWatcher(this.session, pageDef?.resetRules, { onStructChange: () => this.rebuild() });
         this.resetWatch.seed();
         this.state = this.session.getState();
         this.meta = buildMeta(ruleSet, imports);
