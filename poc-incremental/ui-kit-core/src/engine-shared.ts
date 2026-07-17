@@ -17,8 +17,25 @@ export interface EngineCtx {
   addChild(parent: string, coll: string, obj: any): void;
   removeChild(path: string): void;
   validationsFor(path: string): ValidationView[];
+  /** 只读求值：在 base 节点作用域算表达式（新增初值 / 显隐谓词等）。求值失败返回 undefined。 */
+  evalExpr(base: string, expr: string): any;
   /** 注册「引擎更新」监听（让框架在异步取数后重渲染）。返回注销函数。 */
   onTick(cb: () => void): () => void;
+}
+
+/** 新增子记录时组装初值对象：先取静态模板，再按 newItemInit 逐字段在【集合所属节点】作用域求值覆盖。
+ *   四端「＋添加」共用，避免各端重复实现（如混合收费里 amount 预填当前剩余额 diff）。 */
+export function buildNewItem(
+  coll: { parentPath: string; newItemTemplate: () => any; newItemInit?: Record<string, string> },
+  ctx: EngineCtx,
+): any {
+  const obj = coll.newItemTemplate() ?? {};
+  if (coll.newItemInit)
+    for (const [field, expr] of Object.entries(coll.newItemInit)) {
+      const v = ctx.evalExpr(coll.parentPath, expr);      // 在 owner（集合所属节点）作用域求值：diff / root.x 等
+      if (v != null && v !== '') obj[field] = typeof v === 'string' ? v : String(v);
+    }
+  return obj;
 }
 
 export const CCYS = ['USD', 'EUR', 'HKD', 'GBP', 'JPY', 'SGD', 'CNY'];

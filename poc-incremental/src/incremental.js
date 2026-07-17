@@ -586,5 +586,12 @@ export function createSession(ruleSet, data, opts = {}) {
   for (const c of cells.values()) if (c.kind !== "input") dirty.add(c.id);
   settle();
 
-  return { setInput, setOverride, clearOverride, reconstructOverrides, addChild, removeChild, getState, explain, idle, _cells: cells, _nodes: nodes };
+  // 只读求值：在指定节点作用域对表达式求值（供表现层用——新增初值 / 显隐谓词等；不建 cell、不改数据流）
+  function evalAt(path, expr) {
+    const node = nodes.get(path);
+    if (!node) throw new Error("evalAt: 无此节点 " + path);
+    return evaluate(expr, ctxFor(path)).value;
+  }
+
+  return { setInput, setOverride, clearOverride, reconstructOverrides, addChild, removeChild, getState, explain, evalAt, idle, _cells: cells, _nodes: nodes };
 }

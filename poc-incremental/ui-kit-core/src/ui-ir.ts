@@ -57,6 +57,8 @@ export interface CollectionUI {
   columns?: { field?: string; label: string; kind: 'field' | 'cell'; control?: string }[];
   /** 新增一行的默认值（闭包，适配器在"添加"时调用）。 */
   newItemTemplate: () => any;
+  /** 新增一行时按表达式求初值：{字段: 表达式}，在 parentPath（集合所属节点）作用域求值（预填剩余额等）。 */
+  newItemInit?: Record<string, string>;
   items: { nodePath: string; group: UINode }[];
   className?: string;
 }

@@ -23,6 +23,7 @@ export function makeCtx(
     addChild: (parent, coll, obj) => { session.addChild(parent, coll, obj); rebuild(); },
     removeChild: (p) => { session.removeChild(p); rebuild(); },
     validationsFor: (p) => getState().validations.filter((v) => v.node === p && v.state === 'resolved'),
+    evalExpr: (base, expr) => { try { return session.evalAt(base, expr); } catch { return undefined; } },  // 求值失败（如引用 pending 字段）→ undefined，调用方回退
     onTick: (cb) => { listeners.add(cb); return () => listeners.delete(cb); },
   };
   return { ctx, notify: () => listeners.forEach((f) => f()) };

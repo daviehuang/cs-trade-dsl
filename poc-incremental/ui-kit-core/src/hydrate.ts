@@ -71,6 +71,7 @@ function hydrateNode(n: PageNode, base: string, h: H): UINode {
         kind: 'collection', parentPath: parent, collName: n.name, title: n.title ?? COLL_LABEL[n.name] ?? n.name,
         layout, columns,
         newItemTemplate: () => (n.newItem ? structuredClone(n.newItem) : (COLL_TEMPLATE[n.name]?.() ?? {})),
+        newItemInit: n.newItemInit,
         items, className: n.className,
       };
     }

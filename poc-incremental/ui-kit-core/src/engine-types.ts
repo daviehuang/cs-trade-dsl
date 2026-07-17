@@ -78,6 +78,8 @@ export interface Session {
   getState(): SessionState;
   /** 调试：导出计算图（每个 cell 的 id/kind/值/态/表达式/依赖边），供 UI 摊开规则计算链。 */
   explain(): ExplainCell[];
+  /** 只读求值：在指定节点作用域对表达式求值（表现层用——新增初值 / 显隐谓词；不建 cell、不改数据流）。 */
+  evalAt(path: string, expr: string): any;
   idle(): Promise<void>;
   _cells: Map<string, any>;
   _nodes: Map<string, any>;

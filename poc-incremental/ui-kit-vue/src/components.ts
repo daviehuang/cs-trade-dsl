@@ -4,7 +4,7 @@
 //   复用与 React/Angular/HTML 同名的 CSS class（宿主引入共享 styles.css），四端视觉一致。
 import { defineComponent, h, onMounted, onUnmounted, ref, VNode } from 'vue';
 import {
-  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, UINode, ValidationsUI,
+  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, UINode, ValidationsUI, buildNewItem,
 } from '@udsl/ui-kit-core';
 
 const cx = (...xs: (string | undefined | false)[]) => xs.filter(Boolean).join(' ');
@@ -89,7 +89,7 @@ function egCollection(node: CollectionUI, ctx: EngineCtx): VNode {
   return h('div', { class: cx('eg-collection coll', node.className) }, [
     h('div', { class: 'ch' }, [
       h('b', [node.title, ' ', h('span', { class: 'n' }, String(node.items.length))]),
-      h('button', { type: 'button', class: 'add', onClick: () => ctx.addChild(node.parentPath, node.collName, node.newItemTemplate()) }, '＋ 添加'),
+      h('button', { type: 'button', class: 'add', onClick: () => ctx.addChild(node.parentPath, node.collName, buildNewItem(node, ctx)) }, '＋ 添加'),
     ]),
     ...rows,
   ]);

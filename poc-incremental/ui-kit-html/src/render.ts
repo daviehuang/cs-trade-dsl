@@ -2,7 +2,7 @@
 //   引擎是唯一真相源：input 的 value 读 ctx.valueOf(path)，事件写回 ctx；不在 DOM 里存值。
 //   复用与 React/Angular 同名的 CSS class（宿主引入共享 styles.css），三端视觉一致。
 import {
-  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, UINode, ValidationsUI,
+  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, UINode, ValidationsUI, buildNewItem,
 } from '@udsl/ui-kit-core';
 
 const cx = (...xs: (string | undefined | false)[]) => xs.filter(Boolean).join(' ');
@@ -100,7 +100,7 @@ function egCollection(node: CollectionUI, ctx: EngineCtx): HTMLElement {
   return h('div', { class: cx('eg-collection coll', node.className) },
     h('div', { class: 'ch' },
       h('b', {}, node.title, ' ', h('span', { class: 'n' }, String(node.items.length))),
-      h('button', { type: 'button', class: 'add', onclick: () => ctx.addChild(node.parentPath, node.collName, node.newItemTemplate()) }, '＋ 添加')),
+      h('button', { type: 'button', class: 'add', onclick: () => ctx.addChild(node.parentPath, node.collName, buildNewItem(node, ctx)) }, '＋ 添加')),
     ...rows);
 }
 

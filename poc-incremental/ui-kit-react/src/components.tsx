@@ -3,7 +3,7 @@
 //   不在 React 里存值。复用与 Angular 同名的 CSS class（styles.css），两框架视觉一致。
 import React, { useRef, useState } from 'react';
 import {
-  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, TabsUI, UINode, ValidationsUI,
+  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, TabsUI, UINode, ValidationsUI, buildNewItem,
 } from '@udsl/ui-kit-core';
 import { getLookupService, LookupCandidate } from './lookup';
 
@@ -167,7 +167,7 @@ function EgValidations({ node, ctx }: { node: ValidationsUI; ctx: EngineCtx }) {
 function EgCollection({ node, ctx }: { node: CollectionUI; ctx: EngineCtx }) {
   const head = (
     <div className="ch"><b>{node.title} <span className="n">{node.items.length}</span></b>
-      <button type="button" className="add" onClick={() => ctx.addChild(node.parentPath, node.collName, node.newItemTemplate())}>＋ 添加</button>
+      <button type="button" className="add" onClick={() => ctx.addChild(node.parentPath, node.collName, buildNewItem(node, ctx))}>＋ 添加</button>
     </div>
   );
   // 表格模式：列=字段、行=记录（每格渲染裸控件）。

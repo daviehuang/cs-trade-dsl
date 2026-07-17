@@ -10,7 +10,7 @@ import {
   Cell, Session, SessionState, ViewNode,
   buildMeta, EngineMeta,
   CCYS, COLL_LABEL, COLL_TEMPLATE, EngineCtx, FIELD_LABEL, ROW_TYPES, SLOT_LABEL,
-  controlOf, resolveCell, toneOf,
+  buildNewItem, controlOf, resolveCell, toneOf,
 } from '@udsl/ui-kit-core';
 
 export { EngineCtx } from '@udsl/ui-kit-core';     // 绑定层对外仍从这里导出 EngineCtx
@@ -35,6 +35,7 @@ export function makeCtx(session: Session, getState: () => SessionState, rebuild:
     addChild: (parent, coll, obj) => { session.addChild(parent, coll, obj); rebuild(); },
     removeChild: (p) => { session.removeChild(p); rebuild(); },
     validationsFor: (p) => getState().validations.filter((v) => v.node === p && v.state === 'resolved'),
+    evalExpr: (base, expr) => { try { return session.evalAt(base, expr); } catch { return undefined; } },
     onTick: (cb) => { listeners.add(cb); return () => listeners.delete(cb); },
   };
   return { ctx, notify: () => listeners.forEach((f) => f()) };
@@ -288,8 +289,12 @@ export class EgValidationsType extends TickAwareType {
 })
 export class EgCollectionType extends TickAwareType {
   add() {
-    const tpl = this.props['template'] ? this.props['template']() : {};
-    this.props['ctx'].addChild(this.props['parentPath'], this.props['collName'], tpl);
+    const p = this.props;
+    const obj = buildNewItem(
+      { parentPath: p['parentPath'], newItemTemplate: p['template'] ?? (() => ({})), newItemInit: p['newItemInit'] },
+      p['ctx'],
+    );
+    p['ctx'].addChild(p['parentPath'], p['collName'], obj);
   }
   remove(child: FormlyFieldConfig) {
     const path = child.props?.['nodePath'];

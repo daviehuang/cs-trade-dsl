@@ -226,6 +226,14 @@ function TabsBlock({ node, addr, childType, dropZone, patch }: any) {
   );
 }
 
+// newItemInit（{字段:表达式}）↔ 紧凑字符串「amount=diff; desc=...」互转，供 Inspector 单行编辑。
+const initToStr = (o?: Record<string, string>) => (o ? Object.entries(o).map(([k, v]) => `${k}=${v}`).join('; ') : '');
+const strToInit = (s: string) => {
+  const o: Record<string, string> = {};
+  for (const part of s.split(/[;\n]/)) { const i = part.indexOf('='); if (i > 0) { const k = part.slice(0, i).trim(), v = part.slice(i + 1).trim(); if (k && v) o[k] = v; } }
+  return Object.keys(o).length ? o : undefined;
+};
+
 // 属性 Inspector：各 kind 分支（含新 group/tabs）。
 function Inspector({ node, addr, type, meta, patch }: any) {
   const n = node, a = addr;
@@ -259,6 +267,11 @@ function Inspector({ node, addr, type, meta, patch }: any) {
         <label>title<input value={n.title ?? ''} onChange={(e) => patch(a, { title: e.target.value })} /></label>
         <label>布局<select value={n.layout ?? 'cards'} onChange={(e) => patch(a, { layout: e.target.value === 'cards' ? undefined : e.target.value })}><option value="cards">卡片</option><option value="table">表格</option></select></label>
         <label>itemGrid<select value={n.itemGrid ?? 'row'} onChange={(e) => patch(a, { itemGrid: e.target.value })}><option>row</option><option>col</option></select></label>
+        <label style={{ gridColumn: '1 / -1' }}>新增初值 newItemInit
+          {/* 非受控：value 经 strToInit/initToStr 往返会丢中间态（打字被清空），用 defaultValue+key 保留原文，切换节点时 remount 重置 */}
+          <input key={'nii-' + a.join('.')} defaultValue={initToStr(n.newItemInit)}
+            placeholder="字段=表达式，多个用 ; 分隔，如 amount=diff; ccy=root.payCcy（本集合所属节点作用域）"
+            onChange={(e) => patch(a, { newItemInit: strToInit(e.target.value) })} /></label>
       </div>}
 
       {n.kind === 'validations' && <div className="ed-grid"><label>path（缺省=当前节点）<input value={n.path ?? ''} onChange={(e) => patch(a, { path: e.target.value })} /></label></div>}

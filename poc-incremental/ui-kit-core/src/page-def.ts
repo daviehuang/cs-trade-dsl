@@ -81,6 +81,8 @@ export interface CollectionNode extends BaseNode {
   itemGrid?: 'row' | 'col';
   /** 新增一行的默认值；缺省用内置模板。 */
   newItem?: Record<string, any>;
+  /** 新增一行时按表达式求初值：{字段: 表达式}，在【集合所属节点】作用域求值（如 { amount: "diff" } 预填剩余额）。 */
+  newItemInit?: Record<string, string>;
   itemTemplate: PageNode[];
 }
 
