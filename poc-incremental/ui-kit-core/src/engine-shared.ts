@@ -208,9 +208,10 @@ export const COLL_TEMPLATE: Record<string, () => any> = {
 /** 这些节点的叶子字段横向排成一行（明细/付费/收费组），其余（卡片）纵向堆叠。 */
 export const ROW_TYPES = new Set(['ChargeGroup', 'ChargeItem', 'Payment']);
 
-/** 按字段名推导控件种类（币种下拉 / 调整方式下拉 / 文本）。 */
+/** 按字段名推导控件种类（币种下拉 / 调整方式下拉 / 日历 / 文本）。 */
 export const controlOf = (field: string): string =>
-  field === 'ccy' || field === 'baseCcy' ? 'ccy' : field === 'adjustMode' ? 'adjust' : 'text';
+  field === 'ccy' || field === 'baseCcy' ? 'ccy' : field === 'adjustMode' ? 'adjust'
+    : /(^date$|Date$)/.test(field) ? 'date' : 'text';   // valueDate / issueDate / expiryDate… → 日历
 
 export const toneOf = (type: string): string => (type === 'BankParty' ? 'bank' : 'cust');
 

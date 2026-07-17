@@ -50,6 +50,8 @@ function egField(node: FieldUI, ctx: EngineCtx): HTMLElement {
       h('option', { value: 'auto-low' }, 'auto-low（收费10%）'),
       h('option', { value: 'manual' }, 'manual（人工录入）'));
     (control as HTMLSelectElement).value = v;
+  } else if (node.control === 'date') {
+    control = h('input', { type: 'date', value: v, 'data-path': node.path, 'data-value': v, oninput: (e: any) => ctx.onInput(node.path, e.target.value) });
   } else {
     control = h('input', { value: v, 'data-path': node.path, 'data-value': v, oninput: (e: any) => ctx.onInput(node.path, e.target.value) });
   }

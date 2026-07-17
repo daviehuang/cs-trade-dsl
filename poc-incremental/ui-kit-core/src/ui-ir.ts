@@ -15,7 +15,7 @@ export interface FieldUI {
   kind: 'field';
   path: string;
   label: string;
-  control: string;            // 'text' | 'ccy' | 'adjust'
+  control: string;            // 'text' | 'ccy' | 'adjust' | 'date' | 'party-lookup'
   className?: string;
 }
 

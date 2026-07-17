@@ -173,6 +173,9 @@ export function buildRootFields(state: SessionState, ruleSet: any, imports: any,
             <option value="manual">manual（人工录入）</option>
           </select>
         }
+        @case ('date') {
+          <input type="date" [value]="v()" (input)="set($any($event.target).value)" />
+        }
         @default { <input [value]="v()" (input)="set($any($event.target).value)" /> }
       }
     </label>`,

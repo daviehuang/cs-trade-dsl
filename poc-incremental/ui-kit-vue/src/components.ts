@@ -38,6 +38,8 @@ function egField(node: FieldUI, ctx: EngineCtx): VNode {
       h('option', { value: 'auto-low', selected: v === 'auto-low' }, 'auto-low（收费10%）'),
       h('option', { value: 'manual', selected: v === 'manual' }, 'manual（人工录入）'),
     ]);
+  else if (node.control === 'date')
+    control = h('input', { type: 'date', value: v, 'data-path': node.path, 'data-value': v, onInput: set });
   else
     control = h('input', { value: v, 'data-path': node.path, 'data-value': v, onInput: set });
   return h('label', { class: cx('eg-field l', node.className) }, [node.label, control]);

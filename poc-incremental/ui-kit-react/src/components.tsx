@@ -49,6 +49,7 @@ function fieldControl(node: FieldUI, ctx: EngineCtx): React.ReactNode {
       </select>
     );
   if (node.control === 'party-lookup') return <PartyLookup node={node} ctx={ctx} />;
+  if (node.control === 'date') return <input type="date" value={v} data-path={node.path} data-value={v} onChange={(e) => set(e.target.value)} />;
   return <input value={v} data-path={node.path} data-value={v} onChange={(e) => set(e.target.value)} />;
 }
 

@@ -283,7 +283,7 @@ function Inspector({ node, addr, type, meta, patch }: any) {
         <label>field（相对）<input value={n.field ?? ''} onChange={(e) => patch(a, { field: e.target.value, path: undefined })} /></label>
         <label>path（绝对，覆盖 field）<input value={n.path ?? ''} onChange={(e) => patch(a, { path: e.target.value })} /></label>
         <label>label<input value={n.label ?? ''} onChange={(e) => patch(a, { label: e.target.value })} /></label>
-        {n.kind === 'field' && <label>control<select value={n.control ?? 'text'} onChange={(e) => patch(a, { control: e.target.value })}><option>text</option><option>ccy</option><option>adjust</option><option value="party-lookup">party-lookup（主数据查询）</option></select></label>}
+        {n.kind === 'field' && <label>control<select value={n.control ?? 'text'} onChange={(e) => patch(a, { control: e.target.value })}><option>text</option><option>ccy</option><option>adjust</option><option value="date">date（日历）</option><option value="party-lookup">party-lookup（主数据查询）</option></select></label>}
         {n.kind === 'cell' && <label className="ck"><input type="checkbox" checked={!!n.emphasis} onChange={(e) => patch(a, { emphasis: e.target.checked || undefined })} />emphasis（大字）</label>}
       </div>}
 

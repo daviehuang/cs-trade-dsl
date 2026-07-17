@@ -72,8 +72,8 @@ export interface FieldNode extends BaseNode {
   /** 相对字段名（相对当前节点类型，如 'taxId'）。与 path 二选一。 */
   field?: string;
   label?: string;
-  /** 控件种类；缺省按字段名推导（ccy→币种下拉，adjustMode→调整方式下拉，其余文本）。 */
-  control?: 'text' | 'ccy' | 'adjust';
+  /** 控件种类；缺省按字段名推导（ccy→币种下拉，adjustMode→调整方式下拉，*Date→日历，其余文本）。 */
+  control?: 'text' | 'ccy' | 'adjust' | 'date';
 }
 
 /** 计算/外部值展示（只读）。overridable 字段自动给覆盖输入；条件可输入字段自动可编辑。 */
