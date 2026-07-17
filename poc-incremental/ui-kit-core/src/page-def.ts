@@ -8,6 +8,20 @@ export interface PageDef {
   ruleSetRef: string;
   title?: string;
   layout: PageNode[];
+  /** 联动重置规则：某字段变化时清空其它输入字段（纯前端便利层，见 ResetRule）。 */
+  resetRules?: ResetRule[];
+}
+
+/** 联动重置规则（计划 ②）：当 scope 节点的 when 由假变真时，清空该节点 targets 这些【输入字段】。
+ *   纯表现层便利——引擎单向数据流无「A 变→重置 B 输入」通路，故由宿主 watcher 订阅 onUpdate、
+ *   边沿触发补上（详见 COMPUTE-MODEL.md）。BFF 不感知；需服务器可验证的重置应改建计算字段。 */
+export interface ResetRule {
+  /** 作用域：节点类型名（如 'ChargeItem'，对每个该类型子记录各自判定）或 'root' / 绝对节点路径。 */
+  scope: string;
+  /** 触发表达式（与 validation/formula 同一套 DSL；字符串用双引号）。在 scope 节点作用域求值。 */
+  when: string;
+  /** when 由假变真时要清空的输入字段名（相对 scope；非 input 字段忽略）。 */
+  targets: string[];
 }
 
 export type PageNode = PanelNode | GroupNode | TabsNode | FieldNode | CellNode | CollectionNode | ValidationsNode;

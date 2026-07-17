@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { EngineMeta, PageDef } from '@udsl/ui-kit-core';
+import { EngineMeta, PageDef, ResetRule } from '@udsl/ui-kit-core';
 import { Addr, childTypeOf, resolveAddr, readPayload, payloadToNode, labelOf } from './layout-addr';
 
 // 页面画布（拖拽式搭建）：右侧结构块画布。从规则集树拖字段/槽位/集合到容器放置区；
@@ -100,7 +100,7 @@ export function PageCanvas({ pageDef, meta, mutatePageDef }: Props) {
         <div className="pc-side-h">属性</div>
         {sel?.node
           ? <Inspector node={sel.node} addr={selAddr} type={ctxOf(selAddr)} meta={meta} patch={patch} />
-          : <div className="pc-side-empty"><b>页面（顶层 {meta.root}）</b>已选中。<br />点上方「＋元素」把面板/行/列等加到页面；点选画布中的元素可编辑其属性。</div>}
+          : <PageInspector pageDef={pageDef} meta={meta} mutate={mutatePageDef} />}
       </div>
     </div>
   );
@@ -233,6 +233,38 @@ const strToInit = (s: string) => {
   for (const part of s.split(/[;\n]/)) { const i = part.indexOf('='); if (i > 0) { const k = part.slice(0, i).trim(), v = part.slice(i + 1).trim(); if (k && v) o[k] = v; } }
   return Object.keys(o).length ? o : undefined;
 };
+
+// 页面级 Inspector（未选中任何块 = 选中「页面」时展示）：编辑联动重置 resetRules（计划 ②）。
+//   输入框用 defaultValue + 稳定 key（非受控）——避免每次 mutatePageDef 重渲染时清掉正在输入的字符（同 newItemInit）。
+function PageInspector({ pageDef, meta, mutate }: { pageDef: PageDef; meta: EngineMeta; mutate: (fn: (pd: PageDef) => void) => void }) {
+  const rules = pageDef.resetRules ?? [];
+  const setRule = (i: number, p: Partial<ResetRule>) => mutate((pd) => { const l = pd.resetRules ?? (pd.resetRules = []); l[i] = { ...l[i], ...p }; });
+  const addRule = () => mutate((pd) => { (pd.resetRules ?? (pd.resetRules = [])).push({ scope: meta.root, when: '', targets: [] }); });
+  const delRule = (i: number) => mutate((pd) => { pd.resetRules?.splice(i, 1); if (pd.resetRules && !pd.resetRules.length) delete pd.resetRules; });
+  return (
+    <div className="rule-form pc-inspector">
+      <div className="pc-side-empty"><b>页面（顶层 {meta.root}）</b>已选中。<br />点上方「＋元素」把面板/行/列等加到页面；点选画布中的元素可编辑其属性。</div>
+      <div className="rf-h" style={{ marginTop: 12 }}><b>联动重置 resetRules</b></div>
+      <div className="hint">某字段变真时清空其它输入字段（纯前端便利，BFF 不感知）。when 里字符串用双引号；targets 只清 input 字段。</div>
+      {rules.length === 0 && <div className="pc-side-empty">（暂无规则，点下方「＋ 新增规则」）</div>}
+      {rules.map((r, i) => (
+        <div key={i} className="ed-grid" style={{ borderTop: '1px solid #eee', paddingTop: 8, marginTop: 8 }}>
+          <label style={{ gridColumn: '1 / -1' }}>scope（作用域：节点类型 / root / 绝对路径）
+            <input key={'rs-' + i} defaultValue={r.scope} placeholder="root 或 ChargeItem"
+              onChange={(e) => setRule(i, { scope: e.target.value })} /></label>
+          <label style={{ gridColumn: '1 / -1' }}>when（触发表达式，由假变真时清空 targets）
+            <input key={'rw-' + i} defaultValue={r.when} placeholder={'如 settleType == "wire"'}
+              onChange={(e) => setRule(i, { when: e.target.value })} /></label>
+          <label style={{ gridColumn: '1 / -1' }}>targets（要清空的输入字段，逗号/空格分隔）
+            <input key={'rt-' + i} defaultValue={r.targets.join(', ')} placeholder="lcNo, issuingBank"
+              onChange={(e) => setRule(i, { targets: e.target.value.split(/[,\s]+/).filter(Boolean) })} /></label>
+          <button className="del" style={{ gridColumn: '1 / -1' }} onClick={() => delRule(i)}>✕ 删除此规则</button>
+        </div>
+      ))}
+      <button className="pc-pal" style={{ marginTop: 8 }} onClick={addRule}>＋ 新增规则</button>
+    </div>
+  );
+}
 
 // 属性 Inspector：各 kind 分支（含新 group/tabs）。
 function Inspector({ node, addr, type, meta, patch }: any) {

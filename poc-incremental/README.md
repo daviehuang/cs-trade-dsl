@@ -173,6 +173,8 @@ poc-incremental/
 ## 边界（原型范围）
 
 - ✅ **任意深度嵌套 + 多分支子集合**：已支持（递归实例化层）。
+- ✅ **联动重置**：已支持（`PageDef.resetRules` + `attachResetWatcher`）。某字段变真时清空其它输入字段
+  （引擎无此通路，宿主层边沿触发补上；纯 UI 便利、BFF 不感知）。机制辨析见 [COMPUTE-MODEL.md](COMPUTE-MODEL.md)。
 - ✅ **子项增删**：已支持。`session.addChild(parentPath, collName, obj)` 动态补建子树 cell；
   `session.removeChild(childPath)` 用"墓碑"回收 cell（保持兄弟下标稳定、in-flight 取数安全丢弃），
   父聚合自动增量更新。第三方页面已有增删按钮。

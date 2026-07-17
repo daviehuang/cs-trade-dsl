@@ -103,6 +103,54 @@ resolver 的 `key` 变化 → 置 `pending` + 发起取数 → 下游读到 `pen
 绝不能开裸 onChange 同步改数据**——前者是多一次合法的 `setInput` 循环，
 后者会一次戳穿重入、时机、服务器可验证性三道防线。
 
+### 联动重置 watcher（已落地）
+
+上面「正确做法」的第一条已实现，就是**联动重置 `resetRules`**（`ui-kit-core` 的 `attachResetWatcher`）。
+
+**它补什么**：引擎能做「A 变→B 跟着**算**新值」（B 是计算字段，天然反应式），但做不了
+「A 变→B（用户**输入**字段）被**清空**重填」——因为 B 不是 A 的函数。watcher 就补这条通路。
+
+**怎么配**（两种入口，等价）：
+
+1. **可视化编辑器**：`editor-react` 里点画布空白处选中「页面」→ 右侧属性面板「联动重置 resetRules」→
+   填 `scope` / `when` / `targets` → 保存到仓库。
+2. **直接写 PageDef JSON**（`PageDef.resetRules`）：
+
+```jsonc
+"resetRules": [
+  // 结算方式改成电汇 → 清空信用证号、开证行（对电汇无意义）
+  { "scope": "root",       "when": "settleType == \"wire\"", "targets": ["lcNo", "issuingBank"] },
+  // 某收费行调整方式改成人工 → 清空该行自动汇率（scope 为类型名，对每个 ChargeItem 各自判定）
+  { "scope": "ChargeItem", "when": "adjust == \"manual\"",   "targets": ["autoRate"] }
+]
+```
+
+- `scope`：节点类型名（如 `ChargeItem`，对每个该类型子记录逐一判定）或 `root` / 绝对路径。
+- `when`：与 validation/formula 同一套表达式 DSL，**字符串用双引号**（单引号会 `E_PARSE`）。
+- `targets`：`when` 由假变真时重置的字段。**按字段类型自动选正确的重置语义**（`resetTarget`）：
+
+| target 字段类型 | 重置动作 | 效果 |
+|---|---|---|
+| 普通 input | `setInput(null)` | 清空 |
+| 条件可输入 `fallback:"input"` | `setInput(null)`（引擎内置分流） | 清空用户录入值（`manual=null`） |
+| 可覆盖 `overridable`（已覆盖） | `setInput` 抛错 → 改 `clearOverride` | **恢复公式计算值**（不是清空——清空对覆盖无意义） |
+| 纯 computed | 两者皆无操作 | 不动（计算值不该被外部重置） |
+
+> 关键：可覆盖字段的「重置」= `clearOverride`（回到公式值），而非 `setInput(null)`——
+> 对已覆盖的计算字段调 `setInput` 会抛 `not an input`。watcher 的 `resetTarget` 先试 `setInput`、
+> 非 input 再试 `clearOverride`，从而对 input / 条件可输入 / 可覆盖三类都给出正确语义。
+
+**运行时如何生效**：四端 store（`ctx-react` / `ctx-vue` / html `mount` / Angular formly 组件）在建会话时
+`attachResetWatcher(session, pageDef.resetRules)` 接线一次——
+- `seed()`：加载后记录各 `when` 的真值**基线，不触发**（尊重既有数据，不误清加载记录）；
+- `run()`：每次 `onUpdate` 对每个匹配节点求 `when`，仅 **`false→true` 边沿**清空 `targets`；
+- 重入守卫：清空自身会再触发 `onUpdate`，被守卫吞掉，杜绝乒乓。
+
+回归见 `verify-resetwatcher.mjs`（边沿触发 / 非电平 / 重入不死循环 / seed 不误清 / 类型作用域逐节点）。
+
+> 边界：watcher 是**纯 UI 便利，BFF 不感知**（中台不知道「某字段本应被重置」）。
+> 若某重置是合规硬要求、须服务器可验证，改把该字段建成计算字段（`fallback:"input"` 或公式）进 DAG。两者可共存。
+
 ## 术语澄清（避免混淆）
 
 - **「dataflow（数据流）」** 是个宽泛词：Excel 是 dataflow，Flink 也是 dataflow。

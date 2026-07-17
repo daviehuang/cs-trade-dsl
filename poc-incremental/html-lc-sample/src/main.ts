@@ -77,7 +77,7 @@ function paintSrcbar() {
 }
 
 // —— 挂载引擎会话（值刷新/结构变化都由 kit 内部重渲染）——
-const handle = mountEngineSession({ container: view, createSession, ruleSet, imports, data: dataJson, resolve, buildIR });
+const handle = mountEngineSession({ container: view, createSession, ruleSet, imports, data: dataJson, resolve, buildIR, resetRules: pageDef.resetRules });
 
 // 顶栏"已结算/取数中"随引擎 tick 更新（异步汇率/筛查完成时）。
 const paintStatus = () => {

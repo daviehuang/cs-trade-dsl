@@ -11,7 +11,7 @@ export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr }: {
   ruleSet: RuleSet; imports: Record<string, RuleSet>; data: any; pageDef: PageDef; mocks: Mocks; lintErr: number;
 }) {
   const resolve = useMemo(() => makeResolveFromMocks(mocks), [mocks]);
-  const { ctx, getState, explain, structVersion, error } = useEngineSession({ createSession, ruleSet, imports, data, resolve, reconstructOverrides: true });
+  const { ctx, getState, explain, structVersion, error } = useEngineSession({ createSession, ruleSet, imports, data, resolve, reconstructOverrides: true, resetRules: pageDef.resetRules });
   const meta = useMemo(() => buildMeta(ruleSet, imports), [ruleSet, imports]);
   const [saveMsg, setSaveMsg] = useState('');
   // 保存运行时页面数据到仓库：treeToData(实时树) → PUT /api/data/<场景 ruleSetId>。

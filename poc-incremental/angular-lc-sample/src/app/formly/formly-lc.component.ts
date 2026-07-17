@@ -9,7 +9,7 @@ import { FxService } from '../fx.service';
 import { RuleRepositoryService, FeatureSummary } from '../rule-repository.service';
 import {
   RuleSet, Session, SessionState, ViewNode,
-  EngineCtx, buildMeta, EngineMeta, lintPageDef, LintIssue, PageDef,
+  EngineCtx, buildMeta, EngineMeta, lintPageDef, LintIssue, PageDef, attachResetWatcher,
 } from '@udsl/ui-kit-core';
 import { buildRootFields, makeCtx } from './engine-formly';
 import { hydratePage } from './hydrator';
@@ -145,6 +145,7 @@ export class FormlyLcComponent implements OnInit {
   private session: Session | null = null;
   private ctx!: EngineCtx;
   private notify: () => void = () => {};
+  private resetWatch: { seed: () => void; run: () => void } | null = null;  // 联动重置 watcher（计划 ②）
   private importsReg: Record<string, RuleSet> = {};
   private meta: EngineMeta | null = null;
   bffHtml = '';
@@ -179,9 +180,13 @@ export class FormlyLcComponent implements OnInit {
         this.session = this.engine.createSession(ruleSet, structuredClone(data), {
           resolve: this.fx.resolve,
           imports,
-          // 异步取数/增量更新 → notify() 让各字段组件 markForCheck（穿透 formly 的 OnPush 子树）。
-          onUpdate: (s) => { this.state = s; this.notify(); },
+          // 异步取数/增量更新 → 先跑联动重置 → notify() 让各字段组件 markForCheck（穿透 formly 的 OnPush 子树）。
+          //   run() 内清空会再触发 onUpdate（被重入守卫吞掉），故用 getState() 取重置后最新态。
+          onUpdate: (s) => { this.resetWatch?.run(); this.state = this.session ? this.session.getState() : s; this.notify(); },
         });
+        // 联动重置 watcher（计划 ②）：规则来自 pageDef.resetRules；seed 记录基线（不触发，尊重既有数据）。
+        this.resetWatch = attachResetWatcher(this.session, pageDef?.resetRules);
+        this.resetWatch.seed();
         this.state = this.session.getState();
         this.meta = buildMeta(ruleSet, imports);
         // 结构变化（增删子记录）时重建 formly 字段树；编辑/异步取数只刷新值（模板方法实时读引擎）。

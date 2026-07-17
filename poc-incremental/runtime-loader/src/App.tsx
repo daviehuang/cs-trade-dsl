@@ -71,7 +71,7 @@ export default function App() {
 // 拿到运行时 bundle 后才建引擎会话（hook 不能条件调用，故拆为子组件 + key 重挂）。
 function RuntimeView({ bundle }: { bundle: Bundle }) {
   const { ruleSet, imports, pageDef, data } = bundle;
-  const { ctx, getState, structVersion } = useEngineSession({ createSession, ruleSet, imports, data, resolve, reconstructOverrides: true });
+  const { ctx, getState, structVersion } = useEngineSession({ createSession, ruleSet, imports, data, resolve, reconstructOverrides: true, resetRules: pageDef.resetRules });
   const meta = useMemo(() => buildMeta(ruleSet, imports), [ruleSet, imports]);
   const [saveMsg, setSaveMsg] = useState('');
   // 保存运行时页面数据回仓库：treeToData(实时树) → PUT /api/data/<feature.data>。

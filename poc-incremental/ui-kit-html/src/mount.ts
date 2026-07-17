@@ -1,7 +1,7 @@
 // 原生 HTML 会话管理：建引擎 Session → 首渲染 → 订阅更新重渲染（值刷新 + 结构变化都全量重建）。
 //   与 React 的 useEngineSession / Angular 的 markForCheck 等价——异步 resolver 完成（无 DOM 事件）
 //   时引擎 onUpdate → notify → onTick → 重渲染。全量重建后按 data-path 恢复输入焦点与光标位置。
-import { CreateSession, EngineCtx, RuleSet, ResolveFn, SessionState, UINode, makeCtx } from '@udsl/ui-kit-core';
+import { CreateSession, EngineCtx, ResetRule, RuleSet, ResolveFn, SessionState, UINode, attachResetWatcher, makeCtx } from '@udsl/ui-kit-core';
 import { renderUINode } from './render';
 
 export interface MountOpts {
@@ -13,6 +13,8 @@ export interface MountOpts {
   resolve: ResolveFn;
   /** 宿主决定 IR 来源：hydratePage(pageDef,state,meta) 或 buildRootIR(state,meta)。 */
   buildIR: (state: SessionState) => UINode[];
+  /** 联动重置规则（计划 ②）：某字段变真时清空其它输入字段。通常来自 pageDef.resetRules。 */
+  resetRules?: ResetRule[];
 }
 
 export interface MountHandle {
@@ -54,11 +56,15 @@ export function mountEngineSession(opts: MountOpts): MountHandle {
   try {
     // onUpdate 在 session 建成前定义；用后绑定的 notify（结构闭包）驱动。
     let notify = () => {};
+    let watcherRun = () => {};                        // 后绑定：session 建成后指向 resetWatcher.run
     const session = opts.createSession(opts.ruleSet, structuredClone(opts.data), {
       resolve: opts.resolve,
       imports: opts.imports,
-      onUpdate: () => notify(),                       // 值刷新（含异步取数完成）→ onTick
+      onUpdate: () => { watcherRun(); notify(); },    // 值刷新（含异步取数完成）→ 先跑联动重置 → onTick
     });
+    const resetWatcher = attachResetWatcher(session, opts.resetRules);  // 联动重置（计划 ②）
+    resetWatcher.seed();                              // 记录加载后真值基线（不触发，尊重既有数据）
+    watcherRun = resetWatcher.run;
     const built = makeCtx(session, () => session.getState(), () => render());  // 增删子记录 → 结构重建
     notify = built.notify;
     built.ctx.onTick(() => render());                 // 值刷新也重渲染（受控 DOM 从引擎取值）

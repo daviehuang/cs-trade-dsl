@@ -3,7 +3,7 @@
 //   异步 resolver 完成 / 增量更新 → 引擎 onUpdate → 值版本++ → useSyncExternalStore 重渲染 →
 //   所有 cell 重新读引擎，显示 resolved/pending/error。这是 Angular 端 markForCheck 修复的 React 等价物。
 import { useState, useSyncExternalStore } from 'react';
-import { CreateSession, EngineCtx, ExplainCell, RuleSet, ResolveFn, Session, SessionState, makeCtx } from '@udsl/ui-kit-core';
+import { CreateSession, EngineCtx, ExplainCell, ResetRule, RuleSet, ResolveFn, Session, SessionState, attachResetWatcher, makeCtx } from '@udsl/ui-kit-core';
 
 export interface EngineStore {
   ctx: EngineCtx;
@@ -27,6 +27,8 @@ export interface UseEngineOpts {
   resolve: ResolveFn;
   /** 加载后从"已存字段值"重建覆盖态（默认只反推非外部依赖字段，避免汇率漂移误判）。 */
   reconstructOverrides?: boolean;
+  /** 联动重置规则（计划 ②）：某字段变真时清空其它输入字段。通常来自 pageDef.resetRules。 */
+  resetRules?: ResetRule[];
 }
 
 const EMPTY_STATE: SessionState = {
@@ -51,13 +53,17 @@ function createStore(opts: UseEngineOpts): EngineStore {
   };
 
   try {
+    let watcherRun = () => {};                                  // 后绑定：session 建成后指向 resetWatcher.run
     const session = opts.createSession(opts.ruleSet, structuredClone(opts.data), {
       resolve: opts.resolve,
       imports: opts.imports,
-      onUpdate: () => { valueVer++; fire(); },                  // 值刷新（含异步取数完成）
+      onUpdate: () => { watcherRun(); valueVer++; fire(); },     // 值刷新（含异步取数完成）→ 先跑联动重置
     });
     // 加载后重建覆盖态：从已存字段值反推人工覆盖（只非外部依赖字段）。纯计算字段同步即可判定；外部依赖字段自动跳过。
     if (opts.reconstructOverrides) { try { session.reconstructOverrides(structuredClone(opts.data), { skipExternalDependent: true }); } catch { /* 忽略 */ } }
+    const resetWatcher = attachResetWatcher(session, opts.resetRules);  // 联动重置（计划 ②）
+    resetWatcher.seed();                                         // 记录加载后真值基线（不触发，尊重既有数据）
+    watcherRun = resetWatcher.run;                               // 此后每次 onUpdate 边沿触发清空
     const built = makeCtx(session, () => session.getState(), () => { structVer++; fire(); });  // 增删 → 结构刷新
     return { ...base, ctx: built.ctx, getState: () => session.getState(), explain: () => session.explain() };
   } catch (e: any) {

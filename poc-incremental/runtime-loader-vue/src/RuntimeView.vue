@@ -14,7 +14,7 @@ const resolve = makeResolve(600);
 const { ruleSet, imports, pageDef, data } = props.bundle;
 const rsRef = ruleSet.ruleSetId + '@' + (ruleSet as any).version;
 
-const { ctx, getState, structVersion, version } = useEngineSession({ createSession, ruleSet, imports, data, resolve });
+const { ctx, getState, structVersion, version } = useEngineSession({ createSession, ruleSet, imports, data, resolve, resetRules: pageDef.resetRules });
 const meta = buildMeta(ruleSet, imports);
 const lint = lintPageDef(pageDef, ruleSet, imports);
 const errorCount = lint.filter((i) => i.level === 'error').length;

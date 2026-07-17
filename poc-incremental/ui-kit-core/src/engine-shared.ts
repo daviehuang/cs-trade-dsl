@@ -2,6 +2,7 @@
 // 这里集中放「领域标签 / 控件种类推导 / 路径解析 / EngineCtx 契约」等与渲染框架无关的逻辑。
 import { Cell, SessionState, ValidationView, ViewNode } from './engine-types';
 import { EngineMeta } from './engine-meta';
+import { ResetRule } from './page-def';
 
 /** 绑定上下文：各框架的字段组件从这里拿到它，所有交互/取值都经它委托给引擎会话。 */
 export interface EngineCtx {
@@ -36,6 +37,72 @@ export function buildNewItem(
       if (v != null && v !== '') obj[field] = typeof v === 'string' ? v : String(v);
     }
   return obj;
+}
+
+// ── 联动重置 watcher（计划 ②）────────────────────────────────────────────────
+//   引擎是纯反应式单向数据流，没有「A 变化 → 反向清空 B 输入」的通路（计算字段只能算新值、
+//   不能清空用户 input）。此 watcher 在宿主层用引擎已暴露的 evalAt + setInput 补上这条通路，
+//   但克制地补：声明式规则 + 只订阅 onUpdate（稳态时机）+ 边沿触发（false→true）+ 重入守卫，
+//   杜绝重入死循环、不破坏「同输入→同输出」（BFF 不感知，纯 UI 便利）。详见 COMPUTE-MODEL.md。
+
+/** 引擎最小接口（watcher 需要的能力）。 */
+export interface ResetWatchSession {
+  evalAt(path: string, expr: string): any;
+  setInput(path: string, raw: any): void;
+  clearOverride(path: string): void;
+  getState(): { tree: ViewNode };
+}
+
+/** 递归收集状态树中匹配 scope 的所有节点路径（type===scope 或 path===scope）。 */
+function collectScopeNodes(node: ViewNode, scope: string, out: string[]): void {
+  if (node.type === scope || node.path === scope) out.push(node.path);
+  for (const arr of Object.values(node.collections)) for (const child of arr) collectScopeNodes(child, scope, out);
+  for (const sn of Object.values(node.slots)) collectScopeNodes(sn, scope, out);
+}
+
+/** 挂接联动重置 watcher。返回 { seed, run }：
+ *   - seed()：记录初值真值基线，【不触发】——避免加载既有数据时误清空（尊重已存记录）。
+ *   - run()：每次引擎 onUpdate 时调；对每条规则的每个匹配节点求 when，仅 false→true 边沿清空 targets。
+ *   边沿追踪（按 规则@节点 记忆上次真值）+ 重入守卫（清空自身会再触发 onUpdate → 直接返回）杜绝死循环。 */
+export function attachResetWatcher(
+  session: ResetWatchSession,
+  rules: ResetRule[] | undefined,
+): { seed: () => void; run: () => void } {
+  if (!rules || !rules.length) return { seed: () => {}, run: () => {} };
+  const lastTrue = new Map<string, boolean>();
+  let running = false;
+
+  // 按字段类型选正确的「重置」语义：
+  //   - 普通 input / 条件可输入(fallback:"input") → setInput(null) 清空（引擎内置分流，见 incremental.js setInput）；
+  //   - 可覆盖计算字段(overridable，已覆盖) → setInput 抛「not an input」，改 clearOverride 恢复公式计算；
+  //   - 纯 computed → 两者皆无操作（本就不该被重置）。
+  const resetTarget = (path: string) => {
+    try { session.setInput(path, null); return; } catch { /* 非 input：可能是可覆盖计算字段 */ }
+    try { session.clearOverride(path); } catch { /* 纯 computed：无可重置 */ }
+  };
+
+  const scan = (fire: boolean) => {
+    const tree = session.getState().tree;
+    for (let ri = 0; ri < rules.length; ri++) {
+      const rule = rules[ri];
+      const nodes: string[] = [];
+      collectScopeNodes(tree, rule.scope, nodes);
+      for (const np of nodes) {
+        let now = false;
+        try { now = session.evalAt(np, rule.when) === true; } catch { now = false; }  // 引用 pending 字段等 → 视为假
+        const key = ri + '@' + np;
+        const was = lastTrue.get(key) === true;
+        lastTrue.set(key, now);
+        if (fire && now && !was)                          // 仅 false→true 边沿触发
+          for (const f of rule.targets) resetTarget(np + '.' + f);
+      }
+    }
+  };
+
+  return {
+    seed: () => scan(false),
+    run: () => { if (running) return; running = true; try { scan(true); } finally { running = false; } },
+  };
 }
 
 export const CCYS = ['USD', 'EUR', 'HKD', 'GBP', 'JPY', 'SGD', 'CNY'];

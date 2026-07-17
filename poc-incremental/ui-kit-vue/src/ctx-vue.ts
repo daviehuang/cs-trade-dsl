@@ -3,7 +3,7 @@
 //   异步 resolver 完成 / 增量更新 → 引擎 onUpdate → notify → version++（样本级响应式）
 //   + UiRenderer 内部 onTick 重渲染。结构变化（增删子记录）→ structVersion++ → 重建 UI-IR。
 import { ref, Ref } from 'vue';
-import { CreateSession, EngineCtx, RuleSet, ResolveFn, SessionState, makeCtx } from '@udsl/ui-kit-core';
+import { CreateSession, EngineCtx, ResetRule, RuleSet, ResolveFn, SessionState, attachResetWatcher, makeCtx } from '@udsl/ui-kit-core';
 
 export interface UseEngineOpts {
   createSession: CreateSession;
@@ -11,6 +11,8 @@ export interface UseEngineOpts {
   imports: Record<string, RuleSet>;
   data: any;
   resolve: ResolveFn;
+  /** 联动重置规则（计划 ②）：某字段变真时清空其它输入字段。通常来自 pageDef.resetRules。 */
+  resetRules?: ResetRule[];
 }
 
 const EMPTY_STATE: SessionState = {
@@ -40,11 +42,15 @@ export function useEngineSession(opts: UseEngineOpts): EngineSession {
   const version = ref(0);
   try {
     let notify = () => {};
+    let watcherRun = () => {};                            // 后绑定：session 建成后指向 resetWatcher.run
     const session = opts.createSession(opts.ruleSet, structuredClone(opts.data), {
       resolve: opts.resolve,
       imports: opts.imports,
-      onUpdate: () => notify(),                          // 值刷新（含异步取数完成）
+      onUpdate: () => { watcherRun(); notify(); },        // 值刷新（含异步取数完成）→ 先跑联动重置
     });
+    const resetWatcher = attachResetWatcher(session, opts.resetRules);  // 联动重置（计划 ②）
+    resetWatcher.seed();                                  // 记录加载后真值基线（不触发，尊重既有数据）
+    watcherRun = resetWatcher.run;
     const built = makeCtx(session, () => session.getState(), () => { structVersion.value++; });  // 结构刷新
     notify = built.notify;
     built.ctx.onTick(() => { version.value++; });        // 样本级响应式：每 tick 递增
