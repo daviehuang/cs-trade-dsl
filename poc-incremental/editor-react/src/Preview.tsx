@@ -80,6 +80,7 @@ function ComputeChain({ explain, baseline }: { explain: () => ExplainCell[]; bas
   const stCls = (s: string, ov?: boolean) => (ov ? 'ovr' : s === 'pending' ? 'pend' : s === 'error' ? 'err' : s === 'input' ? 'inp' : 'ok');
   const exprOf = (c: ExplainCell): string => {
     if (c.kind === 'resolver') return `resolve(${c.source}, {${Object.keys(c.key ?? {}).join(', ')}})`;
+    if (c.steps?.length) return c.steps.join('  ▸  ');   // pipeline：逐步链（每步隐式 value=上一步结果）
     if (c.cases) {
       if (c.cases.length === 1) return c.cases[0].expr;
       const a = c.cases.find((k) => k.active);

@@ -94,6 +94,8 @@ export interface ExplainCell {
   value: string | null;
   deps: string[];
   cases?: { when: string | null; expr: string; active: boolean }[];
+  /** pipeline 规则的逐步表达式（每步隐式 value=上一步结果）。 */
+  steps?: string[];
   fallback?: string | null;
   overridden?: boolean;
   overridable?: boolean;

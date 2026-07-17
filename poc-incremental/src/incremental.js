@@ -191,7 +191,7 @@ export function createSession(ruleSet, data, opts = {}) {
     } else if (rule.type === "pipeline") {
       const id = path + "." + rule.target;
       const spec = effectiveFields(ntype)[rule.target] || {};
-      cells.set(id, { ...base, id, kind: "computed", type: spec.type, overridable: !!spec.overridable, compute: () => {
+      cells.set(id, { ...base, id, kind: "computed", type: spec.type, overridable: !!spec.overridable, steps: rule.steps, compute: () => {
         let v = null; const c = ctxFor(path);
         for (const s of rule.steps) if (s.expr) v = evaluate(s.expr, { ...c, value: v }).value;
         return v;
@@ -250,7 +250,7 @@ export function createSession(ruleSet, data, opts = {}) {
         const expr = use.bind[inp];
         cells.set(`${ns}.${inp}`, { id: `${ns}.${inp}`, kind: "computed", nodePath: ns, type: mod.inputs[inp],
           deps: new Set(), dependents: new Set(), state: "stale", value: null,
-          cases: [{ whenExpr: null, compute: () => evaluate(expr, ctxFor(hostPath)).value }], fallback: null });
+          cases: [{ whenExpr: null, expr, compute: () => evaluate(expr, ctxFor(hostPath)).value }], fallback: null });
       }
       // 2) 模块内部规则：在模块命名空间求值（self=模块实例；只见 inputs/局部/ctx）
       for (const r of (mod.rules || [])) {
@@ -258,7 +258,7 @@ export function createSession(ruleSet, data, opts = {}) {
         const ftype = (mod.fields[r.target] || {}).type;
         if (r.type === "formula")
           cells.set(id, { id, kind: "computed", nodePath: ns, type: ftype, deps: new Set(), dependents: new Set(), state: "stale", value: null,
-            cases: [{ whenExpr: null, compute: () => evaluate(r.expr, mctx()).value }], fallback: null });
+            cases: [{ whenExpr: null, expr: r.expr, compute: () => evaluate(r.expr, mctx()).value }], fallback: null });
         else if (r.type === "resolver")
           cells.set(id, { id, kind: "resolver", nodePath: ns, source: r.source, key: r.key, lastKey: null, pinned: null,
             deps: new Set(), dependents: new Set(), state: "stale", value: null, getCtx: mctx });
@@ -273,7 +273,7 @@ export function createSession(ruleSet, data, opts = {}) {
         const fspec = effectiveFields(nodes.get(hostPath).type)[hostField] || {};
         cells.set(id, { id, kind: "computed", nodePath: hostPath, type: fspec.type, overridable: !!fspec.overridable,
           deps: new Set(), dependents: new Set(), state: "stale", value: null,
-          cases: [{ whenExpr: null, compute: () => evaluate(out, mctx()).value }], fallback: null });
+          cases: [{ whenExpr: null, expr: out, compute: () => evaluate(out, mctx()).value }], fallback: null });
       }
   }
   // use.on 可为基类：命中所有 is-a 该类型的具体节点（含子类型）
@@ -525,6 +525,7 @@ export function createSession(ruleSet, data, opts = {}) {
       const e = { id: c.id, kind: c.kind, nodePath: c.nodePath, state: c.state, value: disp(c.value), deps: [...c.deps] };
       if (c.kind === "computed") {
         if (c.cases) e.cases = c.cases.map((cs, i) => ({ when: cs.whenExpr, expr: cs.expr, active: i === c.activeCase }));
+        if (c.steps) e.steps = c.steps.map((s) => s.expr).filter(Boolean);   // pipeline：逐步表达式（隐式 value=上一步结果）
         e.fallback = c.fallback || null;
         e.overridden = c.state === "overridden";
         e.overridable = !!(c.activeOverridable !== undefined ? c.activeOverridable : c.overridable);
