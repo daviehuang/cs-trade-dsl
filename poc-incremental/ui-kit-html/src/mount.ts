@@ -75,7 +75,7 @@ export function mountEngineSession(opts: MountOpts): MountHandle {
     banner.textContent = '⛔ 建立引擎会话失败：' + (e?.message ?? String(e));
     container.replaceChildren(banner);
     const EMPTY: SessionState = { tree: { path: 'root', type: '', fields: {}, collections: {}, slots: {} }, validations: [], pinned: [], overrides: [], anyPending: false };
-    const NOOP: any = { ccys: [], valueOf: () => '', cellText: () => '—', cellState: () => undefined, onInput: () => {}, onOverride: () => {}, clearOverride: () => {}, addChild: () => {}, removeChild: () => {}, validationsFor: () => [], onTick: () => () => {} };
+    const NOOP: any = { ccys: [], valueOf: () => '', cellText: () => '—', cellState: () => undefined, onInput: () => {}, onOverride: () => {}, clearOverride: () => {}, addChild: () => '', removeChild: () => {}, validationsFor: () => [], onTick: () => () => {} };
     handle = { ctx: NOOP, getState: () => EMPTY, refresh: () => {}, error: e?.message ?? String(e), destroy: () => container.replaceChildren() };
     return handle;
   }

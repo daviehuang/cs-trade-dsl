@@ -88,6 +88,31 @@
 .eg-collection .eg-table input, .eg-collection .eg-table select { height: 32px; }
 .eg-collection .eg-table .cv { border: none; background: transparent; padding: 0 4px; }
 
+/* ── 集合弹窗编辑模式：父页面只读摘要表格 + 「编辑」弹窗（弹窗内 form 布局）── */
+/* 操作列是 <td>：靠 table td:last-child 的右对齐/nowrap；勿给 td 设 display:flex（会破坏表格布局、内容溢到相邻列）。 */
+.eg-collection .eg-table .row-ops { text-align: right; white-space: nowrap; }
+.eg-collection .eg-table .row-ops .edit { background: #eef4ff; border: 1px solid #cfe0f7; color: #2563eb; border-radius: 7px; padding: 3px 11px; cursor: pointer; font-size: 17px; white-space: nowrap; margin-right: 6px; vertical-align: middle; }
+.eg-collection .eg-table .row-ops .edit:hover { background: #e0ecff; }
+.eg-collection .eg-table .row-ops .x { vertical-align: middle; }
+/* 弹窗内：每字段独占一行；label 左 / 输入右，3:7 网格，输入左对齐 */
+.eg-modal-b .eg-colfields { gap: 12px; }
+.eg-modal-b .eg-field, .eg-modal-b .eg-cell { display: grid; grid-template-columns: 3fr 7fr; align-items: center; gap: 14px; }
+.eg-modal-b .eg-field > input, .eg-modal-b .eg-field > select, .eg-modal-b .eg-cell > .cv, .eg-modal-b .eg-cell > .row { width: 100%; margin: 0; }
+
+.eg-modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.5); display: flex; align-items: center; justify-content: center; z-index: 60; }
+.eg-modal-card { background: #fff; border-radius: 13px; box-shadow: 0 20px 60px rgba(0,0,0,.32); width: 560px; max-width: 92vw; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+.eg-modal-h { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #e6ebf2; background: #f7f9fc; }
+.eg-modal-h b { font-size: 19px; color: #0b3d6b; }
+.eg-modal-h .x { background: none; border: none; font-size: 18px; color: #64748b; cursor: pointer; line-height: 1; }
+.eg-modal-h .x:hover { color: #c0392b; }
+.eg-modal-b { padding: 16px; overflow: auto; }
+.eg-modal-f { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 16px; border-top: 1px solid #e6ebf2; background: #fafcff; }
+.eg-modal-f button { border-radius: 8px; padding: 7px 18px; font-size: 17px; cursor: pointer; }
+.eg-modal-f .cancel { background: #fff; border: 1px solid #cdd6e3; color: #475569; }
+.eg-modal-f .cancel:hover { background: #f1f5fb; }
+.eg-modal-f .done { background: #1d5e96; border: 1px solid #2a7bc0; color: #fff; }
+.eg-modal-f .done:hover { background: #17507f; }
+
 /* ── 标签页 tabs ── */
 .eg-tabs { border: 1px solid #e6ebf2; border-radius: 11px; overflow: hidden; background: #fff; }
 .eg-tabs .eg-tab-h { display: flex; gap: 2px; background: #f5f8fc; border-bottom: 1px solid #e6ebf2; padding: 4px 4px 0; }

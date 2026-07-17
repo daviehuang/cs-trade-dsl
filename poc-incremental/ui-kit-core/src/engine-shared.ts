@@ -15,7 +15,8 @@ export interface EngineCtx {
   onInput(path: string, v: string): void;
   onOverride(path: string, v: string): void;
   clearOverride(path: string): void;
-  addChild(parent: string, coll: string, obj: any): void;
+  /** 新增子记录；返回新行的节点 path（弹窗编辑「新增后取消→removeChild」用）。 */
+  addChild(parent: string, coll: string, obj: any): string;
   removeChild(path: string): void;
   validationsFor(path: string): ValidationView[];
   /** 只读求值：在 base 节点作用域算表达式（新增初值 / 显隐谓词等）。求值失败返回 undefined。 */

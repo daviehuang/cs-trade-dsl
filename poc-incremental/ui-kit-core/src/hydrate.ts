@@ -60,12 +60,15 @@ function hydrateNode(n: PageNode, base: string, h: H): UINode {
       const rows = node?.collections?.[n.name] ?? [];
       // 用每行携带的真实 path（引擎已跳过墓碑，删后再增时原始下标不连续，如 goodsInfo[2]）；
       //   不能按可见位置 i 重拼 goodsInfo[i]，否则会指到已删除的墓碑 cell → setInput「not an input」。
+      const layout = n.layout === 'table' || n.layout === 'modal' ? n.layout : undefined;
+      // modal：父页面用表格展示（列=字段），弹窗内每字段独占一行（col），字段内 label/输入左右 3:7（CSS）。
+      const groupGrid = n.layout === 'modal' ? 'col' : (n.itemGrid ?? 'row');
       const items = rows.map((row: any, i: number) => {
         const itemPath = row?.path ?? `${parent}.${n.name}[${i}]`;
-        return { nodePath: itemPath, group: hydrateGroup(n.itemTemplate, itemPath, n.itemGrid ?? 'row', h) };
+        return { nodePath: itemPath, group: hydrateGroup(n.itemTemplate, itemPath, groupGrid, h) };
       });
-      const layout = n.layout === 'table' ? 'table' : undefined;
       const itemType = node ? (h.meta.childrenOf(node.type).find((c) => c.name === n.name)?.node ?? node.type) : undefined;
+      // table 与 modal 都需要列定义（modal 父页面按列渲染只读摘要表）。
       const columns = layout && itemType ? tableColumns(n.itemTemplate, itemType, h.meta) : undefined;
       return {
         kind: 'collection', parentPath: parent, collName: n.name, title: n.title ?? COLL_LABEL[n.name] ?? n.name,

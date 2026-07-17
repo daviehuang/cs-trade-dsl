@@ -20,7 +20,7 @@ export function makeCtx(
     onInput: (p, v) => session.setInput(p, v),
     onOverride: (p, v) => { try { session.setOverride(p, v); } catch { /* 非 overridable 忽略 */ } },
     clearOverride: (p) => session.clearOverride(p),
-    addChild: (parent, coll, obj) => { session.addChild(parent, coll, obj); rebuild(); },
+    addChild: (parent, coll, obj) => { const p = session.addChild(parent, coll, obj); rebuild(); return p; },
     removeChild: (p) => { session.removeChild(p); rebuild(); },
     validationsFor: (p) => getState().validations.filter((v) => v.node === p && v.state === 'resolved'),
     evalExpr: (base, expr) => { try { return session.evalAt(base, expr); } catch { return undefined; } },  // 求值失败（如引用 pending 字段）→ undefined，调用方回退

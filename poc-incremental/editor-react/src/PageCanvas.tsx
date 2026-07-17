@@ -316,7 +316,7 @@ function Inspector({ node, addr, type, meta, patch }: any) {
       {n.kind === 'collection' && <div className="ed-grid">
         <label>name（子集合）<select value={n.name ?? ''} onChange={(e) => patch(a, { name: e.target.value })}><option value="">选…</option>{meta.childrenOf(type).map((c: any) => <option key={c.name} value={c.name}>{c.name}</option>)}</select></label>
         <label>title<input value={n.title ?? ''} onChange={(e) => patch(a, { title: e.target.value })} /></label>
-        <label>布局<select value={n.layout ?? 'cards'} onChange={(e) => patch(a, { layout: e.target.value === 'cards' ? undefined : e.target.value })}><option value="cards">卡片</option><option value="table">表格</option></select></label>
+        <label>布局<select value={n.layout ?? 'cards'} onChange={(e) => patch(a, { layout: e.target.value === 'cards' ? undefined : e.target.value })}><option value="cards">卡片</option><option value="table">表格</option><option value="modal">弹窗编辑</option></select></label>
         <label>itemGrid<select value={n.itemGrid ?? 'row'} onChange={(e) => patch(a, { itemGrid: e.target.value })}><option>row</option><option>col</option></select></label>
         <label style={{ gridColumn: '1 / -1' }}>新增初值 newItemInit
           {/* 非受控：value 经 strToInit/initToStr 往返会丢中间态（打字被清空），用 defaultValue+key 保留原文，切换节点时 remount 重置 */}

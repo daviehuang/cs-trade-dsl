@@ -168,7 +168,79 @@ function EgValidations({ node, ctx }: { node: ValidationsUI; ctx: EngineCtx }) {
   );
 }
 
+// 只读展示一个叶子字段当前值（供弹窗模式的父页面表格单元格）。
+const leafText = (lf: FieldUI | CellUI, ctx: EngineCtx): string =>
+  lf.kind === 'cell' ? ctx.cellText(lf.path) : (ctx.valueOf(lf.path) || '—');
+
+// 自包含模态框（渲染 kit 自带，不依赖编辑器 Modal）：背景点击 = 取消。
+function EgModal({ title, onCancel, onSave, children }: { title: string; onCancel: () => void; onSave: () => void; children: React.ReactNode }) {
+  return (
+    <div className="eg-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="eg-modal-card" role="dialog">
+        <div className="eg-modal-h"><b>{title}</b><button type="button" className="x" title="关闭（取消）" onClick={onCancel}>✕</button></div>
+        <div className="eg-modal-b">{children}</div>
+        <div className="eg-modal-f">
+          <button type="button" className="cancel" onClick={onCancel}>取消</button>
+          <button type="button" className="done" onClick={onSave}>完成</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EgCollection({ node, ctx }: { node: CollectionUI; ctx: EngineCtx }) {
+  // 弹窗编辑的事务草稿：打开时快照本行输入值；取消→逐字段回滚（新增行→removeChild 丢弃）。
+  const [editing, setEditing] = useState<{ path: string; isNew: boolean } | null>(null);
+  const snapRef = useRef<Record<string, string>>({});
+
+  // ── 弹窗编辑模式：摘要行 + 「编辑」弹窗（v1 行内叶子字段；深层嵌套增删的事务超出范围）──
+  if (node.layout === 'modal') {
+    const snapshot = (group: UINode) => {
+      const snap: Record<string, string> = {};
+      for (const lf of leafControls(group)) if (lf.kind === 'field') snap[lf.path] = ctx.valueOf(lf.path);
+      return snap;
+    };
+    const openEdit = (it: { nodePath: string; group: UINode }) => { snapRef.current = snapshot(it.group); setEditing({ path: it.nodePath, isNew: false }); };
+    const openAdd = () => { const path = ctx.addChild(node.parentPath, node.collName, buildNewItem(node, ctx)); snapRef.current = {}; setEditing({ path, isNew: true }); };
+    const cancel = () => {
+      if (editing) { if (editing.isNew) ctx.removeChild(editing.path); else for (const [p, v] of Object.entries(snapRef.current)) ctx.onInput(p, v); }
+      setEditing(null);
+    };
+    const editItem = editing ? node.items.find((it) => it.nodePath === editing.path) : null;
+    const cols = node.columns ?? [];
+    return (
+      <div className={cx('eg-collection coll modal', node.className)}>
+        <div className="ch"><b>{node.title} <span className="n">{node.items.length}</span></b>
+          <button type="button" className="add" onClick={openAdd}>＋ 添加</button></div>
+        {/* 父页面：只读摘要表格（列=字段）+ 每行「编辑 / 删除」；编辑在弹窗内以 form 布局进行 */}
+        {node.items.length === 0
+          ? <div className="empty">（暂无，点「＋ 添加」新增一条）</div>
+          : <table className="eg-table">
+            <thead><tr><th className="ti">#</th>{cols.map((c, i) => <th key={i}>{c.label}</th>)}<th /></tr></thead>
+            <tbody>
+              {node.items.map((it, i) => {
+                const leaves = leafControls(it.group);
+                return (
+                  <tr key={it.nodePath}>
+                    <td className="ti">{i + 1}</td>
+                    {cols.map((_, ci) => <td key={ci}>{leaves[ci] ? leafText(leaves[ci], ctx) : null}</td>)}
+                    <td className="row-ops">
+                      <button type="button" className="edit" title="编辑" onClick={() => openEdit(it)}>✎ 编辑</button>
+                      <button type="button" className="x" title="删除" onClick={() => ctx.removeChild(it.nodePath)}>✕</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody></table>}
+        {editItem && (
+          <EgModal title={`${node.title} · ${editing!.isNew ? '新增' : '编辑'}`} onCancel={cancel} onSave={() => setEditing(null)}>
+            <UINodeView node={editItem.group} ctx={ctx} />
+          </EgModal>
+        )}
+      </div>
+    );
+  }
+
   const head = (
     <div className="ch"><b>{node.title} <span className="n">{node.items.length}</span></b>
       <button type="button" className="add" onClick={() => ctx.addChild(node.parentPath, node.collName, buildNewItem(node, ctx))}>＋ 添加</button>

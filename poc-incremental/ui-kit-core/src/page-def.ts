@@ -94,8 +94,8 @@ export interface CollectionNode extends BaseNode {
   /** 子集合名（相对当前节点类型，如 'charges' / 'items'）。 */
   name: string;
   title?: string;
-  /** 记录布局：cards（每条一张卡片，默认）/ table（列=字段、行=记录）。 */
-  layout?: 'cards' | 'table';
+  /** 记录布局：cards（每条一张卡片，默认）/ table（列=字段、行=记录）/ modal（摘要行 + 弹窗编辑）。 */
+  layout?: 'cards' | 'table' | 'modal';
   /** 单行内字段布局：row（横排）/ col（竖排）。 */
   itemGrid?: 'row' | 'col';
   /** 新增一行的默认值；缺省用内置模板。 */

@@ -22,7 +22,7 @@ const EMPTY_STATE: SessionState = {
 const NOOP_CTX: EngineCtx = {
   ccys: [], valueOf: () => '', cellText: () => '—', cellState: () => undefined, overridableFor: () => undefined,
   onInput: () => {}, onOverride: () => {}, clearOverride: () => {},
-  addChild: () => {}, removeChild: () => {}, validationsFor: () => [], evalExpr: () => undefined, onTick: () => () => {},
+  addChild: () => '', removeChild: () => {}, validationsFor: () => [], evalExpr: () => undefined, onTick: () => () => {},
 };
 
 export interface EngineSession {

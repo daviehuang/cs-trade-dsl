@@ -52,8 +52,8 @@ export interface CollectionUI {
   parentPath: string;
   collName: string;
   title: string;
-  /** 记录布局：cards（默认）/ table（列=字段、行=记录）。 */
-  layout?: 'cards' | 'table';
+  /** 记录布局：cards（默认）/ table（列=字段、行=记录）/ modal（摘要行 + 弹窗编辑）。 */
+  layout?: 'cards' | 'table' | 'modal';
   /** 表格模式的列（从 itemTemplate 抽取的叶子字段）。 */
   columns?: { field?: string; label: string; kind: 'field' | 'cell'; control?: string }[];
   /** 新增一行的默认值（闭包，适配器在"添加"时调用）。 */
