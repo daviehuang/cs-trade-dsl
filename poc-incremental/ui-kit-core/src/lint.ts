@@ -85,7 +85,7 @@ function descend(meta: EngineMeta, type: string, base: string, at: string): { ty
 // RuleSet linter：校验【规则集自身】的内在一致性（与 PageDef 无关的另一维度）。
 //   把"引擎运行时才会崩/静默失效"的设参错误，提前拦在编辑器设参阶段：
 //   ① import/uses/slots 引用完整性（防运行时「未找到导入」崩溃）；
-//   ② rule.scope/formula.target 与模型一致（target 应可写回=computed/overridable）；
+//   ② rule.scope/formula.target 与模型一致（target 应可写回=computed/overridable/external 注入）；
 //   ③ resolver.source 已在 dataSources 声明、key 覆盖其 keySchema；
 //   ④ 可选 slot（optional）与其类型校验的一致性。
 //   场景与类型库都可校验（编辑器两种编辑对象都用它）。纯函数，可 Node 单测。
@@ -176,7 +176,8 @@ function checkRule(r: any, _rs: RuleSet, meta: EngineMeta, known: Set<string>, d
   if (r.type === 'formula' && r.target) {
     const spec = meta.effectiveFields(r.scope)[r.target];
     if (!spec) out.push({ level: 'error', path, message: `formula.target=${r.target} 不在类型 ${r.scope} 的有效字段` });
-    else if (!spec.computed && !spec.overridable) out.push({ level: 'error', path, message: `formula.target=${r.target} 是输入字段，公式无法写回（应为 computed / overridable）` });
+    // computed / overridable：公式算值；external：外部输入字段，允许被宿主 formula 注入值（host formula injection，见 verify-mixpayment）。
+    else if (!spec.computed && !spec.overridable && !spec.external) out.push({ level: 'error', path, message: `formula.target=${r.target} 是输入字段，公式无法写回（应为 computed / overridable / external）` });
   }
   if (r.type === 'resolver') checkResolver(r, dsById, path, out);
 }
