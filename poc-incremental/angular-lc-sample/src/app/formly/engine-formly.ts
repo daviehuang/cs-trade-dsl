@@ -10,7 +10,7 @@ import {
   Cell, Session, SessionState, ViewNode,
   buildMeta, EngineMeta,
   CCYS, COLL_LABEL, COLL_TEMPLATE, EngineCtx, FIELD_LABEL, ROW_TYPES, SLOT_LABEL,
-  buildNewItem, controlOf, resolveCell, toneOf,
+  buildNewItem, controlOf, resolveCell, toneOf, selectOptions,
 } from '@udsl/ui-kit-core';
 
 export { EngineCtx } from '@udsl/ui-kit-core';     // 绑定层对外仍从这里导出 EngineCtx
@@ -176,6 +176,12 @@ export function buildRootFields(state: SessionState, ruleSet: any, imports: any,
         @case ('date') {
           <input type="date" [value]="v()" (input)="set($any($event.target).value)" />
         }
+        @case ('select') {
+          <select [value]="v()" (change)="set($any($event.target).value)">
+            @if (!v()) { <option value="">— 请选择 —</option> }
+            @for (o of opts(); track o.value) { <option [value]="o.value">{{ o.label }}</option> }
+          </select>
+        }
         @default { <input [value]="v()" (input)="set($any($event.target).value)" /> }
       }
     </label>`,
@@ -190,6 +196,7 @@ export function buildRootFields(state: SessionState, ruleSet: any, imports: any,
 export class EgFieldType extends TickAwareType {
   v() { return this.props['ctx'].valueOf(this.props['path']); }
   set(val: string) { this.props['ctx'].onInput(this.props['path'], val); }
+  opts() { return selectOptions(this.props['controlProps']); }   // select 控件选项
 }
 
 /** 计算/外部值：只读展示（pending/error 着色）；overridable 字段额外给覆盖输入 + 复原。 */

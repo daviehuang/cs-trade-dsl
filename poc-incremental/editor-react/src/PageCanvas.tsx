@@ -226,6 +226,16 @@ function TabsBlock({ node, addr, childType, dropZone, patch }: any) {
   );
 }
 
+// select 控件 options（string | {value,label}）↔ 紧凑字符串「A, manual=人工」互转，供 Inspector 单行编辑。
+const optToStr = (o?: any[]) => (Array.isArray(o)
+  ? o.map((x) => (x && typeof x === 'object') ? (x.label && x.label !== x.value ? `${x.value}=${x.label}` : x.value) : x).join(', ')
+  : '');
+const strToOpt = (s: string) => {
+  const arr = s.split(/[,\n]/).map((p) => p.trim()).filter(Boolean)
+    .map((p) => { const i = p.indexOf('='); return i > 0 ? { value: p.slice(0, i).trim(), label: p.slice(i + 1).trim() } : p; });
+  return arr.length ? { options: arr } : undefined;
+};
+
 // newItemInit（{字段:表达式}）↔ 紧凑字符串「amount=diff; desc=...」互转，供 Inspector 单行编辑。
 const initToStr = (o?: Record<string, string>) => (o ? Object.entries(o).map(([k, v]) => `${k}=${v}`).join('; ') : '');
 const strToInit = (s: string) => {
@@ -283,7 +293,10 @@ function Inspector({ node, addr, type, meta, patch }: any) {
         <label>field（相对）<input value={n.field ?? ''} onChange={(e) => patch(a, { field: e.target.value, path: undefined })} /></label>
         <label>path（绝对，覆盖 field）<input value={n.path ?? ''} onChange={(e) => patch(a, { path: e.target.value })} /></label>
         <label>label<input value={n.label ?? ''} onChange={(e) => patch(a, { label: e.target.value })} /></label>
-        {n.kind === 'field' && <label>control<select value={n.control ?? 'text'} onChange={(e) => patch(a, { control: e.target.value })}><option>text</option><option>ccy</option><option>adjust</option><option value="date">date（日历）</option><option value="party-lookup">party-lookup（主数据查询）</option></select></label>}
+        {n.kind === 'field' && <label>control<select value={n.control ?? 'text'} onChange={(e) => patch(a, { control: e.target.value })}><option>text</option><option>ccy</option><option>adjust</option><option value="date">date（日历）</option><option value="select">select（下拉）</option><option value="party-lookup">party-lookup（主数据查询）</option></select></label>}
+        {n.kind === 'field' && n.control === 'select' && <label style={{ gridColumn: '1 / -1' }}>options（逗号/换行分隔，可写 值=显示名）
+          <input key={'opt-' + a.join('.')} defaultValue={optToStr(n.controlProps?.options)} placeholder="如 A, B, manual=人工录入"
+            onChange={(e) => patch(a, { controlProps: strToOpt(e.target.value) })} /></label>}
         {n.kind === 'cell' && <label className="ck"><input type="checkbox" checked={!!n.emphasis} onChange={(e) => patch(a, { emphasis: e.target.checked || undefined })} />emphasis（大字）</label>}
       </div>}
 

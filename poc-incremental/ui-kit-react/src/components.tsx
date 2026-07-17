@@ -3,7 +3,7 @@
 //   不在 React 里存值。复用与 Angular 同名的 CSS class（styles.css），两框架视觉一致。
 import React, { useRef, useState } from 'react';
 import {
-  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, TabsUI, UINode, ValidationsUI, buildNewItem,
+  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, TabsUI, UINode, ValidationsUI, buildNewItem, selectOptions,
 } from '@udsl/ui-kit-core';
 import { getLookupService, LookupCandidate } from './lookup';
 
@@ -50,6 +50,9 @@ function fieldControl(node: FieldUI, ctx: EngineCtx): React.ReactNode {
     );
   if (node.control === 'party-lookup') return <PartyLookup node={node} ctx={ctx} />;
   if (node.control === 'date') return <input type="date" value={v} data-path={node.path} data-value={v} onChange={(e) => set(e.target.value)} />;
+  if (node.control === 'select')
+    // 值为空时插占位空项：避免受控 select 无匹配值时"显示第一项、模型却是空"的错位
+    return <select value={v} data-path={node.path} onChange={(e) => set(e.target.value)}>{!v && <option value="">— 请选择 —</option>}{selectOptions(node.controlProps).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>;
   return <input value={v} data-path={node.path} data-value={v} onChange={(e) => set(e.target.value)} />;
 }
 

@@ -73,7 +73,9 @@ export interface FieldNode extends BaseNode {
   field?: string;
   label?: string;
   /** 控件种类；缺省按字段名推导（ccy→币种下拉，adjustMode→调整方式下拉，*Date→日历，其余文本）。 */
-  control?: 'text' | 'ccy' | 'adjust' | 'date';
+  control?: 'text' | 'ccy' | 'adjust' | 'date' | 'select';
+  /** 参数化控件的属性；如 control:'select' 用 { options: ["A", {value:"b",label:"乙"}] } 提供选项。 */
+  controlProps?: Record<string, any>;
 }
 
 /** 计算/外部值展示（只读）。overridable 字段自动给覆盖输入；条件可输入字段自动可编辑。 */

@@ -2,7 +2,7 @@
 //   引擎是唯一真相源：input 的 value 读 ctx.valueOf(path)，事件写回 ctx；不在 DOM 里存值。
 //   复用与 React/Angular 同名的 CSS class（宿主引入共享 styles.css），三端视觉一致。
 import {
-  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, UINode, ValidationsUI, buildNewItem,
+  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, UINode, ValidationsUI, buildNewItem, selectOptions,
 } from '@udsl/ui-kit-core';
 
 const cx = (...xs: (string | undefined | false)[]) => xs.filter(Boolean).join(' ');
@@ -52,6 +52,11 @@ function egField(node: FieldUI, ctx: EngineCtx): HTMLElement {
     (control as HTMLSelectElement).value = v;
   } else if (node.control === 'date') {
     control = h('input', { type: 'date', value: v, 'data-path': node.path, 'data-value': v, oninput: (e: any) => ctx.onInput(node.path, e.target.value) });
+  } else if (node.control === 'select') {
+    control = h('select', { onchange: (e: any) => ctx.onInput(node.path, e.target.value), 'data-path': node.path },
+      ...(v ? [] : [h('option', { value: '' }, '— 请选择 —')]),
+      ...selectOptions(node.controlProps).map((o) => h('option', { value: o.value }, o.label)));
+    (control as HTMLSelectElement).value = v;   // append 后再设，确保选中项匹配
   } else {
     control = h('input', { value: v, 'data-path': node.path, 'data-value': v, oninput: (e: any) => ctx.onInput(node.path, e.target.value) });
   }

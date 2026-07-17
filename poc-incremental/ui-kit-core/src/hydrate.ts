@@ -30,7 +30,7 @@ function hydrateNode(n: PageNode, base: string, h: H): UINode {
   switch (n.kind) {
     case 'field': {
       const path = leafPath(n, base), f = lastSeg(path), spec = specAt(h.meta, h.state, path);
-      return { kind: 'field', path, label: n.label ?? spec.label ?? FIELD_LABEL[f] ?? f, control: n.control ?? controlOf(f), className: n.className };
+      return { kind: 'field', path, label: n.label ?? spec.label ?? FIELD_LABEL[f] ?? f, control: n.control ?? controlOf(f), controlProps: n.controlProps, className: n.className };
     }
     case 'cell': {
       const path = leafPath(n, base), f = lastSeg(path), spec = specAt(h.meta, h.state, path);

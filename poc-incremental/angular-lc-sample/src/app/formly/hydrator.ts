@@ -27,7 +27,7 @@ function hydrateNode(n: PageNode, base: string, h: H): FormlyFieldConfig {
   switch (n.kind) {
     case 'field': {
       const path = leafPath(n, base), f = lastSeg(path), spec = specAt(h.meta, h.state, path);
-      const fc: FormlyFieldConfig = { type: 'eg-field', props: { ctx: h.ctx, path, label: n.label ?? spec.label ?? FIELD_LABEL[f] ?? f, control: n.control ?? controlOf(f) } };
+      const fc: FormlyFieldConfig = { type: 'eg-field', props: { ctx: h.ctx, path, label: n.label ?? spec.label ?? FIELD_LABEL[f] ?? f, control: n.control ?? controlOf(f), controlProps: n.controlProps } };
       if (n.className) fc.className = n.className;
       return fc;
     }

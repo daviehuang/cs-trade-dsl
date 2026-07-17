@@ -4,7 +4,7 @@
 //   复用与 React/Angular/HTML 同名的 CSS class（宿主引入共享 styles.css），四端视觉一致。
 import { defineComponent, h, onMounted, onUnmounted, ref, VNode } from 'vue';
 import {
-  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, UINode, ValidationsUI, buildNewItem,
+  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, UINode, ValidationsUI, buildNewItem, selectOptions,
 } from '@udsl/ui-kit-core';
 
 const cx = (...xs: (string | undefined | false)[]) => xs.filter(Boolean).join(' ');
@@ -40,6 +40,10 @@ function egField(node: FieldUI, ctx: EngineCtx): VNode {
     ]);
   else if (node.control === 'date')
     control = h('input', { type: 'date', value: v, 'data-path': node.path, 'data-value': v, onInput: set });
+  else if (node.control === 'select')
+    control = h('select', { value: v, onChange: set, 'data-path': node.path },
+      [...(v ? [] : [h('option', { value: '', selected: true }, '— 请选择 —')]),
+       ...selectOptions(node.controlProps).map((o) => h('option', { value: o.value, selected: o.value === v }, o.label))]);
   else
     control = h('input', { value: v, 'data-path': node.path, 'data-value': v, onInput: set });
   return h('label', { class: cx('eg-field l', node.className) }, [node.label, control]);

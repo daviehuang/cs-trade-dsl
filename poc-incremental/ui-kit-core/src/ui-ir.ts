@@ -15,7 +15,8 @@ export interface FieldUI {
   kind: 'field';
   path: string;
   label: string;
-  control: string;            // 'text' | 'ccy' | 'adjust' | 'date' | 'party-lookup'
+  control: string;            // 'text' | 'ccy' | 'adjust' | 'date' | 'select' | 'party-lookup'
+  controlProps?: Record<string, any>;   // 参数化控件属性（如 select 的 options）
   className?: string;
 }
 

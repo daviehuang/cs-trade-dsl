@@ -215,6 +215,16 @@ export const controlOf = (field: string): string =>
 
 export const toneOf = (type: string): string => (type === 'BankParty' ? 'bank' : 'cust');
 
+/** select 控件选项：归一化 controlProps.options（字符串 → {value,label} 同值；对象 → 取 value/label）。 */
+export interface SelectOption { value: string; label: string; }
+export function selectOptions(props?: Record<string, any>): SelectOption[] {
+  const raw = props?.['options'];
+  if (!Array.isArray(raw)) return [];
+  return raw.map((o) => (o && typeof o === 'object')
+    ? { value: String(o.value), label: String(o.label ?? o.value) }
+    : { value: String(o), label: String(o) });
+}
+
 /** PageDef 的 grid 取值 → 全局布局 class。 */
 export const gridClass = (g?: string): string =>
   ({ form: 'eg-form-grid', cards: 'eg-cards-grid', row: 'eg-rowfields', col: 'eg-colfields' } as Record<string, string>)[g || 'col'];
