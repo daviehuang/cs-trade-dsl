@@ -127,7 +127,16 @@ resolver 的 `key` 变化 → 置 `pending` + 发起取数 → 下游读到 `pen
 
 - `scope`：节点类型名（如 `ChargeItem`，对每个该类型子记录逐一判定）或 `root` / 绝对路径。
 - `when`：与 validation/formula 同一套表达式 DSL，**字符串用双引号**（单引号会 `E_PARSE`）。
-- `targets`：`when` 由假变真时重置的字段。**按字段类型自动选正确的重置语义**（`resetTarget`）：
+- `targets`：`when` 由假变真时重置的对象。**按匹配节点结构自动判定粒度**（`applyTarget`）：
+
+| target 写法 | 判定 | 动作 |
+|---|---|---|
+| 字段名（`lcNo`） | scope 节点的一个字段 | 清该字段值（见下方字段类型表） |
+| slot 名（`applicant`） | scope 节点的一个 slot | **整体重置该 slot 子树**：字段清值 + 嵌套 slot 递归 + **嵌套 children 删记录**（恢复到空，不残留空子记录） |
+| children 集合名（`charges`） | scope 节点的一个集合 | **删除该集合的所有子记录**（结构变更） |
+| 点号相对路径（`applicant.name`） | 以上皆非 | 回退按 cell 路径清该字段值 |
+
+**字段清值语义**（`resetTarget`，按字段类型再分流）：
 
 | target 字段类型 | 重置动作 | 效果 |
 |---|---|---|
@@ -137,16 +146,26 @@ resolver 的 `key` 变化 → 置 `pending` + 发起取数 → 下游读到 `pen
 | 纯 computed | 两者皆无操作 | 不动（计算值不该被外部重置） |
 
 > 关键：可覆盖字段的「重置」= `clearOverride`（回到公式值），而非 `setInput(null)`——
-> 对已覆盖的计算字段调 `setInput` 会抛 `not an input`。watcher 的 `resetTarget` 先试 `setInput`、
-> 非 input 再试 `clearOverride`，从而对 input / 条件可输入 / 可覆盖三类都给出正确语义。
+> 对已覆盖的计算字段调 `setInput` 会抛 `not an input`。`resetTarget` 先试 `setInput`、
+> 非 input 再试 `clearOverride`，对 input / 条件可输入 / 可覆盖三类都给出正确语义。
+
+**删 children 行的两个关键处理**（否则会脱节/删错）：
+- **先快照行路径再逐个 `removeChild`**：墓碑删除保持兄弟真实下标稳定（`viewNode` 按真实下标建 path），按快照 path 逐删安全；
+- **删完调 `onStructChange`**：删行是**结构变更**，必须触发各端 `rebuild`（`structVer++`）重建 UI-IR，
+  否则界面残留「幽灵行」，其绑定路径指向已删 cell → 读空/编辑抛 `not an input`。
+  故 `attachResetWatcher(session, rules, onStructChange)` 第三参由四端 store 传入自己的 rebuild。
 
 **运行时如何生效**：四端 store（`ctx-react` / `ctx-vue` / html `mount` / Angular formly 组件）在建会话时
-`attachResetWatcher(session, pageDef.resetRules)` 接线一次——
+`attachResetWatcher(session, pageDef.resetRules, rebuild)` 接线一次——
 - `seed()`：加载后记录各 `when` 的真值**基线，不触发**（尊重既有数据，不误清加载记录）；
-- `run()`：每次 `onUpdate` 对每个匹配节点求 `when`，仅 **`false→true` 边沿**清空 `targets`；
-- 重入守卫：清空自身会再触发 `onUpdate`，被守卫吞掉，杜绝乒乓。
+- `run()`：每次 `onUpdate` 对每个匹配节点求 `when`，仅 **`false→true` 边沿**重置 `targets`；
+- 重入守卫：清值/删行自身会再触发 `onUpdate`，被守卫吞掉，杜绝乒乓。
 
-回归见 `verify-resetwatcher.mjs`（边沿触发 / 非电平 / 重入不死循环 / seed 不误清 / 类型作用域逐节点）。
+回归见 `verify-resetwatcher.mjs`（边沿触发 / 非电平 / 重入不死循环 / seed 不误清 / 类型作用域逐节点 /
+case-when 字段分流 / slot 递归清字段 / children 删行带重建）。
+
+> ⚠️ **删 children 是不可逆的破坏性操作**：`when` 若因异步结算等瞬时为真而误触发，会删光用户子记录且无 undo。
+> 用它前务必确认 `when` 稳定（不依赖 pending/中间态）；必要时在应用层对该动作加二次确认。
 
 > 边界：watcher 是**纯 UI 便利，BFF 不感知**（中台不知道「某字段本应被重置」）。
 > 若某重置是合规硬要求、须服务器可验证，改把该字段建成计算字段（`fallback:"input"` 或公式）进 DAG。两者可共存。

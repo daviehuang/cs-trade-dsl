@@ -48,10 +48,11 @@ export function useEngineSession(opts: UseEngineOpts): EngineSession {
       imports: opts.imports,
       onUpdate: () => { watcherRun(); notify(); },        // 值刷新（含异步取数完成）→ 先跑联动重置
     });
-    const resetWatcher = attachResetWatcher(session, opts.resetRules);  // 联动重置（计划 ②）
+    const rebuild = () => { structVersion.value++; };    // 结构刷新（增删子记录 → 重建 UI-IR）
+    const resetWatcher = attachResetWatcher(session, opts.resetRules, rebuild);  // 联动重置（计划 ②）；删行走 rebuild
     resetWatcher.seed();                                  // 记录加载后真值基线（不触发，尊重既有数据）
     watcherRun = resetWatcher.run;
-    const built = makeCtx(session, () => session.getState(), () => { structVersion.value++; });  // 结构刷新
+    const built = makeCtx(session, () => session.getState(), rebuild);
     notify = built.notify;
     built.ctx.onTick(() => { version.value++; });        // 样本级响应式：每 tick 递增
     return { ctx: built.ctx, getState: () => session.getState(), structVersion, version };

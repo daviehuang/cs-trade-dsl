@@ -245,7 +245,7 @@ function PageInspector({ pageDef, meta, mutate }: { pageDef: PageDef; meta: Engi
     <div className="rule-form pc-inspector">
       <div className="pc-side-empty"><b>页面（顶层 {meta.root}）</b>已选中。<br />点上方「＋元素」把面板/行/列等加到页面；点选画布中的元素可编辑其属性。</div>
       <div className="rf-h" style={{ marginTop: 12 }}><b>联动重置 resetRules</b></div>
-      <div className="hint">某字段变真时清空其它输入字段（纯前端便利，BFF 不感知）。when 里字符串用双引号；targets 只清 input 字段。</div>
+      <div className="hint">when 变真时重置 targets：字段名→清值、slot 名→递归清子树、集合名→删所有行（纯前端便利，BFF 不感知）。when 里字符串用双引号。删行不可逆，注意 when 稳定性。</div>
       {rules.length === 0 && <div className="pc-side-empty">（暂无规则，点下方「＋ 新增规则」）</div>}
       {rules.map((r, i) => (
         <div key={i} className="ed-grid" style={{ borderTop: '1px solid #eee', paddingTop: 8, marginTop: 8 }}>
@@ -255,8 +255,8 @@ function PageInspector({ pageDef, meta, mutate }: { pageDef: PageDef; meta: Engi
           <label style={{ gridColumn: '1 / -1' }}>when（触发表达式，由假变真时清空 targets）
             <input key={'rw-' + i} defaultValue={r.when} placeholder={'如 settleType == "wire"'}
               onChange={(e) => setRule(i, { when: e.target.value })} /></label>
-          <label style={{ gridColumn: '1 / -1' }}>targets（要清空的输入字段，逗号/空格分隔）
-            <input key={'rt-' + i} defaultValue={r.targets.join(', ')} placeholder="lcNo, issuingBank"
+          <label style={{ gridColumn: '1 / -1' }}>targets（逗号/空格分隔；字段名=清值，slot 名=递归清子树，集合名=删所有行）
+            <input key={'rt-' + i} defaultValue={r.targets.join(', ')} placeholder="lcNo, applicant, charges"
               onChange={(e) => setRule(i, { targets: e.target.value.split(/[,\s]+/).filter(Boolean) })} /></label>
           <button className="del" style={{ gridColumn: '1 / -1' }} onClick={() => delRule(i)}>✕ 删除此规则</button>
         </div>

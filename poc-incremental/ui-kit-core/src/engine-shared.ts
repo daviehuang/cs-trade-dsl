@@ -50,29 +50,40 @@ export interface ResetWatchSession {
   evalAt(path: string, expr: string): any;
   setInput(path: string, raw: any): void;
   clearOverride(path: string): void;
+  removeChild(childPath: string): void;
   getState(): { tree: ViewNode };
 }
 
-/** 递归收集状态树中匹配 scope 的所有节点路径（type===scope 或 path===scope）。 */
-function collectScopeNodes(node: ViewNode, scope: string, out: string[]): void {
-  if (node.type === scope || node.path === scope) out.push(node.path);
+/** 递归收集状态树中匹配 scope 的所有节点（type===scope 或 path===scope）。 */
+function collectScopeNodes(node: ViewNode, scope: string, out: ViewNode[]): void {
+  if (node.type === scope || node.path === scope) out.push(node);
   for (const arr of Object.values(node.collections)) for (const child of arr) collectScopeNodes(child, scope, out);
   for (const sn of Object.values(node.slots)) collectScopeNodes(sn, scope, out);
 }
 
 /** 挂接联动重置 watcher。返回 { seed, run }：
  *   - seed()：记录初值真值基线，【不触发】——避免加载既有数据时误清空（尊重已存记录）。
- *   - run()：每次引擎 onUpdate 时调；对每条规则的每个匹配节点求 when，仅 false→true 边沿清空 targets。
- *   边沿追踪（按 规则@节点 记忆上次真值）+ 重入守卫（清空自身会再触发 onUpdate → 直接返回）杜绝死循环。 */
+ *   - run()：每次引擎 onUpdate 时调；对每条规则的每个匹配节点求 when，仅 false→true 边沿重置 targets。
+ *   边沿追踪（按 规则@节点 记忆上次真值）+ 重入守卫（清空/删行会再触发 onUpdate → 直接返回）杜绝死循环。
+ *
+ *   target 支持三种粒度（按匹配节点结构自动判定）：
+ *   ① 字段名 → 清该字段值（input/条件可输入 setInput(null)；可覆盖 clearOverride）；
+ *   ② slot 名 → 递归清该 slot 子树所有字段值（结构保留）；
+ *   ③ children 集合名 → 删除该集合的所有子记录（结构变更！删完调 onStructChange 触发 UI-IR 重建）。
+ *   其余（如 "applicant.name" 点号相对路径）→ 回退按 cell 路径清值。
+ *
+ *   onStructChange：删行等结构变更后调用（各端 store 传自己的 rebuild / structVer++）；不传则结构变更后 UI 不重建。 */
 export function attachResetWatcher(
   session: ResetWatchSession,
   rules: ResetRule[] | undefined,
+  onStructChange?: () => void,
 ): { seed: () => void; run: () => void } {
   if (!rules || !rules.length) return { seed: () => {}, run: () => {} };
   const lastTrue = new Map<string, boolean>();
   let running = false;
+  let structDirty = false;
 
-  // 按字段类型选正确的「重置」语义：
+  // 按字段类型选正确的「清值」语义：
   //   - 普通 input / 条件可输入(fallback:"input") → setInput(null) 清空（引擎内置分流，见 incremental.js setInput）；
   //   - 可覆盖计算字段(overridable，已覆盖) → setInput 抛「not an input」，改 clearOverride 恢复公式计算；
   //   - 纯 computed → 两者皆无操作（本就不该被重置）。
@@ -80,28 +91,52 @@ export function attachResetWatcher(
     try { session.setInput(path, null); return; } catch { /* 非 input：可能是可覆盖计算字段 */ }
     try { session.clearOverride(path); } catch { /* 纯 computed：无可重置 */ }
   };
+  // children 集合：删除所有子记录（结构变更）。先快照行路径再逐个 removeChild——
+  //   墓碑删除保持兄弟真实下标稳定（viewNode 按真实下标建 path），故按快照 path 逐删安全。
+  const removeAllRows = (rows: ViewNode[]) => {
+    for (const p of rows.map((r) => r.path))
+      try { session.removeChild(p); structDirty = true; } catch { /* 已删/非法路径 → 忽略 */ }
+  };
+  // slot / 嵌套节点「整体重置」= 恢复到空：清自身字段值 + 递归重置嵌套 slot +
+  //   嵌套 children【删记录】（而非清字段值——空 slot 不应残留空子记录）。
+  const resetSubtree = (node: ViewNode) => {
+    for (const f of Object.keys(node.fields)) resetTarget(node.path + '.' + f);
+    for (const sn of Object.values(node.slots)) resetSubtree(sn);
+    for (const arr of Object.values(node.collections)) removeAllRows(arr);   // 子集合：删记录，不是清字段
+  };
+  // 对一个匹配节点施加一个 target：按该节点结构判定字段 / slot / 集合 / 点号相对路径。
+  const applyTarget = (sn: ViewNode, t: string) => {
+    if (sn.fields[t]) resetTarget(sn.path + '.' + t);              // ① 字段 → 清值
+    else if (sn.slots[t]) resetSubtree(sn.slots[t]);             // ② slot → 整体重置（字段清值 + 子集合删记录）
+    else if (sn.collections[t]) removeAllRows(sn.collections[t]); // ③ children → 删所有记录
+    else resetTarget(sn.path + '.' + t);                          // 点号相对路径（applicant.name）等
+  };
 
   const scan = (fire: boolean) => {
-    const tree = session.getState().tree;
     for (let ri = 0; ri < rules.length; ri++) {
       const rule = rules[ri];
-      const nodes: string[] = [];
-      collectScopeNodes(tree, rule.scope, nodes);
-      for (const np of nodes) {
+      const matched: ViewNode[] = [];
+      collectScopeNodes(session.getState().tree, rule.scope, matched);  // 每条规则重取树：删行后结构已变
+      for (const sn of matched) {
         let now = false;
-        try { now = session.evalAt(np, rule.when) === true; } catch { now = false; }  // 引用 pending 字段等 → 视为假
-        const key = ri + '@' + np;
+        try { now = session.evalAt(sn.path, rule.when) === true; } catch { now = false; }  // 引用 pending 字段等 → 视为假
+        const key = ri + '@' + sn.path;
         const was = lastTrue.get(key) === true;
         lastTrue.set(key, now);
         if (fire && now && !was)                          // 仅 false→true 边沿触发
-          for (const f of rule.targets) resetTarget(np + '.' + f);
+          for (const t of rule.targets) applyTarget(sn, t);
       }
     }
   };
 
   return {
     seed: () => scan(false),
-    run: () => { if (running) return; running = true; try { scan(true); } finally { running = false; } },
+    run: () => {
+      if (running) return;
+      running = true; structDirty = false;
+      try { scan(true); } finally { running = false; }
+      if (structDirty) onStructChange?.();               // 删行后触发 UI-IR 重建（避免幽灵行/脱节）
+    },
   };
 }
 

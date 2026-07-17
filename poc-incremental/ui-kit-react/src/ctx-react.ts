@@ -61,10 +61,11 @@ function createStore(opts: UseEngineOpts): EngineStore {
     });
     // 加载后重建覆盖态：从已存字段值反推人工覆盖（只非外部依赖字段）。纯计算字段同步即可判定；外部依赖字段自动跳过。
     if (opts.reconstructOverrides) { try { session.reconstructOverrides(structuredClone(opts.data), { skipExternalDependent: true }); } catch { /* 忽略 */ } }
-    const resetWatcher = attachResetWatcher(session, opts.resetRules);  // 联动重置（计划 ②）
+    const rebuild = () => { structVer++; fire(); };             // 结构刷新（增删子记录 → 重建 UI-IR）
+    const resetWatcher = attachResetWatcher(session, opts.resetRules, rebuild);  // 联动重置（计划 ②）；删行走 rebuild
     resetWatcher.seed();                                         // 记录加载后真值基线（不触发，尊重既有数据）
-    watcherRun = resetWatcher.run;                               // 此后每次 onUpdate 边沿触发清空
-    const built = makeCtx(session, () => session.getState(), () => { structVer++; fire(); });  // 增删 → 结构刷新
+    watcherRun = resetWatcher.run;                               // 此后每次 onUpdate 边沿触发清空/删行
+    const built = makeCtx(session, () => session.getState(), rebuild);
     return { ...base, ctx: built.ctx, getState: () => session.getState(), explain: () => session.explain() };
   } catch (e: any) {
     // 建会话失败（常见：某 import ref 未解析）——不崩溃，返回错误态供渲染层提示。

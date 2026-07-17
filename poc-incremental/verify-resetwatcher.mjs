@@ -8,8 +8,12 @@ const ruleSet = {
   model: { root: 'Deal', nodes: {
     Deal: {
       fields: { settleType: { type: 'string' }, lcNo: { type: 'string' }, issuingBank: { type: 'string' } },
+      slots: { applicant: { node: 'Party', optional: true } },
       children: [{ name: 'charges', node: 'ChargeItem' }],
     },
+    Party: { fields: { name: { type: 'string' }, address: { type: 'string' } },
+      children: [{ name: 'contacts', node: 'Contact' }] },     // slot 的 node 自带 children
+    Contact: { fields: { phone: { type: 'string' } } },
     ChargeItem: { fields: { adjust: { type: 'string' }, autoRate: { type: 'string' } } },
   } },
   // 条件可输入(fallback:"input") + 可覆盖(overridable) 两类「case when」字段，验证重置语义分流。
@@ -29,33 +33,50 @@ const RESET_RULES = [
 ];
 
 // attachResetWatcher 的同款算法（对齐 ui-kit-core/src/engine-shared.ts）。
-function attachResetWatcher(session, rules) {
+function attachResetWatcher(session, rules, onStructChange) {
   if (!rules || !rules.length) return { seed() {}, run() {} };
   const lastTrue = new Map();
-  let running = false;
+  let running = false, structDirty = false;
   const collect = (node, scope, out) => {
-    if (node.type === scope || node.path === scope) out.push(node.path);
+    if (node.type === scope || node.path === scope) out.push(node);
     for (const arr of Object.values(node.collections)) for (const c of arr) collect(c, scope, out);
     for (const sn of Object.values(node.slots)) collect(sn, scope, out);
   };
-  // input/条件可输入 → setInput(null)；可覆盖 → clearOverride；纯 computed → 无操作（对齐 engine-shared.ts）。
-  const resetTarget = (path) => {
+  const resetTarget = (path) => {                             // ① 字段：清值
     try { session.setInput(path, null); return; } catch { /* 非 input */ }
     try { session.clearOverride(path); } catch { /* 纯 computed */ }
   };
+  const removeAllRows = (rows) => {                           // ③ children：删所有记录（结构变更）
+    for (const p of rows.map((r) => r.path))
+      try { session.removeChild(p); structDirty = true; } catch { /* 已删/非法 */ }
+  };
+  const resetSubtree = (node) => {                            // ② slot 整体重置：字段清值 + 子集合删记录
+    for (const f of Object.keys(node.fields)) resetTarget(node.path + '.' + f);
+    for (const sn of Object.values(node.slots)) resetSubtree(sn);
+    for (const arr of Object.values(node.collections)) removeAllRows(arr);
+  };
+  const applyTarget = (sn, t) => {
+    if (sn.fields[t]) resetTarget(sn.path + '.' + t);
+    else if (sn.slots[t]) resetSubtree(sn.slots[t]);
+    else if (sn.collections[t]) removeAllRows(sn.collections[t]);
+    else resetTarget(sn.path + '.' + t);
+  };
   const scan = (fire) => {
-    const tree = session.getState().tree;
     for (let ri = 0; ri < rules.length; ri++) {
-      const rule = rules[ri]; const nodes = []; collect(tree, rule.scope, nodes);
-      for (const np of nodes) {
+      const rule = rules[ri]; const matched = []; collect(session.getState().tree, rule.scope, matched);
+      for (const sn of matched) {
         let now = false;
-        try { now = session.evalAt(np, rule.when) === true; } catch { now = false; }
-        const key = ri + '@' + np; const was = lastTrue.get(key) === true; lastTrue.set(key, now);
-        if (fire && now && !was) for (const f of rule.targets) resetTarget(np + '.' + f);
+        try { now = session.evalAt(sn.path, rule.when) === true; } catch { now = false; }
+        const key = ri + '@' + sn.path; const was = lastTrue.get(key) === true; lastTrue.set(key, now);
+        if (fire && now && !was) for (const t of rule.targets) applyTarget(sn, t);
       }
     }
   };
-  return { seed: () => scan(false), run: () => { if (running) return; running = true; try { scan(true); } finally { running = false; } } };
+  return {
+    seed: () => scan(false),
+    run: () => { if (running) return; running = true; structDirty = false;
+      try { scan(true); } finally { running = false; } if (structDirty) onStructChange?.(); },
+  };
 }
 
 let pass = true; const ck = (ok, m) => { console.log((ok ? '  ✅ ' : '  ❌ ') + m); pass = pass && ok; };
@@ -127,5 +148,28 @@ ck(f3('condFee').value == null, '⑧ 条件可输入字段被 setInput(null) 清
 ck(f3('ovrFee').state === 'resolved' && String(f3('ovrFee').value) === '200',
   '⑨ 可覆盖字段被 clearOverride 恢复计算值 200（非 setInput——那会抛 not an input）');
 
-console.log('\n' + (pass ? '✅ 联动重置 watcher 通过：边沿触发 + 重入不死循环 + seed 不误清 + 类型作用域逐节点 + case-when 字段重置语义分流' : '❌ 有断言失败'));
+// ── 节点级 target：slot 递归清字段 + children 删所有行（结构变更 → onStructChange） ──────
+let wr4 = () => {}, rebuilds = 0;
+const RULES4 = [{ scope: 'root', when: 'settleType == "wire"', targets: ['applicant', 'charges'] }];
+const s4 = createSession(ruleSet, {
+  settleType: 'lc',
+  applicant: { name: 'ACME', address: 'HK', contacts: [{ phone: '111' }, { phone: '222' }] },  // slot 内自带 2 条 children
+  charges: [{ adjust: 'a', autoRate: '1' }, { adjust: 'b', autoRate: '2' }, { adjust: 'c', autoRate: '3' }],
+}, { onUpdate: () => wr4() });
+await s4.idle();
+const w4 = attachResetWatcher(s4, RULES4, () => { rebuilds++; }); w4.seed(); wr4 = w4.run;
+const slot4 = (f) => s4.getState().tree.slots.applicant.fields[f].value;
+const nContacts = () => s4.getState().tree.slots.applicant.collections.contacts.length;
+const nRows = () => s4.getState().tree.collections.charges.length;
+
+console.log('\n加载 applicant={ACME,HK, contacts×2}, charges 3 行');
+ck(slot4('name') === 'ACME' && nContacts() === 2 && nRows() === 3, '⑩ 前置：applicant.name=ACME、contacts 2 条、charges 3 行');
+
+s4.setInput('root.settleType', 'wire'); await s4.idle();       // 触发节点级重置
+ck(slot4('name') === '' && slot4('address') === '', '⑪ target=applicant（slot）→ 清空 name、address 字段值');
+ck(nContacts() === 0, '⑪b slot 内自带 children（contacts）→ 删除记录（非清字段值）');
+ck(nRows() === 0, '⑫ target=charges（children）→ 删除全部 3 行（结构变更）');
+ck(rebuilds > 0, `⑬ 删行后触发 onStructChange 重建 UI-IR（${rebuilds} 次，避免幽灵行脱节）`);
+
+console.log('\n' + (pass ? '✅ 联动重置 watcher 通过：边沿 + 重入 + seed + 类型作用域 + case-when 分流 + slot 清字段 + children 删行(带重建)' : '❌ 有断言失败'));
 process.exit(pass ? 0 : 1);

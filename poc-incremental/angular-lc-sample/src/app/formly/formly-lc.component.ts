@@ -184,8 +184,8 @@ export class FormlyLcComponent implements OnInit {
           //   run() 内清空会再触发 onUpdate（被重入守卫吞掉），故用 getState() 取重置后最新态。
           onUpdate: (s) => { this.resetWatch?.run(); this.state = this.session ? this.session.getState() : s; this.notify(); },
         });
-        // 联动重置 watcher（计划 ②）：规则来自 pageDef.resetRules；seed 记录基线（不触发，尊重既有数据）。
-        this.resetWatch = attachResetWatcher(this.session, pageDef?.resetRules);
+        // 联动重置 watcher（计划 ②）：规则来自 pageDef.resetRules；删行走 rebuild 重建 formly 树；seed 记基线（不触发）。
+        this.resetWatch = attachResetWatcher(this.session, pageDef?.resetRules, () => this.rebuild());
         this.resetWatch.seed();
         this.state = this.session.getState();
         this.meta = buildMeta(ruleSet, imports);
