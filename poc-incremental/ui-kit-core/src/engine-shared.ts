@@ -240,7 +240,9 @@ export function resolveNode(state: SessionState, path: string): ViewNode | undef
   for (let k = 1; k < toks.length; k++) {
     const tok = toks[k];
     const m = tok.match(/^(\w+)\[(\d+)\]$/);
-    if (m) { node = node?.collections[m[1]]?.[+m[2]]; continue; }
+    // 集合子记录：按【真实 path】匹配，而非用下标索引压缩数组。viewNode 跳过墓碑后数组是密排的
+    // （删记录后真实下标如 items[2] ≠ 数组位置），直接 [i] 会越界/取错行 → 值其实在引擎里却显示空白。
+    if (m) { const want = toks.slice(0, k + 1).join('.'); node = node?.collections[m[1]]?.find((c) => c.path === want); continue; }
     if (node?.slots && node.slots[tok]) { node = node.slots[tok]; continue; }
     node = undefined;
   }
