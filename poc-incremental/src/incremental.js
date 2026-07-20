@@ -58,9 +58,13 @@ export function createSession(ruleSet, data, opts = {}) {
   function fieldLabel(type, field) { try { return (effectiveFields(type)[field] || {}).label; } catch { return undefined; } }
   // 节点的子集合声明（兼容单对象与数组），沿链合并
   const normColls = (c) => (!c ? [] : Array.isArray(c) ? c : [c]);
+  // 同名子集合：子类覆盖基类（node 替换，保持首次出现的位置），与 fields/slots 的覆盖语义一致
   function childCollections(type) {
-    const out = [], seen = new Set();
-    for (const t of typeChain(type)) for (const c of normColls(nodeDef(t).children)) if (!seen.has(c.name)) { seen.add(c.name); out.push(c); }
+    const idx = new Map(), out = [];
+    for (const t of typeChain(type)) for (const c of normColls(nodeDef(t).children)) {
+      if (idx.has(c.name)) out[idx.get(c.name)] = c;
+      else { idx.set(c.name, out.length); out.push(c); }
+    }
     return out;
   }
   // 具名单节点 slots：{ 槽位名: 子类型 | {node, optional} }，沿链合并；归一化为 { node, optional }
@@ -209,7 +213,15 @@ export function createSession(ruleSet, data, opts = {}) {
   }
   // 为一个节点建 input + 规则 cells（初次与动态增子时复用）
   // 规则按继承链收集：scope 命中自身或任一祖先类型（Party 规则作用到 BankParty/CustomerParty）
-  function rulesForType(type) { const out = []; for (const t of typeChain(type)) out.push(...(rulesByScope.get(t) || [])); return out; }
+  // 子类可用 { overrides: 基类ruleId } 替换继承来的规则，或 { overrides: id, disable: true } 停用它。
+  // 过滤只发生在「以子类实例化」的节点上 → 基类实例不受影响（per-subtype 隔离）。
+  function rulesForType(type) {
+    const out = [];
+    for (const t of typeChain(type)) out.push(...(rulesByScope.get(t) || []));
+    const removed = new Set();
+    for (const r of out) if (r.overrides) removed.add(r.overrides);
+    return out.filter((r) => !removed.has(r.id) && r.disable !== true);   // disable 条只承载"移除"信号，自身不建 cell
+  }
   function buildNodeCells(path, type) {
     for (const [f, spec] of Object.entries(effectiveFields(type))) {   // 含继承字段
       if (spec.computed || spec.external) continue;

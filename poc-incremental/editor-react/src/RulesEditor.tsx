@@ -25,12 +25,22 @@ function collectDataSources(ruleSet: RuleSet, imports: Record<string, RuleSet>) 
 }
 
 const blankRule = (scope: string) => ({ id: '', type: 'formula', scope, trigger: 'calc', target: '', expr: '' });
-const summary = (r: any) => r.type === 'validation' ? (r.expr || '') : r.cases ? `cases[${r.cases.length}]${r.fallback ? ' · fallback:' + r.fallback : ''}` : r.steps ? `steps[${r.steps.length}]` : r.source ? `source:${r.source}` : (r.expr || '');
+const summary = (r: any) => r.disable ? `停用继承规则 ${r.overrides}` : r.type === 'validation' ? (r.expr || '') : r.cases ? `cases[${r.cases.length}]${r.fallback ? ' · fallback:' + r.fallback : ''}` : r.steps ? `steps[${r.steps.length}]` : r.source ? `source:${r.source}` : (r.expr || '');
+
+/** 库（import）里的规则 = 继承来的通用业务组件规则，本规则集只读，可被 overrides 覆盖/停用。 */
+function collectLibRules(ruleSet: RuleSet, imports: Record<string, RuleSet>) {
+  const out: any[] = [];
+  for (const imp of ruleSet.imports ?? []) for (const r of ((imports[imp.ref] as any)?.rules ?? [])) out.push({ ...r, __lib: imp.ref });
+  return out;
+}
 
 export function RulesEditor({ ruleSet, imports, meta, addField, addRule, updateRule, deleteRule, duplicateRule, toggleRule }: Props) {
   const nodeTypes = Object.keys(meta.nodes);
   const rules: any[] = ruleSet.rules ?? [];
   const dataSources = useMemo(() => collectDataSources(ruleSet, imports), [ruleSet, imports]);
+  const libRules = useMemo(() => collectLibRules(ruleSet, imports), [ruleSet, imports]);
+  // 本地已覆盖/停用的库规则 id → 本地规则（继承区据此灰显标注）
+  const overridenBy = useMemo(() => new Map<string, any>(rules.filter((r) => r.overrides).map((r) => [r.overrides, r])), [rules]);
 
   // 加模型字段
   const [fNode, setFNode] = useState(meta.root);
@@ -47,18 +57,39 @@ export function RulesEditor({ ruleSet, imports, meta, addField, addRule, updateR
   const save = () => { if (editing === -1) addRule(draft); else if (editing !== null) updateRule(editing, draft); cancel(); };
   const set = (patch: any) => setDraft({ ...draft, ...patch });
 
+  // 继承覆盖：以 base 规则为模板，落到 base.scope 的某个子类型上
+  const subtypesOf = (base: string) => nodeTypes.filter((t) => meta.ancestorsOf(t).includes(base));
+  const startOverride = (base: any) => {
+    const subs = subtypesOf(base.scope);
+    setDraft({ ...clone(base), __lib: undefined, id: base.id + 'Override', scope: subs[0] ?? base.scope, overrides: base.id });
+    setEditing(-1);
+  };
+  const startDisable = (base: any) => {
+    const subs = subtypesOf(base.scope);
+    setDraft({ id: base.id + 'Off', type: base.type, scope: subs[0] ?? base.scope, overrides: base.id, disable: true });
+    setEditing(-1);
+  };
+
   const targetFields = draft ? Object.keys(meta.effectiveFields(draft.scope)) : [];
+  // 可覆盖的候选 = 本地+库规则中，scope 是 draft.scope 【严格祖先】的规则
+  const overrideCandidates = useMemo(() => {
+    if (!draft?.scope) return [];
+    const anc = new Set(meta.ancestorsOf(draft.scope));
+    return [...libRules, ...rules].filter((r) => r.id !== draft.id && r.scope && anc.has(r.scope));
+  }, [draft?.scope, draft?.id, libRules, rules, meta]);
 
   return (
     <div className="ed-sec">
       <h4>规则（{rules.length}） <button className="mini primary" onClick={startAdd}>＋ 新增规则</button></h4>
       <table className="ed-tbl">
-        <thead><tr><th></th><th>id</th><th>type</th><th>scope/target</th><th>摘要</th><th></th></tr></thead>
+        <thead><tr><th></th><th>id</th><th>来源</th><th>type</th><th>scope/target</th><th>摘要</th><th></th></tr></thead>
         <tbody>
           {rules.map((r, i) => (
             <tr key={i} className={r.enabled === false ? 'off' : ''}>
               <td><input type="checkbox" checked={r.enabled !== false} onChange={() => toggleRule(i)} title="enabled" /></td>
-              <td>{r.id}</td><td><span className={'kind ' + r.type}>{r.type}</span></td>
+              <td>{r.id}</td>
+              <td>{r.overrides ? <span className="kind ovr" title={'基类规则 ' + r.overrides}>{r.disable ? '停用' : '覆盖'} ‹{r.overrides}›</span> : <span className="muted">本地</span>}</td>
+              <td><span className={'kind ' + r.type}>{r.type}</span></td>
               <td><code>{r.scope}{r.target ? '.' + r.target : ''}</code></td>
               <td className="ex"><code>{summary(r)}</code></td>
               <td className="ops">
@@ -68,9 +99,36 @@ export function RulesEditor({ ruleSet, imports, meta, addField, addRule, updateR
               </td>
             </tr>
           ))}
-          {!rules.length && <tr><td colSpan={6} className="muted">暂无规则</td></tr>}
+          {!rules.length && <tr><td colSpan={7} className="muted">暂无规则</td></tr>}
         </tbody>
       </table>
+
+      {!!libRules.length && (
+        <>
+          <h4>继承规则（来自 import 的通用业务组件，{libRules.length}）</h4>
+          <div className="hint">库规则对本规则集只读。要改行为：在<b>子类型</b>上「覆盖」（同 target 重写）或「停用」——只影响子类型实例，基类实例照旧。</div>
+          <table className="ed-tbl">
+            <thead><tr><th>id</th><th>库</th><th>type</th><th>scope/target</th><th>摘要</th><th></th></tr></thead>
+            <tbody>
+              {libRules.map((r, i) => {
+                const ov = overridenBy.get(r.id);
+                return (
+                  <tr key={i} className={ov ? 'off' : ''}>
+                    <td>{r.id}</td><td className="muted">{r.__lib}</td>
+                    <td><span className={'kind ' + r.type}>{r.type}</span></td>
+                    <td><code>{r.scope}{r.target ? '.' + r.target : ''}</code></td>
+                    <td className="ex"><code>{ov ? (ov.disable ? `已被 ${ov.id} 停用` : `已被 ${ov.id} 覆盖`) : summary(r)}</code></td>
+                    <td className="ops">
+                      <button disabled={!!ov} onClick={() => startOverride(r)}>覆盖</button>
+                      <button disabled={!!ov} onClick={() => startDisable(r)}>停用</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
 
       {draft && (
         <div className="rule-form">
@@ -91,19 +149,35 @@ export function RulesEditor({ ruleSet, imports, meta, addField, addRule, updateR
                 <option value="after-calc">after-calc（计算后）</option>
               </select>
             </label>
-            {draft.type !== 'validation' &&
+            <label>覆盖继承规则（可选）
+              <select value={draft.overrides ?? ''} onChange={(e) => set({ overrides: e.target.value || undefined, disable: e.target.value ? draft.disable : undefined })}>
+                <option value="">（不覆盖，新规则）</option>
+                {overrideCandidates.map((r) => <option key={r.id} value={r.id}>{r.id} — {r.scope}{r.target ? '.' + r.target : ''}{r.__lib ? ` @${r.__lib}` : ''}</option>)}
+              </select>
+            </label>
+            {draft.type !== 'validation' && !draft.disable &&
               <label>target（目标字段）
                 <input list="rf-target-dl" value={draft.target ?? ''} onChange={(e) => set({ target: e.target.value })} placeholder="选或输入字段名" />
                 <datalist id="rf-target-dl">{targetFields.map((f) => <option key={f} value={f} />)}</datalist>
               </label>}
           </div>
-          {draft.type !== 'validation' && draft.target && !targetFields.includes(draft.target) &&
-            <div className="hint">⚠ 目标字段 <code>{draft.target}</code> 不在 <code>{draft.scope}</code> 的有效字段中——记得到「模型」为该节点添加此字段。</div>}
+          {!!draft.overrides &&
+            <label className="ck" title="只移除继承来的规则，不写新逻辑">
+              <input type="checkbox" checked={!!draft.disable} onChange={(e) => set({ disable: e.target.checked || undefined })} />
+              仅停用（不替换）——子类型实例上不再执行 <code>{draft.overrides}</code>
+            </label>}
+          {!!draft.overrides && !meta.ancestorsOf(draft.scope).includes(overrideCandidates.find((r) => r.id === draft.overrides)?.scope) &&
+            <div className="hint">⚠ 覆盖只能作用于<b>继承来的</b>规则：<code>{draft.overrides}</code> 的 scope 不是 <code>{draft.scope}</code> 的祖先类型，引擎会静默忽略。</div>}
 
-          {draft.type === 'formula' && <FormulaBody draft={draft} set={set} />}
-          {draft.type === 'validation' && <ValidationBody draft={draft} set={set} />}
-          {draft.type === 'resolver' && <ResolverBody draft={draft} set={set} dataSources={dataSources} />}
-          {draft.type === 'pipeline' && <PipelineBody draft={draft} set={set} />}
+          {!draft.disable && <>
+            {draft.type !== 'validation' && draft.target && !targetFields.includes(draft.target) &&
+              <div className="hint">⚠ 目标字段 <code>{draft.target}</code> 不在 <code>{draft.scope}</code> 的有效字段中——记得到「模型」为该节点添加此字段。</div>}
+
+            {draft.type === 'formula' && <FormulaBody draft={draft} set={set} />}
+            {draft.type === 'validation' && <ValidationBody draft={draft} set={set} />}
+            {draft.type === 'resolver' && <ResolverBody draft={draft} set={set} dataSources={dataSources} />}
+            {draft.type === 'pipeline' && <PipelineBody draft={draft} set={set} />}
+          </>}
         </div>
       )}
 

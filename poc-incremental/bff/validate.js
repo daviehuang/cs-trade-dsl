@@ -32,7 +32,8 @@ function compile(ruleSet, imports) {
   const typeChain = (t) => { const ch = []; let x = t; while (x) { ch.unshift(x); x = mergedNodes[x]?.extends; } return ch; };            // [基类…自身]
   const effFields = (t) => { const o = {}; for (const x of typeChain(t)) Object.assign(o, mergedNodes[x]?.fields || {}); return o; };
   const normColls = (c) => (!c ? [] : Array.isArray(c) ? c : [c]);
-  const childColls = (t) => { const out = [], seen = new Set(); for (const x of typeChain(t)) for (const c of normColls(mergedNodes[x]?.children)) if (!seen.has(c.name)) { seen.add(c.name); out.push(c); } return out; };
+  // 与引擎 childCollections 等价：同名子集合由子类覆盖（node 替换，位置不变）
+  const childColls = (t) => { const idx = new Map(), out = []; for (const x of typeChain(t)) for (const c of normColls(mergedNodes[x]?.children)) { if (idx.has(c.name)) out[idx.get(c.name)] = c; else { idx.set(c.name, out.length); out.push(c); } } return out; };
   const effSlots = (t) => { const o = {}; for (const x of typeChain(t)) for (const [k, v] of Object.entries(mergedNodes[x]?.slots || {})) o[k] = (typeof v === "string" ? v : v.node); return o; };
 
   // 条件可输入字段（formula + fallback:input）：守卫为假时是用户输入，需作为输入喂给引擎。

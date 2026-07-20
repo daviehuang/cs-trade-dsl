@@ -40,6 +40,15 @@ export function ModelDesigner({ ruleSet, meta, mutateRuleSet, isLibrary }: Props
   const slotOpt = (v: any) => (typeof v === 'string' ? false : !!v.optional);
   const setSlot = (name: string, nodeType: string, optional: boolean) => patchNode((n) => { (n.slots ??= {})[name] = optional ? { node: nodeType, optional: true } : nodeType; });
 
+  // 继承而来（祖先类型定义）的字段 / 子集合——本地同名即为「覆盖」
+  const inheritedFields: Record<string, any> = {};
+  const inheritedColls: Record<string, string> = {};
+  if (sel) for (const anc of meta.ancestorsOf(sel)) {
+    Object.assign(inheritedFields, meta.nodes[anc]?.fields ?? {});
+    const cs = meta.nodes[anc]?.children;
+    for (const c of (Array.isArray(cs) ? cs : cs ? [cs] : [])) inheritedColls[c.name] = c.node;
+  }
+
   return (
     <div className="ed-sec">
       {!isLibrary ? (
@@ -74,20 +83,21 @@ export function ModelDesigner({ ruleSet, meta, mutateRuleSet, isLibrary }: Props
 
       {node && (
         <div className="rule-form">
-          <div className="rf-h"><b>节点 {sel}</b></div>
+          <div className="rf-h"><b>节点 {sel}</b>
+            {meta.ancestorsOf(sel).length > 0 && <span className="muted" title="继承链（基类 → 自身）">继承链：{meta.chainOf(sel).join(' ▸ ')}</span>}</div>
           <div className="ed-grid">
             <label>extends（基类）<select value={node.extends || ''} onChange={(e) => patchNode((n) => { const v = e.target.value; if (v) n.extends = v; else delete n.extends; })}>
               <option value="">（无）</option>{allTypes.filter((t) => t !== sel).map((t) => <option key={t}>{t}</option>)}</select></label>
             <label className="ck"><input type="checkbox" checked={!!node.abstract} onChange={(e) => patchNode((n) => { if (e.target.checked) n.abstract = true; else delete n.abstract; })} />abstract（不可实例化）</label>
           </div>
 
-          <h4>字段</h4>
+          <h4>字段（本地）</h4>
           <table className="ed-tbl">
             <thead><tr><th>名</th><th>描述 label</th><th>type</th><th>种类</th><th></th></tr></thead>
             <tbody>
               {Object.entries(node.fields || {}).map(([f, s]: any) => (
                 <tr key={f}>
-                  <td><code>{f}</code></td>
+                  <td><code>{f}</code>{inheritedFields[f] && <span className="kind ovr" title={'覆盖基类同名字段'}>覆盖</span>}</td>
                   <td><input value={s.label ?? ''} placeholder={f} title="人类可读描述：页面标签兜底 + 报错 {字段:label} 引用" onChange={(e) => patchNode((n) => { n.fields[f] = specOf(s.type, flagOf(s), e.target.value); })} style={{ width: 130 }} /></td>
                   <td><select value={s.type} onChange={(e) => patchNode((n) => { n.fields[f] = specOf(e.target.value, flagOf(s), s.label); })}><option>decimal</option><option>int</option><option>string</option><option>date</option></select></td>
                   <td><select value={flagOf(s)} onChange={(e) => patchNode((n) => { n.fields[f] = specOf(s.type, e.target.value, s.label); })}>{FLAGS.map((x) => <option key={x.k} value={x.k}>{x.label}</option>)}</select></td>
@@ -103,6 +113,10 @@ export function ModelDesigner({ ruleSet, meta, mutateRuleSet, isLibrary }: Props
             <select value={fFlag} onChange={(e) => setFFlag(e.target.value)}>{FLAGS.map((x) => <option key={x.k} value={x.k}>{x.label}</option>)}</select>
             <button className="primary" disabled={!fName} onClick={() => { patchNode((n) => { (n.fields ??= {})[fName] = specOf(fType, fFlag, fLabel); }); setFName(''); setFLabel(''); }}>加字段</button>
           </div>
+          {!!Object.keys(inheritedFields).length &&
+            <div className="hint">继承字段（只读，来自 {meta.ancestorsOf(sel).join('、')}）：
+              {Object.keys(inheritedFields).map((f) => <code key={f} style={{ marginRight: 6, opacity: node.fields?.[f] ? 0.4 : 1 }}>{f}{node.fields?.[f] ? '(已覆盖)' : ''}</code>)}
+              <br />在本地同名重定义即可<b>覆盖</b>（含改 type / 改种类）。</div>}
 
           <h4>具名槽位 slots（单子节点）</h4>
           {Object.entries(node.slots || {}).map(([sn, sv]: any) => (
@@ -119,15 +133,20 @@ export function ModelDesigner({ ruleSet, meta, mutateRuleSet, isLibrary }: Props
             <button className="primary" disabled={!slotName} onClick={() => { setSlot(slotName, slotType, slotOptNew); setSlotName(''); setSlotOptNew(false); }}>加槽位</button>
           </div>
 
-          <h4>子集合 children</h4>
+          <h4>子集合 children（本地）</h4>
           {(Array.isArray(node.children) ? node.children : node.children ? [node.children] : []).map((c: any, i: number) => (
-            <div key={i} className="ed-row"><code>{c.name}</code> → <b>{c.node}</b>[]<button className="del" onClick={() => patchNode((n) => { const arr = Array.isArray(n.children) ? n.children : [n.children]; n.children = arr.filter((_: any, k: number) => k !== i); })}>✕</button></div>
+            <div key={i} className="ed-row"><code>{c.name}</code> → <b>{c.node}</b>[]
+              {inheritedColls[c.name] && inheritedColls[c.name] !== c.node && <span className="kind ovr" title={'覆盖继承的 ' + inheritedColls[c.name]}>覆盖 ‹{inheritedColls[c.name]}›</span>}
+              <button className="del" onClick={() => patchNode((n) => { const arr = Array.isArray(n.children) ? n.children : [n.children]; n.children = arr.filter((_: any, k: number) => k !== i); })}>✕</button></div>
           ))}
           <div className="ed-row">
             <input value={collName} onChange={(e) => setCollName(e.target.value)} placeholder="集合名" style={{ width: 120 }} />→
             <select value={collType} onChange={(e) => setCollType(e.target.value)}>{allTypes.map((t) => <option key={t}>{t}</option>)}</select>
             <button className="primary" disabled={!collName} onClick={() => { patchNode((n) => { const arr = Array.isArray(n.children) ? n.children : n.children ? [n.children] : []; arr.push({ name: collName, node: collType }); n.children = arr; }); setCollName(''); }}>加集合</button>
           </div>
+          {!!Object.keys(inheritedColls).length &&
+            <div className="hint">继承子集合：{Object.entries(inheritedColls).map(([nm, nd]) => <code key={nm} style={{ marginRight: 6 }}>{nm}→{nd as string}</code>)}
+              <br />用<b>同名</b>集合指向子类型即可覆盖（如 <code>items→CustomChargeItem</code>），位置不变，只影响本类型实例。</div>}
 
           <h4>有效字段（沿继承链合并）</h4>
           <div className="hint">{Object.keys(meta.effectiveFields(sel)).join('、') || '（无）'}</div>

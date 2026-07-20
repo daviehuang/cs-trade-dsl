@@ -26,8 +26,12 @@ export interface EngineMeta {
   effectiveSlots(type: string): Record<string, string>;
   /** 具名槽位完整定义（含 optional）。 */
   effectiveSlotDefs(type: string): Record<string, SlotDef>;
-  /** 沿 extends 链合并的子集合定义（去重）。 */
+  /** 沿 extends 链合并的子集合定义（同名由子类覆盖）。 */
   childrenOf(type: string): ChildColl[];
+  /** 继承链（基类…自身，含自身）。 */
+  chainOf(type: string): string[];
+  /** 严格祖先（不含自身，基类在前）——判断"某规则是不是继承来的"。 */
+  ancestorsOf(type: string): string[];
 }
 
 /** 构建元数据：合并各 import 类型库的 nodes 与本规则集 model.nodes。 */
@@ -68,12 +72,17 @@ export function buildMeta(ruleSet: RuleSet, imports: Record<string, RuleSet>): E
       return o;
     },
     effectiveSlotDefs(type: string) { return slotDefs(type); },
+    chainOf(type: string) { return chain(type); },
+    ancestorsOf(type: string) { return chain(type).slice(0, -1); },
+    // 与引擎 childCollections 等价：同名子集合由子类覆盖（node 替换，位置不变）
     childrenOf(type: string) {
       const out: ChildColl[] = [];
-      const seen = new Set<string>();
+      const idx = new Map<string, number>();
       for (const t of chain(type))
-        for (const c of normColls(merged[t]?.children))
-          if (!seen.has(c.name)) { seen.add(c.name); out.push(c); }
+        for (const c of normColls(merged[t]?.children)) {
+          if (idx.has(c.name)) out[idx.get(c.name)!] = c;
+          else { idx.set(c.name, out.length); out.push(c); }
+        }
       return out;
     },
   };

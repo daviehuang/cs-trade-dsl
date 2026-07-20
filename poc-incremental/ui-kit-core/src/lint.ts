@@ -145,8 +145,9 @@ export function lintRuleSet(ruleSet: RuleSet, imports: Record<string, RuleSet>):
       if (!known.has(c.node)) out.push({ level: 'error', path: `${type}.children.${c.name}`, message: `子集合引用未知类型 ${c.node}` });
   }
 
-  // ② 顶层 rules：scope 有效 + formula.target 可写回。
-  for (const r of ruleSet.rules ?? []) checkRule(r, ruleSet, meta, known, dsById, `rules/${r.id}`, out, true);
+  // ② 顶层 rules：scope 有效 + formula.target 可写回 + overrides/disable 合法。
+  const rulesById = new Map<string, any>(allRules.map((r) => [r.id, r]));   // 含 import 库规则（覆盖目标常在库里）
+  for (const r of ruleSet.rules ?? []) checkRule(r, ruleSet, meta, known, dsById, `rules/${r.id}`, out, true, rulesById);
 
   // ③ 模块内 rules（含 resolver）：以模块 fields 为作用域校验 target/source/key。
   for (const [mid, mod] of Object.entries(ruleSet.modules ?? {}) as [string, any][]) {
@@ -170,9 +171,22 @@ export function lintRuleSet(ruleSet: RuleSet, imports: Record<string, RuleSet>):
   return out;
 }
 
-function checkRule(r: any, _rs: RuleSet, meta: EngineMeta, known: Set<string>, dsById: Map<string, any>, path: string, out: LintIssue[], scopeRequired: boolean): void {
+function checkRule(r: any, _rs: RuleSet, meta: EngineMeta, known: Set<string>, dsById: Map<string, any>, path: string, out: LintIssue[], scopeRequired: boolean, byId?: Map<string, any>): void {
   if (r.scope && !known.has(r.scope)) { out.push({ level: 'error', path, message: `scope 类型 ${r.scope} 未知` }); return; }
   if (scopeRequired && !r.scope) { out.push({ level: 'warn', path, message: `规则缺少 scope` }); return; }
+  // 继承覆盖：overrides 必须指向【严格祖先 scope】上真实存在的规则；disable 条只是"移除"信号，无 target/expr。
+  if (r.overrides) {
+    const base = byId?.get(r.overrides);
+    if (!base) out.push({ level: 'error', path, message: `overrides=${r.overrides} 指向的规则不存在` });
+    else {
+      const anc = chainOf(meta, r.scope).slice(0, -1);          // 严格祖先（去掉自身）
+      if (!base.scope || !anc.includes(base.scope)) out.push({ level: 'error', path, message: `overrides 只能覆盖继承来的规则：${r.overrides} 的 scope=${base.scope ?? '(无)'} 不是 ${r.scope} 的祖先类型` });
+      else if (!r.disable && base.type !== r.type) out.push({ level: 'warn', path, message: `覆盖规则类型(${r.type})与被覆盖规则(${base.type})不一致` });
+    }
+  } else if (r.disable) {
+    out.push({ level: 'warn', path, message: `disable:true 未指定 overrides，该规则不产生任何效果（整条停用请用 enabled:false）` });
+  }
+  if (r.disable) return;                                        // disable 条无 target/expr，跳过后续检查以免误报
   if (r.type === 'formula' && r.target) {
     const spec = meta.effectiveFields(r.scope)[r.target];
     if (!spec) out.push({ level: 'error', path, message: `formula.target=${r.target} 不在类型 ${r.scope} 的有效字段` });
