@@ -177,6 +177,9 @@ button.primary:disabled { background: #b6c0cf; border-color: #b6c0cf; cursor: no
 /* 继承覆盖角标（规则表来源列 / 模型字段·子集合覆盖标注） */
 .kind.ovr { background: #f1edff; color: #6d4bd0; margin-left: 6px; }
 
+/* 内容少的表（槽位 / 子集合）：只占一半宽度，避免整行拉伸后列间距过大 */
+.ed-tbl.narrow { width: 50%; min-width: 420px; }
+
 /* 模型页「新增」弹窗：一字段一行、label 在上，底部操作条支持连续添加 */
 .add-form { display: flex; flex-direction: column; gap: 10px; }
 .add-form > label { display: flex; flex-direction: column; gap: 3px; color: #55627a; }

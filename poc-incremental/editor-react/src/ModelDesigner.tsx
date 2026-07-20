@@ -142,20 +142,36 @@ export function ModelDesigner({ ruleSet, meta, mutateRuleSet, isLibrary }: Props
               <br />在本地同名重定义即可<b>覆盖</b>（含改 type / 改种类）。</div>}
 
           <h4>具名槽位 slots（单子节点） <button className="mini primary" onClick={() => openModal('slot')}>＋ 加槽位</button></h4>
-          {Object.entries(node.slots || {}).map(([sn, sv]: any) => (
-            <div key={sn} className="ed-row">
-              <code>{sn}</code> → <b>{slotNode(sv)}</b>
-              <label className="ck" style={{ marginLeft: 8 }} title="可选：对象为空时忽略其内部必填校验"><input type="checkbox" checked={slotOpt(sv)} onChange={(e) => setSlot(sn, slotNode(sv), e.target.checked)} />可选</label>
-              <button className="del" onClick={() => patchNode((n) => { delete n.slots[sn]; })}>✕</button>
-            </div>
-          ))}
+          <table className="ed-tbl narrow">
+            <thead><tr><th>槽位名</th><th>节点类型</th><th title="可选：对象为空时忽略其内部必填校验">可选</th><th></th></tr></thead>
+            <tbody>
+              {Object.entries(node.slots || {}).map(([sn, sv]: any) => (
+                <tr key={sn}>
+                  <td><code>{sn}</code></td>
+                  <td><b>{slotNode(sv)}</b></td>
+                  <td><input type="checkbox" checked={slotOpt(sv)} title="可选：对象为空时忽略其内部必填校验" onChange={(e) => setSlot(sn, slotNode(sv), e.target.checked)} /></td>
+                  <td className="ops"><button className="del" onClick={() => patchNode((n) => { delete n.slots[sn]; })}>✕</button></td>
+                </tr>
+              ))}
+              {!Object.keys(node.slots || {}).length && <tr><td colSpan={4} className="muted">暂无槽位</td></tr>}
+            </tbody>
+          </table>
 
           <h4>子集合 children（本地） <button className="mini primary" onClick={() => openModal('coll')}>＋ 加集合</button></h4>
-          {(Array.isArray(node.children) ? node.children : node.children ? [node.children] : []).map((c: any, i: number) => (
-            <div key={i} className="ed-row"><code>{c.name}</code> → <b>{c.node}</b>[]
-              {inheritedColls[c.name] && inheritedColls[c.name] !== c.node && <span className="kind ovr" title={'覆盖继承的 ' + inheritedColls[c.name]}>覆盖 ‹{inheritedColls[c.name]}›</span>}
-              <button className="del" onClick={() => patchNode((n) => { const arr = Array.isArray(n.children) ? n.children : [n.children]; n.children = arr.filter((_: any, k: number) => k !== i); })}>✕</button></div>
-          ))}
+          <table className="ed-tbl narrow">
+            <thead><tr><th>集合名</th><th>元素类型</th><th></th></tr></thead>
+            <tbody>
+              {(Array.isArray(node.children) ? node.children : node.children ? [node.children] : []).map((c: any, i: number) => (
+                <tr key={i}>
+                  <td><code>{c.name}</code></td>
+                  <td><b>{c.node}</b>[]
+                    {inheritedColls[c.name] && inheritedColls[c.name] !== c.node && <span className="kind ovr" title={'覆盖继承的 ' + inheritedColls[c.name]}>覆盖 ‹{inheritedColls[c.name]}›</span>}</td>
+                  <td className="ops"><button className="del" onClick={() => patchNode((n) => { const arr = Array.isArray(n.children) ? n.children : [n.children]; n.children = arr.filter((_: any, k: number) => k !== i); })}>✕</button></td>
+                </tr>
+              ))}
+              {!(Array.isArray(node.children) ? node.children.length : node.children ? 1 : 0) && <tr><td colSpan={3} className="muted">暂无子集合</td></tr>}
+            </tbody>
+          </table>
           {!!Object.keys(inheritedColls).length &&
             <div className="hint">继承子集合：{Object.entries(inheritedColls).map(([nm, nd]) => <code key={nm} style={{ marginRight: 6 }}>{nm}→{nd as string}</code>)}
               <br />用<b>同名</b>集合指向子类型即可覆盖（如 <code>items→CustomChargeItem</code>），位置不变，只影响本类型实例。</div>}
