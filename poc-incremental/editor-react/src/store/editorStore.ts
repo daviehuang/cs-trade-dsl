@@ -62,9 +62,11 @@ export function useEditorStore(initial: Bundle): EditorStore {
   const [rev, setRev] = useState(0);
   const cur = hist[idx];
 
-  // ruleSet / libraries 引用变化检测 → sessionRev
-  const refs = useRef({ rs: cur.ruleSet, libs: cur.libraries, mocks: cur.mocks, n: 0 });
-  if (refs.current.rs !== cur.ruleSet || refs.current.libs !== cur.libraries || refs.current.mocks !== cur.mocks) { refs.current = { rs: cur.ruleSet, libs: cur.libraries, mocks: cur.mocks, n: refs.current.n + 1 }; }
+  // ruleSet / libraries / mocks / data 引用变化检测 → sessionRev（App 用它当 Preview 的 key）
+  //   data 也必须纳入：引擎 session 只在挂载时吃一次 data，不跟踪就会出现
+  //   「setData 了但预览还是旧数据」（保存数据 / 测试数据两处都依赖它重建 session）。
+  const refs = useRef({ rs: cur.ruleSet, libs: cur.libraries, mocks: cur.mocks, data: cur.data, n: 0 });
+  if (refs.current.rs !== cur.ruleSet || refs.current.libs !== cur.libraries || refs.current.mocks !== cur.mocks || refs.current.data !== cur.data) { refs.current = { rs: cur.ruleSet, libs: cur.libraries, mocks: cur.mocks, data: cur.data, n: refs.current.n + 1 }; }
   const sessionRev = refs.current.n;
 
   const commit = useCallback((next: Bundle) => {

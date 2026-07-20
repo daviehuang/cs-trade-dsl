@@ -221,7 +221,7 @@ export default function App() {
 
       {showPreview && (
         <Modal title="实时预览" onClose={() => setShowPreview(false)} wide resizable>
-          <Preview key={s.sessionRev} ruleSet={s.ruleSet} imports={s.libraries} data={s.data} pageDef={s.pageDef} mocks={s.mocks} lintErr={pageLint.filter((i) => i.level === 'error').length} />
+          <Preview key={s.sessionRev} ruleSet={s.ruleSet} imports={s.libraries} data={s.data} pageDef={s.pageDef} mocks={s.mocks} lintErr={pageLint.filter((i) => i.level === 'error').length} setData={s.setData} />
         </Modal>
       )}
       {showStore && (

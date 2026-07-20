@@ -7,8 +7,9 @@ import { saveData } from './store/remoteStore';
 
 // 实时预览 + 检查器：用【当前 RuleSet】建真 session，渲染【当前 PageDef】。
 //   resolve 由「取数模拟」的 mocks 生成；App 用 key={sessionRev} 让 RuleSet/库/mocks 变化时 remount。
-export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr }: {
+export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr, setData }: {
   ruleSet: RuleSet; imports: Record<string, RuleSet>; data: any; pageDef: PageDef; mocks: Mocks; lintErr: number;
+  setData: (d: any) => void;
 }) {
   const resolve = useMemo(() => makeResolveFromMocks(mocks), [mocks]);
   const { ctx, getState, explain, structVersion, error } = useEngineSession({ createSession, ruleSet, imports, data, resolve, reconstructOverrides: true, resetRules: pageDef.resetRules });
@@ -16,10 +17,14 @@ export function Preview({ ruleSet, imports, data, pageDef, mocks, lintErr }: {
   const [saveMsg, setSaveMsg] = useState('');
   // 保存运行时页面数据到仓库：treeToData(实时树) → PUT /api/data/<场景 ruleSetId>。
   //   存的是「值树」（含计算值），reload 时 createSession(ruleSet, data) 复原、reconstructOverrides 反推非外部覆盖。
+  //   同时回写 editorStore.data —— 否则 editorStore 仍持有旧 data 并写回 localStorage，
+  //   下次进编辑器复原的还是旧值，刚存到仓库的数据看不见（远端存了、本地没跟上）。
   const onSaveData = async () => {
     setSaveMsg('保存中…');
     try {
-      await saveData(ruleSet.ruleSetId, treeToData(getState().tree));
+      const snapshot = treeToData(getState().tree);
+      await saveData(ruleSet.ruleSetId, snapshot);
+      setData(snapshot);                       // 本地同步：持久化到 localStorage + 触发预览用新数据重建 session
       setSaveMsg('✅ 已保存到仓库');
     } catch (e: any) {
       setSaveMsg('⛔ ' + (e?.message ?? String(e)));
