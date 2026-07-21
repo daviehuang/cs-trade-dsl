@@ -6,6 +6,7 @@ import ruleSetJson from '../../lc-rules.json';
 import commonFxJson from '../../commonFx.json';
 import commonPartyJson from '../../commonParty.json';
 import commonMixPaymentJson from '../../commonMixPayment.json';
+import commonChargeJson from '../../commonCharge.json';
 import dataJson from '../../lc-data.json';
 import pageDefJson from '../../angular-lc-sample/src/assets/pages/lcSettlement.page.json';
 
@@ -36,6 +37,7 @@ const initial = {
     'commonFx@1.0.0': commonFxJson as unknown as RuleSet,
     'commonParty@1.0.0': commonPartyJson as unknown as RuleSet,
     'commonMixPayment@1.0.0': commonMixPaymentJson as unknown as RuleSet,
+    'commonCharge@1.0.0': commonChargeJson as unknown as RuleSet,
   } as Record<string, RuleSet>,
   mocks: DEFAULT_MOCKS,
 };
