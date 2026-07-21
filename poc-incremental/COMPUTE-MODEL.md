@@ -68,6 +68,59 @@ resolver 的 `key` 变化 → 置 `pending` + 发起取数 → 下游读到 `pen
   流处理的状态依赖到达顺序与时间，难以「同输入同输出」地复算。
 - **增量即性能**：脏传播 + 值相等截断，让「上千栏位、嵌套子记录、计算含取数」也只付出 O(受影响子图) 的代价。
 
+## 中台（BFF）重算时的两条汇率处理线路
+
+中台重算（`bff/validate.js`）**不信任前端提交的任何计算值与汇率值**：它只取原始输入、用同一内核重算。
+其中「汇率」（datasource / resolver 值）被拆成**两条互不相干的线**——一条进计算，一条只做防篡改核对。
+
+### 线路 A：计算用的汇率——中台按 key 重新取数（权威源）
+
+前端提交里的汇率值在重算中**完全不用**。`extractInputs`（`validate.js:69`）只挑输入，把 `computed`/`external` 全丢弃；
+汇率是 **resolver（外部）值**，由中台自己按 key 现取：
+
+```js
+// validate.js:137 —— 用中台权威 resolver 建 session
+const session = createSession(ctx.ruleSet, inputs, { resolve: authResolve, imports: ctx.imports });
+```
+
+引擎每次结算 resolver cell 都**现算 key、key 变则重新取数**（`incremental.js:314-320`）：
+
+```js
+for (const [k, expr] of Object.entries(cell.key)) keyVals[k] = evaluate(expr, gctx).value;
+const keyStr = ser(keyVals);
+if (keyStr === cell.lastKey && cell.state === "resolved") { /* 复用 */ }
+else { cell.lastKey = keyStr; state = "pending"; fireKey = keyVals; }   // → resolveFn(source, key)
+```
+
+`resolveFn` 即 `authResolve`（`validate.js:17`）——按 `${key.from}-${key.to}` 查中台**权威汇率表** `AUTH_RATES`。
+取回的汇率写进 resolver cell，下游公式依赖它参与重算。**「未篡改即一致」靠的是中台权威源与前端源同表**（`validate.js:14`）——
+前端把汇率改了也没用，重算根本不读它。
+
+### 线路 B：前端钉值（pinned）——不进计算，只按容差核对
+
+前端提交的 `pinned`（当时钉住的汇率快照）**不参与任何计算**，只被 `verifyPinned`（`validate.js:112`）
+拿去和权威汇率**按 dataSource 声明的容差**复核：
+
+```js
+if (!withinTolerance(p.value, auth, tol))
+  out.push({ field: p.field, kind: "rate", client: p.value, server: auth });   // 超容差 → 汇率篡改/过期
+```
+
+命中即并入 `divergences` → `verdict = "REJECT_TAMPER"`。容差类型（绝对/相对）由 `fxRateService` 的 `tolerance` 决定（`validate.js:104-111`）。
+
+### 两条线的分工
+
+| | 线路 A（计算） | 线路 B（钉值核对） |
+|---|---|---|
+| 数据来源 | 中台**按 key 重新取**的权威汇率 | 前端提交的 `pinned` 快照 |
+| 是否进计算 | **是**，resolver cell 参与重算 | **否**，纯旁路核对 |
+| 前端提交的汇率值 | **完全不用**（丢弃后重取） | 作为被核对对象 |
+| 失败后果 | —（重算永远用权威值，不会失败） | 超容差 → `REJECT_TAMPER` |
+| 对应代码 | `validate.js:137` + `incremental.js:314` | `verifyPinned` `validate.js:112` |
+
+> 要点：**汇率永远以中台按 key 重取的权威值参与计算**；前端提交的汇率只当"待核对的证据"。
+> 这样既杜绝了「改汇率蒙混计算」，又能查出「钉值与权威源不符/已过期」。
+
 ## 为什么不开放裸 field.onChange 副作用
 
 > 常被问：「给字段开个 onChange 事件、变化时顺手改别的数据，会不会干扰这套机制？」
