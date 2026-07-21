@@ -268,4 +268,5 @@ case-when 字段分流 / slot 递归清字段 / children 删行带重建）。
 ## 延伸阅读
 
 - README「引擎怎么做到的」「与全量重算引擎的对比」：`README.md`
+- 调后台 API 的复杂计费（resolver 多字段取数 + pick）：`CHARGE-SERVICE.md`
 - 引擎源码：`src/incremental.js`（`recompute` / `settle` / `setInput` / `addChild` / `removeChild`）
