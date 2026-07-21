@@ -10,10 +10,10 @@
         { "kind": "field", "field": "productType" },
         { "kind": "field", "field": "amount" },
         { "kind": "field", "field": "tier" },
-        { "kind": "field", "field": "chgBase" },
-        { "kind": "field", "field": "chgTax" },
-        { "kind": "field", "field": "chgFee" },
-        { "kind": "field", "field": "chgTotal" }
+        { "kind": "cell", "field": "chgBase", "label": "基础费" },
+        { "kind": "cell", "field": "chgTax", "label": "税费" },
+        { "kind": "cell", "field": "chgFee", "label": "服务费" },
+        { "kind": "cell", "field": "chgTotal", "label": "费用合计", "emphasis": true }
       ]
     }
   ]

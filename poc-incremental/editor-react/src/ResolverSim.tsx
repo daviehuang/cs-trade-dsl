@@ -28,32 +28,46 @@ export function ResolverSim({ ruleSet, imports, mocks, mutateMocks }: Props) {
 
       {sources.map((d) => {
         const schema = Object.keys(d.keySchema ?? {});
+        // 多字段源（returns:object + valueFields）：一行返回一个对象，供 resolver.pick 取项 → 每个字段一列。
+        const valueFields: string[] = Array.isArray(d.valueFields) ? d.valueFields : [];
+        const multi = valueFields.length > 0;
         const cfg = cfgOf(d.sourceId);
+        const patchRow = (i: number, fn: (r: MockRow) => MockRow) => setCfg(d.sourceId, { rows: cfg.rows.map((r, j) => (j === i ? fn(r) : r)) });
         return (
           <div key={d.sourceId} className="rule-form" style={{ marginTop: 8 }}>
-            <div className="rf-h"><b>{d.sourceId}</b><span className="muted" style={{ marginLeft: 8 }}>returns {d.returns} · key: {schema.join(', ') || '无'}</span></div>
+            <div className="rf-h"><b>{d.sourceId}</b><span className="muted" style={{ marginLeft: 8 }}>returns {d.returns}{multi ? `（${valueFields.join('/')}）` : ''} · key: {schema.join(', ') || '无'}</span></div>
             <div className="ed-row">
               <label>延迟 ms<input type="number" value={cfg.delayMs} onChange={(e) => setCfg(d.sourceId, { delayMs: Number(e.target.value) || 0 })} style={{ width: 90 }} /></label>
-              <label>未命中 fallback<input value={cfg.fallback ?? ''} onChange={(e) => setCfg(d.sourceId, { fallback: e.target.value === '' ? undefined : e.target.value })} placeholder="留空=取数报错" style={{ width: 140 }} /></label>
+              {!multi && <label>未命中 fallback<input value={cfg.fallback ?? ''} onChange={(e) => setCfg(d.sourceId, { fallback: e.target.value === '' ? undefined : e.target.value })} placeholder="留空=取数报错" style={{ width: 140 }} /></label>}
             </div>
 
             <table className="ed-tbl">
-              <thead><tr>{schema.map((k) => <th key={k}>{k}</th>)}<th>→ 返回值</th><th></th></tr></thead>
+              <thead><tr>
+                {schema.map((k) => <th key={k}>{k}</th>)}
+                {multi ? valueFields.map((vf) => <th key={vf}>→ {vf}</th>) : <th>→ 返回值</th>}
+                <th></th>
+              </tr></thead>
               <tbody>
                 {cfg.rows.map((row, i) => (
                   <tr key={i}>
                     {schema.map((k) => (
-                      <td key={k}><input value={row.when[k] ?? ''} onChange={(e) => setCfg(d.sourceId, { rows: cfg.rows.map((r, j) => j === i ? { ...r, when: { ...r.when, [k]: e.target.value } } : r) })} placeholder={k} style={{ width: 90 }} /></td>
+                      <td key={k}><input value={row.when[k] ?? ''} onChange={(e) => patchRow(i, (r) => ({ ...r, when: { ...r.when, [k]: e.target.value } }))} placeholder={k} style={{ width: 90 }} /></td>
                     ))}
-                    <td><input value={row.value} onChange={(e) => setCfg(d.sourceId, { rows: cfg.rows.map((r, j) => j === i ? { ...r, value: e.target.value } : r) })} placeholder="value" style={{ width: 100 }} /></td>
+                    {multi
+                      ? valueFields.map((vf) => (
+                          <td key={vf}><input value={row.values?.[vf] ?? ''} onChange={(e) => patchRow(i, (r) => ({ ...r, values: { ...(r.values ?? {}), [vf]: e.target.value } }))} placeholder={vf} style={{ width: 90 }} /></td>
+                        ))
+                      : <td><input value={row.value ?? ''} onChange={(e) => patchRow(i, (r) => ({ ...r, value: e.target.value }))} placeholder="value" style={{ width: 100 }} /></td>}
                     <td className="ops"><button className="del" onClick={() => setCfg(d.sourceId, { rows: cfg.rows.filter((_, j) => j !== i) })}>✕</button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <div className="ed-row">
-              <button className="primary" onClick={() => setCfg(d.sourceId, { rows: [...cfg.rows, { when: Object.fromEntries(schema.map((k) => [k, ''])), value: '' }] })}>＋ 加一行</button>
-              <span className="muted" style={{ fontSize: 17 }}>按顺序取第一条全部条件命中的行</span>
+              <button className="primary" onClick={() => setCfg(d.sourceId, { rows: [...cfg.rows, multi
+                ? { when: Object.fromEntries(schema.map((k) => [k, ''])), values: Object.fromEntries(valueFields.map((vf) => [vf, ''])) }
+                : { when: Object.fromEntries(schema.map((k) => [k, ''])), value: '' }] })}>＋ 加一行</button>
+              <span className="muted" style={{ fontSize: 17 }}>按顺序取第一条全部条件命中的行{multi ? '，一行返回整个对象' : ''}</span>
             </div>
           </div>
         );
