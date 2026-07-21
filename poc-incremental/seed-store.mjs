@@ -27,7 +27,7 @@ export async function seedStore(root = STORE_ROOT) {
   await ensureDirs(root);
 
   // 1) 公共库（ref = ruleSetId@version，取自文件内容）
-  const libFiles = ["commonFx.json", "commonParty.json", "commonMixPayment.json"];
+  const libFiles = ["commonFx.json", "commonParty.json", "commonMixPayment.json", "commonCharge.json"];
   const libRefs = [];
   for (const f of libFiles) {
     const lib = await readJson(join(HERE, f));
@@ -60,7 +60,22 @@ export async function seedStore(root = STORE_ROOT) {
   };
   await writeJson(join(root, "features", `${feature.featureId}.json`), feature);
 
-  return { libRefs, ruleSet: rsRef, page: pageId, feature: feature.featureId };
+  // 6) 计费示例 feature（多字段取数：commonCharge.chargeCalc → chargeService 一次返回 base/tax/fee）
+  const chgRs = await readJson(join(HERE, "chargeDemo-rules.json"));
+  const chgRef = `${chgRs.ruleSetId}@${chgRs.version}`;
+  await writeJson(join(root, "rulesets", `${chgRef}.json`), chgRs);
+  await writeJson(join(root, "pages", `${chgRs.ruleSetId}.json`), await readJson(join(HERE, "chargeDemo-page.json")));
+  await writeJson(join(root, "data", `${chgRs.ruleSetId}.json`), await readJson(join(HERE, "chargeDemo-data.json")));
+  await writeJson(join(root, "features", `${chgRs.ruleSetId}.json`), {
+    featureId: chgRs.ruleSetId, title: "计费示例（多字段取数）", ruleSet: chgRef, page: chgRs.ruleSetId, data: chgRs.ruleSetId,
+    mocks: { chargeService: { delayMs: 400, rows: [
+      { when: { productType: "LC", tier: "gold" }, values: { base: "120.00", tax: "60.00", fee: "15.00" } },
+      { when: { productType: "LC", tier: "silver" }, values: { base: "100.00", tax: "60.00", fee: "15.00" } },
+      { when: { productType: "LC" }, values: { base: "80.00", tax: "60.00", fee: "15.00" } },
+    ] } },
+  });
+
+  return { libRefs, ruleSet: rsRef, page: pageId, feature: feature.featureId, extraFeatures: [chgRs.ruleSetId] };
 }
 
 // 作为脚本直接运行

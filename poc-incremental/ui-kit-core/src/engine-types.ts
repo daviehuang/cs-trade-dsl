@@ -15,11 +15,13 @@ export interface RuleSet {
   [k: string]: any;
 }
 
-/** resolve(source, key) 由宿主提供：返回参考数据（如汇率）。引擎自身从不做 IO。 */
+/** resolve(source, key) 由宿主提供：返回参考数据。引擎自身从不做 IO。
+ *  标量源回 { value }（汇率等）；多字段源回 { values: {字段: 值} }（如一次返回 base/tax/fee 的计费服务），
+ *  由 resolver 规则的 pick 取其中一项。 */
 export type ResolveFn = (
   source: string,
   key: Record<string, any>,
-) => Promise<{ value: string; asOf?: string; rateId?: string }>;
+) => Promise<{ value?: string; values?: Record<string, string>; asOf?: string; rateId?: string }>;
 
 export interface SessionOpts {
   resolve?: ResolveFn;

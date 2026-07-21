@@ -1,0 +1,43 @@
+{
+  "ruleSetId": "commonCharge",
+  "version": "1.0.0",
+  "description": "公共复杂计费模块库：调后台 chargeService（一次返回 base/tax/fee 多字段）→ 摊到三个外部字段，本地汇总 total。被各产品 RuleSet import + uses。",
+  "dataSources": [
+    {
+      "sourceId": "chargeService",
+      "version": "1.0.0",
+      "returns": "object",
+      "valueFields": ["base", "tax", "fee"],
+      "keySchema": { "productType": "string", "amount": "decimal", "tier": "string", "valueDate": "date" },
+      "authority": "server",
+      "tolerance": { "type": "absolute", "value": "0.01" }
+    }
+  ],
+  "contextKeys": {
+    "valueDate": { "type": "date", "desc": "计费业务日（chargeService 按此日取费率表）" }
+  },
+  "modules": {
+    "chargeCalc": {
+      "moduleId": "chargeCalc",
+      "version": "1.0.0",
+      "inputs": { "productType": "string", "amount": "decimal", "tier": "string" },
+      "context": ["valueDate"],
+      "fields": {
+        "base": { "type": "decimal", "external": true },
+        "tax":  { "type": "decimal", "external": true },
+        "fee":  { "type": "decimal", "external": true },
+        "total": { "type": "decimal", "computed": true }
+      },
+      "rules": [
+        { "id": "rBase", "type": "resolver", "target": "base", "source": "chargeService", "pick": "base",
+          "key": { "productType": "productType", "amount": "amount", "tier": "tier", "valueDate": "ctx.valueDate" } },
+        { "id": "rTax", "type": "resolver", "target": "tax", "source": "chargeService", "pick": "tax",
+          "key": { "productType": "productType", "amount": "amount", "tier": "tier", "valueDate": "ctx.valueDate" } },
+        { "id": "rFee", "type": "resolver", "target": "fee", "source": "chargeService", "pick": "fee",
+          "key": { "productType": "productType", "amount": "amount", "tier": "tier", "valueDate": "ctx.valueDate" } },
+        { "id": "rTotal", "type": "formula", "target": "total", "expr": "base + tax + fee" }
+      ],
+      "outputs": ["base", "tax", "fee", "total"]
+    }
+  }
+}

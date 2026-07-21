@@ -14,9 +14,15 @@ const STORE = process.env.STORE_URL || "http://localhost:8788/api";
 // 中台权威数据源（ruleset 无关；生产中是独立权威服务；这里与前端同表，使"未篡改即一致"）
 const AUTH_RATES = { "USD-CNY": "7.1234", "EUR-CNY": "7.8901", "HKD-CNY": "0.9123", "GBP-CNY": "9.1234", "JPY-CNY": "0.0481", "SGD-CNY": "5.2710", "CNY-CNY": "1" };
 const AUTH_SANCTIONS = { SDNXKP01: "95", OFACUS00: "88" };
+// 复杂计费权威源（一次返回多字段对象）；与 fx.ts / editor mock 同表，保证"未篡改即一致"。
+const AUTH_CHARGE = { "LC|gold": { base: "120.00", tax: "60.00", fee: "15.00" }, "LC|silver": { base: "100.00", tax: "60.00", fee: "15.00" }, "LC|": { base: "80.00", tax: "60.00", fee: "15.00" } };
 function authResolve(source, key) {
   if (source === "sanctionsService")
     return Promise.resolve({ value: AUTH_SANCTIONS[key.bic] || "0", asOf: "server", rateId: "scr_" + (key.bic || "none") });
+  if (source === "chargeService") {                       // 多字段：回 { values }，供 resolver.pick 摊到各字段
+    const v = AUTH_CHARGE[`${key.productType}|${key.tier}`] || AUTH_CHARGE[`${key.productType}|`];
+    return v ? Promise.resolve({ values: v, asOf: "server", rateId: "chg_" + key.productType }) : Promise.reject(new Error("无权威计费 " + key.productType));
+  }
   const r = AUTH_RATES[`${key.from}-${key.to}`];
   return r ? Promise.resolve({ value: r, asOf: "server", rateId: "srv_" + key.from }) : Promise.reject(new Error("无权威汇率 " + key.from + "→" + key.to));
 }
@@ -109,15 +115,24 @@ function withinTolerance(client, auth, tol) {
   if (tol.type === "relative") return a.isZero() ? c.isZero() : diff.div(a.abs()).lte(new Decimal(tol.value));
   return diff.lte(new Decimal(tol.value)); // absolute
 }
-function verifyPinned(ctx, pinned) {
-  const ds = ctx.dataSources["fxRateService"];
-  const tol = ds && ds.tolerance;
+//   源无关：每条钉值按 p.source 走权威 resolver 重取（多字段源用 p.pick 取项），按该源 tolerance 复核。
+//   按 (source,key) 记忆化 → 多字段源的 N 个 pick 只打 1 次权威后台。
+async function verifyPinned(ctx, pinned) {
   const out = [];
+  const memo = new Map();
+  const authFetch = (source, key) => {
+    const k = source + "|" + JSON.stringify(key);
+    if (!memo.has(k)) memo.set(k, Promise.resolve(authResolve(source, key)).then((r) => r, () => null));
+    return memo.get(k);
+  };
   for (const p of pinned || []) {
-    const auth = AUTH_RATES[`${p.key.from}-${p.key.to}`];
-    if (auth === undefined) { out.push({ field: p.field, kind: "rate-unknown", client: p.value, server: "(无权威汇率)" }); continue; }
+    const source = p.source || "fxRateService";
+    const tol = (ctx.dataSources[source] || {}).tolerance;
+    const res = await authFetch(source, p.key);
+    const auth = res == null ? undefined : (p.pick != null ? (res.values ? res.values[p.pick] : res[p.pick]) : res.value);
+    if (auth === undefined || auth === null) { out.push({ field: p.field, kind: "rate-unknown", client: p.value, server: "(无权威值)" }); continue; }
     if (!withinTolerance(p.value, auth, tol))
-      out.push({ field: p.field, kind: "rate", client: p.value, server: auth }); // 钉值汇率与权威源不符（超容差）
+      out.push({ field: p.field, kind: p.pick != null ? "resolver" : "rate", client: p.value, server: auth }); // 钉值与权威源不符（超容差）
   }
   return out;
 }
@@ -147,8 +162,8 @@ export async function validateSubmission(payload) {
 
   // 3) 比对计算值：被合法覆盖的字段中台已应用同值 → 一致；其余计算值若被改 → 篡改
   compare(ctx, submitted, st.tree, divergences);
-  // 3b) 钉值汇率权威复核（汇率篡改/过期）
-  divergences.push(...verifyPinned(ctx, payload.pinned));
+  // 3b) 钉值权威复核（汇率/多字段计费 篡改或过期）
+  divergences.push(...(await verifyPinned(ctx, payload.pinned)));
 
   // 4) 权威业务校验（本套规则 + 其 import 库声明的所有 validation）
   const valFails = st.validations.filter((v) => v.state === "resolved" && !v.ok);

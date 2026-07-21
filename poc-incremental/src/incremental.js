@@ -202,7 +202,8 @@ export function createSession(ruleSet, data, opts = {}) {
       } });
     } else if (rule.type === "resolver") {
       const id = path + "." + rule.target;
-      cells.set(id, { ...base, id, kind: "resolver", source: rule.source, key: rule.key, lastKey: null, pinned: null });
+      // pick：数据源返回多字段对象时，本 resolver 取其中一项（res.values[pick]）。缺省=返回值即标量（向后兼容）。
+      cells.set(id, { ...base, id, kind: "resolver", source: rule.source, key: rule.key, pick: rule.pick ?? null, lastKey: null, pinned: null });
     } else if (rule.type === "validation") {
       const id = path + ".__val_" + rule.id;
       // 该节点占据可选 slot（optionalSlot）时，包一层"存在才校验"守卫：全空则通过（跳过），填了任一字段则照常校验。
@@ -272,7 +273,7 @@ export function createSession(ruleSet, data, opts = {}) {
           cells.set(id, { id, kind: "computed", nodePath: ns, type: ftype, deps: new Set(), dependents: new Set(), state: "stale", value: null,
             cases: [{ whenExpr: null, expr: r.expr, compute: () => evaluate(r.expr, mctx()).value }], fallback: null });
         else if (r.type === "resolver")
-          cells.set(id, { id, kind: "resolver", nodePath: ns, source: r.source, key: r.key, lastKey: null, pinned: null,
+          cells.set(id, { id, kind: "resolver", nodePath: ns, source: r.source, key: r.key, pick: r.pick ?? null, lastKey: null, pinned: null,
             deps: new Set(), dependents: new Set(), state: "stale", value: null, getCtx: mctx });
         else if (r.type === "validation")    // 模块内校验：在模块上下文求值，上浮到 getState().validations（带 host 节点）
           cells.set(`${ns}.__val_${r.id}`, { id: `${ns}.__val_${r.id}`, kind: "validation", nodePath: ns, hostNode: hostPath,
@@ -369,8 +370,10 @@ export function createSession(ruleSet, data, opts = {}) {
     Promise.resolve(resolveFn(cell.source, keyVals)).then(
       (res) => {
         if (cell.dead) { finishFetch(); return; }     // 取数返回时该子记录已被删除
-        cell.state = "resolved"; cell.value = new Decimal(String(res.value));
-        cell.pinned = { field: cell.id, value: fmt(cell.value), source: cell.source, key: keyVals, asOf: res.asOf, rateId: res.rateId };
+        // pick 时从多字段对象取一项（res.values[pick]，兼容顶层 res[pick]）；否则整个 res.value 即标量。
+        const raw = cell.pick != null ? (res.values ? res.values[cell.pick] : res[cell.pick]) : res.value;
+        cell.state = "resolved"; cell.value = new Decimal(String(raw));
+        cell.pinned = { field: cell.id, value: fmt(cell.value), source: cell.source, key: keyVals, pick: cell.pick ?? undefined, asOf: res.asOf, rateId: res.rateId };
         onLog({ id: cell.id, kind: "resolver", state: "resolved", value: fmt(cell.value), rateId: res.rateId });
         for (const dep of cell.dependents) dirty.add(dep);
         settle(); finishFetch();
@@ -542,7 +545,7 @@ export function createSession(ruleSet, data, opts = {}) {
         e.overridden = c.state === "overridden";
         e.overridable = !!(c.activeOverridable !== undefined ? c.activeOverridable : c.overridable);
       } else if (c.kind === "resolver") {
-        e.source = c.source; e.key = c.key; e.lastKey = c.lastKey;
+        e.source = c.source; e.key = c.key; e.lastKey = c.lastKey; if (c.pick != null) e.pick = c.pick;
       } else if (c.kind === "validation") {
         e.expr = c.expr; e.ruleId = c.ruleId; e.severity = c.severity;
         e.ok = c.state === "resolved" ? c.value === true : null;

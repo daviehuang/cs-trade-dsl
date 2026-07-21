@@ -1,0 +1,35 @@
+{
+  "ruleSetId": "chargeDemo",
+  "version": "1.0.0",
+  "schemaVersion": "1.0",
+  "status": "draft",
+  "description": "示例场景：调 commonCharge.chargeCalc（后台 chargeService 一次返回 base/tax/fee）计费",
+  "imports": [
+    { "ref": "commonCharge@1.0.0", "as": "cc" }
+  ],
+  "context": { "valueDate": "root.bizDate" },
+  "model": {
+    "root": "Deal",
+    "nodes": {
+      "Deal": {
+        "fields": {
+          "bizDate": { "type": "date", "label": "业务日" },
+          "productType": { "type": "string", "label": "产品类型" },
+          "amount": { "type": "decimal", "label": "金额" },
+          "tier": { "type": "string", "label": "费率档" },
+          "chgBase": { "type": "decimal", "external": true, "label": "基础费" },
+          "chgTax": { "type": "decimal", "external": true, "label": "税费" },
+          "chgFee": { "type": "decimal", "external": true, "label": "服务费" },
+          "chgTotal": { "type": "decimal", "computed": true, "label": "费用合计" }
+        }
+      }
+    }
+  },
+  "uses": [
+    {
+      "use": "cc.chargeCalc", "on": "Deal", "as": "chg",
+      "bind": { "productType": "productType", "amount": "amount", "tier": "tier" },
+      "produce": { "base": "chgBase", "tax": "chgTax", "fee": "chgFee", "total": "chgTotal" }
+    }
+  ]
+}

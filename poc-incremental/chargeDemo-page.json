@@ -1,0 +1,20 @@
+{
+  "ruleSetRef": "chargeDemo@1.0.0",
+  "title": "计费示例",
+  "layout": [
+    {
+      "kind": "panel",
+      "grid": "cards",
+      "children": [
+        { "kind": "field", "field": "bizDate", "control": "date" },
+        { "kind": "field", "field": "productType" },
+        { "kind": "field", "field": "amount" },
+        { "kind": "field", "field": "tier" },
+        { "kind": "field", "field": "chgBase" },
+        { "kind": "field", "field": "chgTax" },
+        { "kind": "field", "field": "chgFee" },
+        { "kind": "field", "field": "chgTotal" }
+      ]
+    }
+  ]
+}

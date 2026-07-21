@@ -10,10 +10,30 @@ const RATES: Record<string, string> = {
 const SANCTIONS: Record<string, string> = { SDNXKP01: '95', OFACUS00: '88' };
 let seq = 9100000;
 
+// 复杂计费后台（一次返回多字段对象）；引擎按字段各发一个 pick，宿主须记忆化避免重复调用（见下）。
+//   与 editor mock / BFF authResolve 同表（按 productType+tier），保证"未篡改即一致"。
+const CHARGE: Record<string, Record<string, string>> = {
+  'LC|gold': { base: '120.00', tax: '60.00', fee: '15.00' },
+  'LC|silver': { base: '100.00', tax: '60.00', fee: '15.00' },
+  'LC|': { base: '80.00', tax: '60.00', fee: '15.00' },
+};
+function chargeApi(key: Record<string, unknown>): Record<string, string> {
+  return CHARGE[`${key['productType']}|${key['tier']}`] ?? CHARGE[`${key['productType']}|`] ?? { base: '0', tax: '0', fee: '0' };
+}
+
 /** 按 source 路由数据源；延迟模拟后台取数。 */
 export function makeResolve(delay = 600): ResolveFn {
-  return (source, key) =>
-    new Promise((res, rej) => {
+  // (source,key) 记忆化：commonCharge 的 base/tax/fee 三个 pick 用同一 key → 只打一次真实后台，
+  //   且三者取自同一快照，保证一致。缓存永久有效——数据源须是 key 的纯函数（与"稳态=输入纯函数"同一前提）。
+  const cache = new Map<string, Promise<any>>();
+  return (source, key) => {
+    if (source === 'chargeService') {
+      const ck = 'chargeService|' + JSON.stringify(key);
+      if (!cache.has(ck))
+        cache.set(ck, new Promise((res) => setTimeout(() => res({ values: chargeApi(key), asOf: '2026-06-25', rateId: 'chg_' + ++seq }), delay)));
+      return cache.get(ck)!;
+    }
+    return new Promise((res, rej) => {
       setTimeout(() => {
         if (source === 'sanctionsService') {
           res({ value: SANCTIONS[key['bic']] ?? '0', asOf: '2026-06-25', rateId: 'scr_' + (key['bic'] || 'none') });
@@ -24,4 +44,5 @@ export function makeResolve(delay = 600): ResolveFn {
         else rej(new Error(`无汇率 ${key['from']}→${key['to']}`));
       }, delay);
     });
+  };
 }
