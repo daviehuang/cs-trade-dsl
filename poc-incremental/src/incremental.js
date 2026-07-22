@@ -39,6 +39,7 @@ export function createSession(ruleSet, data, opts = {}) {
   const mergedLocalModules = { ...importedModulesFlat, ...(ruleSet.modules || {}) }; // 裸名解析：本地 + 各库扁平
 
   const cells = new Map();
+  const resolverSeedPath = new Map();   // 模块 produce 的 resolver cell id → 其产出宿主字段的 data 路径（供加载时从 data 种回汇率值）
   const dirty = new Set();
   let CURRENT = null;
   let outstanding = 0;
@@ -287,6 +288,8 @@ export function createSession(ruleSet, data, opts = {}) {
         cells.set(id, { id, kind: "computed", nodePath: hostPath, type: fspec.type, overridable: !!fspec.overridable,
           deps: new Set(), dependents: new Set(), state: "stale", value: null,
           cases: [{ whenExpr: null, expr: out, compute: () => evaluate(out, mctx()).value }], fallback: null });
+        // 该模块输出若是 resolver（如汇率 rate），记录它产出的宿主字段路径 → 加载时可从 data[hostField] 种回 resolver
+        if (cells.get(`${ns}.${out}`)?.kind === "resolver") resolverSeedPath.set(`${ns}.${out}`, id);
       }
   }
   // use.on 可为基类：命中所有 is-a 该类型的具体节点（含子类型）
@@ -457,30 +460,6 @@ export function createSession(ruleSet, data, opts = {}) {
   //   默认只对【非外部依赖】字段反推（skipExternalDependent=true）：依赖 resolver 的字段重算含汇率漂移，易误判。
   //   迭代 fixpoint：上游覆盖先落，下游按更新后的重算值再比对——避免"下游值只因上游覆盖而变"被误判为覆盖。
   function reconstructOverrides(data, opts = {}) {
-    // pins（存盘时的 resolver 值，如汇率）：先“种”回各 resolver cell → 反推按【存盘汇率】比对，
-    //   无漂移，外部依赖字段也能准确判定，无需 skipExternalDependent 启发式。
-    //   createSession 初次结算已按当前 key 发起取数（在途）；种回后本次用存盘值重算基线，
-    //   在途取数稍后返回即自然刷新（“重新获取 pin 值 → 重算校验”）。
-    const pins = opts.pins || null;
-    const skipExt = pins ? (opts.skipExternalDependent === true) : (opts.skipExternalDependent !== false);
-    if (pins) for (const p of pins) {
-      const c = cells.get(p.field);
-      if (c && c.kind === "resolver" && p.value != null) {
-        c.value = new Decimal(String(p.value)); c.state = "resolved";   // lastKey 已由初次结算按当前 key 落定 → 本次不再重取
-        for (const d of c.dependents) dirty.add(d);
-      }
-    }
-    settle();                                          // 干净重算基线（种回存盘汇率后；尚无 override）
-    // 传递外部依赖判定（基于纯公式依赖图，预填 memo）
-    const extMemo = new Map();
-    const dependsOnExternal = (id, seen = new Set()) => {
-      if (extMemo.has(id)) return extMemo.get(id);
-      if (seen.has(id)) return false; seen.add(id);
-      const c = cells.get(id); let r = false;
-      if (c) for (const d of c.deps) { const dc = cells.get(d); if (dc && dc.kind === "resolver") { r = true; break; } if (dependsOnExternal(d, seen)) { r = true; break; } }
-      extMemo.set(id, r); return r;
-    };
-    for (const c of cells.values()) if (c.kind === "computed") dependsOnExternal(c.id);
     // 从 raw data 树按 cell.id（如 root.charges[0].items[0].base）取存值
     const storedAt = (id) => {
       let cur = data;
@@ -491,6 +470,32 @@ export function createSession(ruleSet, data, opts = {}) {
       }
       return cur;
     };
+    // ── “种回”resolver 值（如汇率）：使反推按【存盘那一刻的汇率】比对，无漂移；外部依赖字段的真覆盖也能准确恢复。
+    //   来源优先级：opts.pins（显式带 cell 路径）→ 否则从 data 里的外部字段值（模块 produce 的 resolver 走
+    //   resolverSeedPath 映射到其产出宿主字段，直接 resolver 走自身路径）。→ 只靠 data 即可，无需改存储结构。
+    //   种回后该 resolver 视为已解析(resolved)；createSession 初次结算已在途的取数稍后返回 → 自然刷新为权威值。
+    const seeded = new Set();                          // 成功从存盘值种回的 resolver（其下游才可安全反推）
+    const seedResolver = (c, v) => {
+      if (!c || c.kind !== "resolver" || v == null || v === "") return;
+      let dv; try { dv = new Decimal(String(v)); } catch { return; }   // 非数值（如空串/占位）→ 不种回，让其正常取数
+      c.value = dv; c.state = "resolved"; seeded.add(c.id); for (const d of c.dependents) dirty.add(d);
+    };
+    if (opts.pins) for (const p of opts.pins) seedResolver(cells.get(p.field), p.value);
+    else for (const c of cells.values()) if (c.kind === "resolver") seedResolver(c, storedAt(resolverSeedPath.get(c.id) || c.id));
+    settle();                                          // 用种回的存盘汇率重算基线（尚无 override）
+    // 外部依赖判定：依赖【未从存盘种回的 resolver】的字段视为不可信——不知道存盘时是哪个汇率，
+    //   拿 pending/live 值比对会把漂移误判成覆盖，故跳过。依赖已种回 resolver 的字段可安全反推
+    //   （用存盘汇率、无漂移）——这正是让 negoAmount 这类外部依赖字段的真覆盖也能恢复的关键。
+    const extMemo = new Map();
+    const dependsOnUnseededExt = (id, seen = new Set()) => {
+      if (extMemo.has(id)) return extMemo.get(id);
+      if (seen.has(id)) return false; seen.add(id);
+      const c = cells.get(id); let r = false;
+      if (c) for (const d of c.deps) { const dc = cells.get(d); if (dc && dc.kind === "resolver" && !seeded.has(dc.id)) { r = true; break; } if (dependsOnUnseededExt(d, seen)) { r = true; break; } }
+      extMemo.set(id, r); return r;
+    };
+    for (const c of cells.values()) if (c.kind === "computed") dependsOnUnseededExt(c.id);
+    const skipExt = opts.skipExternalDependent !== false;   // 默认跳“依赖未种回 resolver”的字段（避免拿未知汇率误判）；种回成功的字段照常反推
     const applied = [];
     for (let guard = 0; guard <= cells.size + 2; guard++) {
       let pick = null;

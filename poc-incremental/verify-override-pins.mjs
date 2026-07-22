@@ -80,6 +80,19 @@ const vNego = stB.validations.find((v) => v.id === 'vNego');
 console.log('  校验 vNego:', JSON.stringify(vNego));
 check(vNego && vNego.state === 'resolved' && vNego.ok === true, '校验已重跑：nego(6553520) ≤ finalAmt(6553528) 通过');
 
+// ── 阶段 4：只靠 data 反推（不传 pins）——存储保持纯值树，引擎从 data.fxRate 自己种回 resolver ──
+banner('阶段C：只传 data（无 pins）也能反推——保持存储干净');
+const C = createSession(HOST, structuredClone(savedData), { resolve, imports });
+const appliedC = C.reconstructOverrides(structuredClone(savedData));   // 注意：没有 pins！
+let c = C.getState().tree.fields;
+console.log('  反推(仅 data)覆盖字段:', JSON.stringify(appliedC), ' | nego =', c.nego.value, '(', c.nego.state, ')');
+check(appliedC.includes('root.nego'), '仅凭 data 也把 nego 识别为 override（从 data.fxRate 种回汇率）');
+check(!appliedC.includes('root.finalAmt'), 'finalAmt 未被误判');
+check(c.nego.value === '6553520' && c.nego.state === 'overridden', 'nego = 6553520 且 overridden');
+await C.idle();
+const cc = C.getState().tree.fields;
+check(cc.nego.value === '6553520' && cc.finalAmt.value === '6553528', '取数刷新后：覆盖保留、finalAmt 权威重算');
+
 console.log('\n' + (pass ? '✅ 反推→取pin→重算校验 序列 全部通过' : '❌ 存在失败项'));
 process.exit(pass ? 0 : 1);
 
