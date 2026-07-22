@@ -188,10 +188,24 @@ if (!withinTolerance(p.value, auth, tol))
 | 是否进计算 | **是**，resolver cell 参与重算 | **否**，纯旁路核对 |
 | 前端提交的汇率值 | **完全不用**（丢弃后重取） | 作为被核对对象 |
 | 失败后果 | —（重算永远用权威值，不会失败） | 超容差 → `REJECT_TAMPER` |
-| 对应代码 | `validate.js:137` + `incremental.js:314` | `verifyPinned` `validate.js:112` |
+| 对应代码 | `validate.js:152` + `incremental.js:314` | `verifyPinned` `validate.js:120` |
 
 > 要点：**汇率永远以中台按 key 重取的权威值参与计算**；前端提交的汇率只当"待核对的证据"。
 > 这样既杜绝了「改汇率蒙混计算」，又能查出「钉值与权威源不符/已过期」。
+
+### 模块在中台会完整重跑
+
+中台用**同一引擎** `createSession(ctx.ruleSet, inputs, { resolve: authResolve, imports })`（`validate.js:152`）重建会话——`ctx.ruleSet` 是完整规则集（含 `uses`）、`imports` 是含模块定义的库，所以每个 `uses` 的模块照常被 `instantiateUseOnHost` 挂到宿主节点、**内部规则全部重新执行**：
+
+| 模块内 | 中台重算时 |
+|---|---|
+| resolver（汇率/计费） | **按 key 重取权威源**（`authResolve`）——不认前端提交值（即线路 A） |
+| formula / pipeline | 用重取的权威值 + 重算的入参，从头再算 |
+| validation | 重跑，上浮到 `st.validations` 参与裁决 |
+
+**前端提交的模块产出一律不信**：`extractInputs` 只取原始输入，把 computed/external（含模块 `produce` 出来的 `trxRate`/`trxOrderAmt`/`conv`）全部丢弃、由中台从输入重推。
+
+**关键**：模块入参常绑到计算字段（如 `fxConvert.amount ← localOrderAmt`）。中台是先把 `localOrderAmt` 从 `goodsInfo` 重算出来、**再**喂给模块——所以模块拿到的是**中台重算后的入参**，不是前端提交的。整条链（明细 → 本币额 → 模块取汇率 → 换算 → 最终额）在中台重跑，改哪一环都会对不上，端到端防篡改。
 
 ## 加载态重建：从纯值树反推人工覆盖（已落地）
 
