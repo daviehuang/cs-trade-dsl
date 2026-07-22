@@ -144,8 +144,8 @@ function ModuleRules({ mod, dataSources, fieldNames, patchMod }: { mod: any; dat
       <div className="ds-sub">rules（模块内规则）</div>
       {rules.map((r, i) => (
         <div key={i} className="ed-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end', borderBottom: '1px dashed #e6ebf2', paddingBottom: 6 }}>
-          <span className="kind">{r.type}</span>
-          <input value={r.id ?? ''} onChange={(e) => patchRule(i, { id: e.target.value })} placeholder="id" style={{ width: 90 }} />
+          <span className="kind" style={{ alignSelf: 'flex-end', marginBottom: 5 }}>{r.type}</span>
+          <label>id<input value={r.id ?? ''} onChange={(e) => patchRule(i, { id: e.target.value })} placeholder="id" style={{ width: 90 }} /></label>
           {r.type !== 'validation' && (
             <label>target<select value={r.target ?? ''} onChange={(e) => patchRule(i, { target: e.target.value })}>{fieldNames.map((f) => <option key={f}>{f}</option>)}</select></label>
           )}
@@ -181,7 +181,7 @@ function ResolverKey({ r, dataSources, onChange }: { r: any; dataSources: any[];
   const schema = Object.keys(ds?.keySchema ?? {});
   if (!schema.length) return <span className="muted" style={{ fontSize: 17 }}>（选 source 后按 keySchema 填映射）</span>;
   return (
-    <span className="ed-row" style={{ gap: 4, flexWrap: 'wrap' }}>
+    <span className="ed-row" style={{ gap: 4, flexWrap: 'wrap', alignItems: 'flex-end', margin: 0 }}>
       {schema.map((k) => (
         <label key={k} style={{ fontSize: 17 }}>{k}=<input value={r.key?.[k] ?? ''} onChange={(e) => onChange({ ...(r.key ?? {}), [k]: e.target.value })} placeholder="expr" style={{ width: 90 }} /></label>
       ))}
