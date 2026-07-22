@@ -457,8 +457,20 @@ export function createSession(ruleSet, data, opts = {}) {
   //   默认只对【非外部依赖】字段反推（skipExternalDependent=true）：依赖 resolver 的字段重算含汇率漂移，易误判。
   //   迭代 fixpoint：上游覆盖先落，下游按更新后的重算值再比对——避免"下游值只因上游覆盖而变"被误判为覆盖。
   function reconstructOverrides(data, opts = {}) {
-    const skipExt = opts.skipExternalDependent !== false;
-    settle();                                          // 干净重算基线（尚无 override）
+    // pins（存盘时的 resolver 值，如汇率）：先“种”回各 resolver cell → 反推按【存盘汇率】比对，
+    //   无漂移，外部依赖字段也能准确判定，无需 skipExternalDependent 启发式。
+    //   createSession 初次结算已按当前 key 发起取数（在途）；种回后本次用存盘值重算基线，
+    //   在途取数稍后返回即自然刷新（“重新获取 pin 值 → 重算校验”）。
+    const pins = opts.pins || null;
+    const skipExt = pins ? (opts.skipExternalDependent === true) : (opts.skipExternalDependent !== false);
+    if (pins) for (const p of pins) {
+      const c = cells.get(p.field);
+      if (c && c.kind === "resolver" && p.value != null) {
+        c.value = new Decimal(String(p.value)); c.state = "resolved";   // lastKey 已由初次结算按当前 key 落定 → 本次不再重取
+        for (const d of c.dependents) dirty.add(d);
+      }
+    }
+    settle();                                          // 干净重算基线（种回存盘汇率后；尚无 override）
     // 传递外部依赖判定（基于纯公式依赖图，预填 memo）
     const extMemo = new Map();
     const dependsOnExternal = (id, seen = new Set()) => {

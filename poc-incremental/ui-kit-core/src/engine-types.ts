@@ -74,7 +74,7 @@ export interface Session {
   setOverride(path: string, raw: any): void;
   clearOverride(path: string): void;
   /** 从已存字段值重建覆盖态；返回被反推为覆盖的字段列表。opts.skipExternalDependent 默认 true。 */
-  reconstructOverrides(data: any, opts?: { skipExternalDependent?: boolean }): string[];
+  reconstructOverrides(data: any, opts?: { skipExternalDependent?: boolean; pins?: Array<{ field: string; value: string }> }): string[];
   addChild(parentPath: string, collName: string, childObj: any): string;
   removeChild(childPath: string): void;
   getState(): SessionState;
