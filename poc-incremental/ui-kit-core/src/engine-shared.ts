@@ -23,6 +23,8 @@ export interface EngineCtx {
   evalExpr(base: string, expr: string): any;
   /** 注册「引擎更新」监听（让框架在异步取数后重渲染）。返回注销函数。 */
   onTick(cb: () => void): () => void;
+  /** 输入提交（焦点离开输入框）——驱动 resetRules 的 watch（值变化）触发在 blur 时判定，而非输入过程中。 */
+  commitEdit?(): void;
 }
 
 /** 新增子记录时组装初值对象：先取静态模板，再按 newItemInit 逐字段在【集合所属节点】作用域求值覆盖。
@@ -97,8 +99,8 @@ export function attachResetWatcher(
   session: ResetWatchSession,
   rules: ResetRule[] | undefined,
   opts: ResetWatchOpts = {},
-): { seed: () => void; run: () => void } {
-  if (!rules || !rules.length) return { seed: () => {}, run: () => {} };
+): { seed: () => void; run: () => void; commit: () => void } {
+  if (!rules || !rules.length) return { seed: () => {}, run: () => {}, commit: () => {} };
   const onStructChange = opts.onStructChange;
   const lastTrue = new Map<string, boolean>();       // when 触发：上次真值（边沿检测）
   const lastVal = new Map<string, string>();         // watch 触发：上次值（变化检测）
@@ -145,9 +147,14 @@ export function attachResetWatcher(
     else resetTarget(sn.path + '.' + t);                          // 点号相对路径（applicant.name）等
   };
 
-  const scan = (fire: boolean) => {
+  // kind：'when'=只跑布尔边沿规则（onUpdate 每次调，即时）；'watch'=只跑值变化规则（blur commit 时调）；
+  //   undefined=两者都跑（seed 记基线，不触发）。这样 watch 在焦点离开时判定，而非输入过程中每次击键。
+  const scan = (fire: boolean, kind?: 'when' | 'watch') => {
     for (let ri = 0; ri < rules.length; ri++) {
       const rule = rules[ri];
+      const isWatch = !!rule.watch;
+      if (kind === 'when' && isWatch) continue;         // run() 跳过 watch 规则（留给 commit）
+      if (kind === 'watch' && !isWatch) continue;       // commit() 只处理 watch 规则
       const matched: ViewNode[] = [];
       collectScopeNodes(session.getState().tree, rule.scope, matched);  // 每条规则重取树：删行后结构已变
       for (const sn of matched) {
@@ -189,14 +196,16 @@ export function attachResetWatcher(
     }
   };
 
+  const fireScan = (kind: 'when' | 'watch') => {
+    if (running) return;
+    running = true; structDirty = false;
+    try { scan(true, kind); } finally { running = false; }
+    if (structDirty) onStructChange?.();                 // 删行后触发 UI-IR 重建（避免幽灵行/脱节）
+  };
   return {
-    seed: () => scan(false),
-    run: () => {
-      if (running) return;
-      running = true; structDirty = false;
-      try { scan(true); } finally { running = false; }
-      if (structDirty) onStructChange?.();               // 删行后触发 UI-IR 重建（避免幽灵行/脱节）
-    },
+    seed: () => scan(false),                             // 记 when 与 watch 的基线，不触发
+    run: () => fireScan('when'),                         // 每次 onUpdate：布尔边沿规则即时判定
+    commit: () => fireScan('watch'),                     // blur（焦点离开）：值变化规则此刻判定
   };
 }
 

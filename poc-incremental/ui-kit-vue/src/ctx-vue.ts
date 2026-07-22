@@ -56,7 +56,7 @@ export function useEngineSession(opts: UseEngineOpts): EngineSession {
     const resetWatcher = attachResetWatcher(session, opts.resetRules, { onStructChange: rebuild });  // 联动重置（计划 ②）；删行走 rebuild，二次确认默认走浏览器 confirm
     resetWatcher.seed();                                  // 记录加载后真值基线（不触发，尊重既有数据）
     watcherRun = resetWatcher.run;
-    const built = makeCtx(session, () => session.getState(), rebuild);
+    const built = makeCtx(session, () => session.getState(), rebuild, () => resetWatcher.commit());  // blur → watch 值变化触发
     notify = built.notify;
     built.ctx.onTick(() => { version.value++; });        // 样本级响应式：每 tick 递增
     return { ctx: built.ctx, getState: () => session.getState(), structVersion, version };

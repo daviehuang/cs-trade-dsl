@@ -269,7 +269,7 @@ function PageInspector({ pageDef, meta, mutate }: { pageDef: PageDef; meta: Engi
               else setRule(i, { when: expr, watch: undefined });
             }}>
               <option value="when">值变真（when 由假变真时触发）</option>
-              <option value="watch">值变化（watch 值改变即触发）</option>
+              <option value="watch">值变化（watch 焦点离开输入框时判定）</option>
             </select></label>
           {r.watch != null ? (
             <label style={{ gridColumn: '1 / -1' }}>watch（监视表达式，值变化即清空 targets）

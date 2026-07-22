@@ -69,6 +69,7 @@ export function mountEngineSession(opts: MountOpts): MountHandle {
     const resetWatcher = attachResetWatcher(session, opts.resetRules, { onStructChange: () => render() });  // 联动重置（计划 ②）；删行 → 重渲染，二次确认默认走浏览器 confirm
     resetWatcher.seed();                              // 记录加载后真值基线（不触发，尊重既有数据）
     watcherRun = resetWatcher.run;
+    container.addEventListener('focusout', () => resetWatcher.commit());       // 焦点离开输入框 → watch 值变化触发
     const built = makeCtx(session, () => session.getState(), () => render());  // 增删子记录 → 结构重建
     notify = built.notify;
     built.ctx.onTick(() => render());                 // 值刷新也重渲染（受控 DOM 从引擎取值）

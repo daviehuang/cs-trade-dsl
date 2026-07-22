@@ -71,7 +71,7 @@ const BFF_URL = 'http://localhost:8787/api/settle';
         </div>
       }
 
-      <form [formGroup]="form">
+      <form [formGroup]="form" (focusout)="onCommit()">
         <formly-form [form]="form" [fields]="fields" [model]="model"></formly-form>
       </form>
 
@@ -145,7 +145,8 @@ export class FormlyLcComponent implements OnInit {
   private session: Session | null = null;
   private ctx!: EngineCtx;
   private notify: () => void = () => {};
-  private resetWatch: { seed: () => void; run: () => void } | null = null;  // 联动重置 watcher（计划 ②）
+  private resetWatch: { seed: () => void; run: () => void; commit: () => void } | null = null;  // 联动重置 watcher（计划 ②）
+  onCommit(): void { this.resetWatch?.commit(); }   // 焦点离开输入框 → watch 值变化触发
   private importsReg: Record<string, RuleSet> = {};
   private meta: EngineMeta | null = null;
   bffHtml = '';

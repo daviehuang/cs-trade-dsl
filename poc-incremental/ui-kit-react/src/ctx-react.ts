@@ -65,7 +65,7 @@ function createStore(opts: UseEngineOpts): EngineStore {
     const resetWatcher = attachResetWatcher(session, opts.resetRules, { onStructChange: rebuild });  // 联动重置（计划 ②）；删行走 rebuild，二次确认默认走浏览器 confirm
     resetWatcher.seed();                                         // 记录加载后真值基线（不触发，尊重既有数据）
     watcherRun = resetWatcher.run;                               // 此后每次 onUpdate 边沿触发清空/删行
-    const built = makeCtx(session, () => session.getState(), rebuild);
+    const built = makeCtx(session, () => session.getState(), rebuild, () => resetWatcher.commit());  // blur → watch 值变化触发
     return { ...base, ctx: built.ctx, getState: () => session.getState(), explain: () => session.explain() };
   } catch (e: any) {
     // 建会话失败（常见：某 import ref 未解析）——不崩溃，返回错误态供渲染层提示。
