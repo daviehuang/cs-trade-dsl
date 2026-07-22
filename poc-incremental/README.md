@@ -169,6 +169,27 @@ flowchart TB
 
 **两条外部数据线**（见 COMPUTE-MODEL「中台两条汇率处理线路」）：resolver 按 `resolve(source,key)` 取值进计算（前端 mock / 后台权威）；提交的 `pinned` 只做容差核对不进计算。**覆盖态**不单独持久化——存纯值树，加载时四端一致地从值反推（见「加载态重建」）。
 
+## 仓库结构
+
+按角色分组，标号对应上文架构层 ①–⑥。
+
+```mermaid
+flowchart LR
+  ROOT["poc-incremental/"]
+  ROOT --> ENG["引擎核心 ④<br/>src/ — incremental.js（增量依赖图+异步 resolver）· kernel.js（表达式内核）"]
+  ROOT --> SDK["中性 SDK ⑤<br/>ui-kit-core/（EngineCtx·hydrate→UI-IR·lint·buildMeta·自动布局）<br/>ui-kit-react · ui-kit-vue · ui-kit-html（各端 ctx 适配 + 渲染器）"]
+  ROOT --> ED["编辑器 ①<br/>editor-react/ — 模型/规则/模块/页面/上下文/数据源 + 实时 Preview + lint"]
+  ROOT --> LD["运行时加载器 ③<br/>runtime-loader（React）· runtime-loader-vue · runtime-loader-html<br/>angular-lc-sample（Angular formly）·（早期静态样本 react/vue/html-lc-sample）"]
+  ROOT --> RP["规则仓库 ②<br/>store-server.js（:8788 catalog/bundle/CRUD）· seed-store.mjs<br/>store/（gitignore）：libraries·rulesets·pages·data·features"]
+  ROOT --> BF["中台 ⑥<br/>bff/server.js（:8787）· bff/validate.js（权威重算 + 防篡改）"]
+  ROOT --> RU["规则/数据产物<br/>库：commonFx · commonParty · commonMixPayment · commonCharge .json<br/>场景：lc-rules · lc-data · chargeDemo-* · mixDemo …"]
+  ROOT --> VF["回归脚本<br/>verify-*.mjs（override-pins · module-cases-pipeline · charge-multi · inherit-override · reconstruct-override · resetwatcher …）"]
+  ROOT --> DI["发行版 / 第三方接入<br/>build-dist.mjs · dist/（UnifiedDSL.createSession）· third-party-incremental.html"]
+  ROOT --> DC["文档<br/>README · COMPUTE-MODEL · CHARGE-SERVICE · INHERITANCE · MULTI-FRAMEWORK · editor-fullspec …"]
+```
+
+> 依赖方向：`editor-react` / 四端加载器 / `bff` 都依赖 `ui-kit-core`（中性 SDK）与 `src`（引擎）；引擎与 SDK 不反向依赖任何前端框架。
+
 ## 引擎怎么做到的
 
 `src/incremental.js` —— 一个 **带异步节点的响应式计算图**（≈"无界面电子表格内核"）：
