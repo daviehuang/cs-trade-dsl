@@ -12,15 +12,19 @@ export interface PageDef {
   resetRules?: ResetRule[];
 }
 
-/** 联动重置规则（计划 ②）：当 scope 节点的 when 由假变真时，清空该节点 targets 这些【输入字段】。
+/** 联动重置规则（计划 ②）：某触发条件成立时，清空该 scope 节点 targets 这些【输入字段】。
+ *   两种触发（二选一）：`when` 布尔表达式由假变真（边沿）；`watch` 表达式的值发生变化（任意变化）。
  *   纯表现层便利——引擎单向数据流无「A 变→重置 B 输入」通路，故由宿主 watcher 订阅 onUpdate、
  *   边沿触发补上（详见 COMPUTE-MODEL.md）。BFF 不感知；需服务器可验证的重置应改建计算字段。 */
 export interface ResetRule {
   /** 作用域：节点类型名（如 'ChargeItem'，对每个该类型子记录各自判定）或 'root' / 绝对节点路径。 */
   scope: string;
-  /** 触发表达式（与 validation/formula 同一套 DSL；字符串用双引号）。在 scope 节点作用域求值。 */
-  when: string;
-  /** when 由假变真时要重置的对象名（相对 scope）：字段名→清值 / slot 名→整体重置 / children 集合名→删所有记录。 */
+  /** 【触发一】布尔触发表达式（与 validation/formula 同一套 DSL；字符串用双引号）。在 scope 节点作用域求值，由假变真时触发。 */
+  when?: string;
+  /** 【触发二】值变化触发表达式：其值（相对上次结算）发生任意变化即触发（如 watch 某币种字段→切币种就清空金额）。
+   *   与 when 二选一；两者都写时以 watch 为准。加载后首值仅记基线、不触发。 */
+  watch?: string;
+  /** 触发时要重置的对象名（相对 scope）：字段名→清值 / slot 名→整体重置 / children 集合名→删所有记录。 */
   targets: string[];
   /** 重置前二次确认（删 children / 重置 slot 等不可逆操作建议开）：true=默认提示语；字符串=自定义提示语。
    *   用户确认后才执行；拒绝则本次不重置（当前边沿不再追问，直到 when 再次由假变真）。 */

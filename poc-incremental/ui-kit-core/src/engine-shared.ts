@@ -100,7 +100,8 @@ export function attachResetWatcher(
 ): { seed: () => void; run: () => void } {
   if (!rules || !rules.length) return { seed: () => {}, run: () => {} };
   const onStructChange = opts.onStructChange;
-  const lastTrue = new Map<string, boolean>();
+  const lastTrue = new Map<string, boolean>();       // when 触发：上次真值（边沿检测）
+  const lastVal = new Map<string, string>();         // watch 触发：上次值（变化检测）
   const pendingConfirm = new Set<string>();          // rule@node：已有确认框挂起，避免重复弹
   let running = false;
   let structDirty = false;
@@ -150,12 +151,24 @@ export function attachResetWatcher(
       const matched: ViewNode[] = [];
       collectScopeNodes(session.getState().tree, rule.scope, matched);  // 每条规则重取树：删行后结构已变
       for (const sn of matched) {
-        let now = false;
-        try { now = session.evalAt(sn.path, rule.when) === true; } catch { now = false; }  // 引用 pending 字段等 → 视为假
         const key = ri + '@' + sn.path;
-        const was = lastTrue.get(key) === true;
-        lastTrue.set(key, now);                           // 边沿真值即刻记账（异步确认期间不重复触发）
-        if (fire && now && !was) {                        // 仅 false→true 边沿触发
+        // 两种触发（二选一）：watch=值变化（任意变化）；when=布尔由假变真（边沿）。
+        let trigger = false;
+        if (rule.watch) {
+          let v: unknown; try { v = session.evalAt(sn.path, rule.watch); } catch { v = undefined; }
+          const s = v == null ? '' : String(v);
+          const had = lastVal.has(key);
+          const prev = lastVal.get(key);
+          lastVal.set(key, s);                            // 即刻记账（首值仅记基线；异步确认期间不重复触发）
+          trigger = fire && had && prev !== s;            // 有基线且值变化才触发（加载首值不触发）
+        } else {
+          let now = false;
+          try { now = session.evalAt(sn.path, rule.when!) === true; } catch { now = false; }  // 引用 pending 字段等 → 视为假
+          const was = lastTrue.get(key) === true;
+          lastTrue.set(key, now);                         // 边沿真值即刻记账（异步确认期间不重复触发）
+          trigger = fire && now && !was;                  // 仅 false→true 边沿触发
+        }
+        if (trigger) {
           const node = sn;
           const doReset = () => { for (const t of rule.targets) applyTarget(node, t); };
           if (!rule.confirm) { doReset(); continue; }     // 未声明确认 → 直接执行

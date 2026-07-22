@@ -255,16 +255,31 @@ function PageInspector({ pageDef, meta, mutate }: { pageDef: PageDef; meta: Engi
     <div className="rule-form pc-inspector">
       <div className="pc-side-empty"><b>页面（顶层 {meta.root}）</b>已选中。<br />点上方「＋元素」把面板/行/列等加到页面；点选画布中的元素可编辑其属性。</div>
       <div className="rf-h" style={{ marginTop: 12 }}><b>联动重置 resetRules</b></div>
-      <div className="hint">when 变真时重置 targets：字段名→清值、slot 名→递归清子树、集合名→删所有行（纯前端便利，BFF 不感知）。when 里字符串用双引号。删行不可逆，注意 when 稳定性。</div>
+      <div className="hint">触发后重置 targets：字段名→清值、slot 名→递归清子树、集合名→删所有行（纯前端便利，BFF 不感知）。<b>两种触发</b>：when 布尔由假变真 / watch 值变化即触发。表达式里字符串用双引号。删行不可逆，注意触发稳定性。</div>
       {rules.length === 0 && <div className="pc-side-empty">（暂无规则，点下方「＋ 新增规则」）</div>}
       {rules.map((r, i) => (
         <div key={i} className="ed-grid" style={{ borderTop: '1px solid #eee', paddingTop: 8, marginTop: 8 }}>
           <label style={{ gridColumn: '1 / -1' }}>scope（作用域：节点类型 / root / 绝对路径）
             <input key={'rs-' + i} defaultValue={r.scope} placeholder="root 或 ChargeItem"
               onChange={(e) => setRule(i, { scope: e.target.value })} /></label>
-          <label style={{ gridColumn: '1 / -1' }}>when（触发表达式，由假变真时清空 targets）
-            <input key={'rw-' + i} defaultValue={r.when} placeholder={'如 settleType == "wire"'}
-              onChange={(e) => setRule(i, { when: e.target.value })} /></label>
+          <label style={{ gridColumn: '1 / -1' }}>触发方式
+            <select key={'rmode-' + i} value={r.watch != null ? 'watch' : 'when'} onChange={(e) => {
+              const expr = r.watch ?? r.when ?? '';
+              if (e.target.value === 'watch') setRule(i, { watch: expr, when: undefined });
+              else setRule(i, { when: expr, watch: undefined });
+            }}>
+              <option value="when">值变真（when 由假变真时触发）</option>
+              <option value="watch">值变化（watch 值改变即触发）</option>
+            </select></label>
+          {r.watch != null ? (
+            <label style={{ gridColumn: '1 / -1' }}>watch（监视表达式，值变化即清空 targets）
+              <input key={'rwatch-' + i} defaultValue={r.watch} placeholder={'如 trxCCY（切币种即重置金额）'}
+                onChange={(e) => setRule(i, { watch: e.target.value })} /></label>
+          ) : (
+            <label style={{ gridColumn: '1 / -1' }}>when（触发表达式，由假变真时清空 targets）
+              <input key={'rw-' + i} defaultValue={r.when} placeholder={'如 settleType == "wire"'}
+                onChange={(e) => setRule(i, { when: e.target.value })} /></label>
+          )}
           <label style={{ gridColumn: '1 / -1' }}>targets（逗号/空格分隔；字段名=清值，slot 名=递归清子树，集合名=删所有行）
             <input key={'rt-' + i} defaultValue={r.targets.join(', ')} placeholder="lcNo, applicant, charges"
               onChange={(e) => setRule(i, { targets: e.target.value.split(/[,\s]+/).filter(Boolean) })} /></label>
