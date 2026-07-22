@@ -79,6 +79,46 @@ resolver 的 `key` 变化 → 置 `pending` + 发起取数 → 下游读到 `pen
 
 **落地口诀**：凡「必须问外部才知道」的原子值 → 做成 resolver（按 key 声明，引擎异步拿、能追踪、中台能重取核对）；凡「能由已有值推出来」的 → 做成 formula（纯函数，只读已解析的值）。样板见 `CHARGE-SERVICE.md`：`base/tax/fee` 是 resolver（取值），`total` 是 formula（计算）。
 
+## 模块：可复用的计算单元（含 cases / pipeline）
+
+**库(library)里除了「节点(type)」还能定义「模块(module)」。节点是「数据长什么样」（fields/slots/children），模块是「这段活儿怎么算」。** 产品部把「汇率换算」「复杂计费」这类通用计算封成参数化积木，项目 `import` 后挂到自己的节点上复用，不用抄代码。
+
+### 模块 = 输入契约 + 内部计算/取数/校验 + 输出
+
+一个模块（如 `commonFx.fxConvert`）自带：`inputs`（入参契约）、`context`、`fields`（内部字段）、`rules`（formula / pipeline / resolver / validation）、`outputs`。它**自包含**——自己取数、自己算，只暴露 inputs/outputs，宿主不用知道它内部怎么调 API。
+
+### 怎么挂（`uses` / `bind` / `produce`）
+
+```jsonc
+"uses": [{ "use": "commonFx.fxConvert", "on": "ChargeItem", "as": "m",
+  "bind":    { "amount": "amount", "fromCcy": "ccy", "toCcy": "ctx.baseCcy" },  // 宿主字段 → 模块入参
+  "produce": { "conv": "base", "rate": "fxRate" } }]                            // 模块输出 → 宿主字段
+```
+
+关键性质：
+- **按宿主实例各来一份**（`instantiateUseOnHost` `incremental.js:257`）：`on: ChargeItem` → 每个明细各得一次独立实例，动态增子记录也自动补上（`instantiateUsesForNode` `:317`）。
+- **命名空间隔离**：模块内部在自己的 `<ns>.*` 命名空间求值（`self` = 模块实例，只见 inputs/局部/ctx），不与宿主其它字段撞名。
+- **能承载外部 IO 与校验**：resolver（取汇率/计费）、validation 都能封在模块里，一处定义处处复用。
+- **可挂基类**：`on` 写基类型（如 `on: Party`）自动作用到所有 is-a 该类型的节点（含子类型）。
+- **独立版本治理**：库带自己的 version，与产品规则集解耦。
+
+### 规则表达力：与顶层规则对齐（本次补齐 cases / pipeline）
+
+模块内 `formula` 现支持**多分支 cases + when + fallback + 分支级可覆盖**，并新增 **pipeline（多步，隐式 `value` = 上一步结果）**——与顶层 `makeRuleCell` 同款（`incremental.js:269-292`）。均在模块上下文 `mctx` 求值：cell 带 `getCtx`，recompute 的 whenExpr 走 `getCtx`（此前硬编码 `ctxFor(nodePath)`，模块 when 取不到 input，是本次关键修复）。
+
+> 边界：模块无 node data，`fallback:"input"` 的 manual 回填不支持（退化为 null）。样板见 `verify-module-cases-pipeline.mjs`。
+
+### 复杂逻辑往哪写
+
+表达式是**纯声明式**（无循环、无命令式、无副作用，与「计算里不能取值」同一地基）。所以：
+
+| 需求 | 做法 |
+|---|---|
+| 多分支/带阈值 | **cases**，或单 expr 里用三元链 `c1 ? a : c2 ? b : c` |
+| 多步、要中间量 | **pipeline**，或拆成多个字段（`A=…`、`B=f(A)`，依赖图自动排序） |
+| 聚合 | `sum/avg/min/max/count(...)` 对子集合 |
+| 循环 / 查表 / 算法级 | **交给后台 resolver**——引擎只编排，复杂逻辑在 API 里（如 `commonCharge.chargeCalc` 一次返回 base/tax/fee） |
+
 ## 为什么这对本项目是对的选择
 
 - **有界状态 + 求稳态**：一张信用证表单是有界的字段树，用户改一处、系统算到稳态即可——
