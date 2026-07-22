@@ -15,6 +15,8 @@ export interface MountOpts {
   buildIR: (state: SessionState) => UINode[];
   /** 联动重置规则（计划 ②）：某字段变真时清空其它输入字段。通常来自 pageDef.resetRules。 */
   resetRules?: ResetRule[];
+  /** 加载后从存盘字段值反推人工覆盖态（外部依赖字段用 data 里的汇率种回 resolver，无需 pins）。 */
+  reconstructOverrides?: boolean;
 }
 
 export interface MountHandle {
@@ -62,6 +64,8 @@ export function mountEngineSession(opts: MountOpts): MountHandle {
       imports: opts.imports,
       onUpdate: () => { watcherRun(); notify(); },    // 值刷新（含异步取数完成）→ 先跑联动重置 → onTick
     });
+    // 加载后重建覆盖态：从已存字段值反推人工覆盖（外部依赖字段从 data 汇率种回 resolver）。须在 seed 前，使基线含覆盖。
+    if (opts.reconstructOverrides) { try { session.reconstructOverrides(structuredClone(opts.data)); } catch { /* 忽略 */ } }
     const resetWatcher = attachResetWatcher(session, opts.resetRules, { onStructChange: () => render() });  // 联动重置（计划 ②）；删行 → 重渲染，二次确认默认走浏览器 confirm
     resetWatcher.seed();                              // 记录加载后真值基线（不触发，尊重既有数据）
     watcherRun = resetWatcher.run;

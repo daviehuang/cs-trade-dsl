@@ -65,7 +65,7 @@ async function loadFeature(featureId: string) {
       : `⛔ PageDef ${errorCount} 个错误 —— 已回退模型自动布局`;
 
     view.innerHTML = '';
-    handle = mountEngineSession({ container: view, createSession, ruleSet: b.ruleSet, imports: b.imports, data: b.data, resolve, buildIR, resetRules: b.pageDef.resetRules });
+    handle = mountEngineSession({ container: view, createSession, ruleSet: b.ruleSet, imports: b.imports, data: b.data, resolve, buildIR, reconstructOverrides: true, resetRules: b.pageDef.resetRules });
     if (handle.error) { view.innerHTML = `<div class="err">⛔ 建立会话失败：${handle.error}</div>`; return; }
     const paintStatus = () => {
       const pending = handle!.getState().anyPending;
