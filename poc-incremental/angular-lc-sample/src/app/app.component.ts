@@ -337,6 +337,8 @@ export class AppComponent implements OnInit {
           onUpdate: (s) => { this.state = s; this.refreshModel(); },
           onLog: (e) => this.appendLog(e),
         });
+        // 加载后从已存字段值反推人工覆盖（外部依赖字段从 data 汇率种回 resolver，无需 pins）。
+        try { this.session.reconstructOverrides(structuredClone(data)); } catch { /* 忽略 */ }
         this.state = this.session.getState();
         this.loading = false;
       },
