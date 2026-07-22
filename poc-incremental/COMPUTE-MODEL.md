@@ -140,6 +140,46 @@ if (!withinTolerance(p.value, auth, tol))
 > 要点：**汇率永远以中台按 key 重取的权威值参与计算**；前端提交的汇率只当"待核对的证据"。
 > 这样既杜绝了「改汇率蒙混计算」，又能查出「钉值与权威源不符/已过期」。
 
+## 加载态重建：从纯值树反推人工覆盖（已落地）
+
+**存储只存纯值树（`treeToData`），不存 override 标记、不存 pin。** 加载时靠反推把「人工覆盖」的字段恢复成覆盖态——这样存储结构干净、四端一致。
+
+### 问题
+
+一个 `computed + overridable` 字段（如 `negoAmount = finalAmount`，可人工改），存盘只留下值。加载时引擎会按公式重算 → 如果不特殊处理，人工改过的值就被算回去了。需要区分「这是覆盖」还是「这只是重算值」。
+
+### 反推（`reconstructOverrides(data)` `incremental.js:462`）
+
+沿计算图：某可覆盖字段的**存值 ≠ 重算值** → 判定它当初被人工覆盖 → `setOverride` 回放。迭代 fixpoint（上游覆盖先落，下游按更新值再比对）。
+
+### 外部依赖字段的难点与正解
+
+难点：`negoAmount → finalAmount → trxOrderAmt → trxRate`，`trxRate` 是 resolver（汇率）。重算要用汇率，而汇率异步、加载时还没回来（拿 null 会误判），或重取到的新汇率与存盘时不同（**漂移**会把没覆盖的字段误判成覆盖）。
+
+正解——**用存盘那一刻的汇率反推**（无漂移）：
+
+1. **种回汇率**：汇率值本就在 data 里（`trxRate`）。引擎建会话时记录 `resolverSeedPath`（`incremental.js:42,292`）——模块 produce 的 resolver（`root.m.rate`）↔ 其产出宿主字段（`root.trxRate`）。反推时从 `data.trxRate` 把汇率**种回 resolver cell**（`seedResolver` `:478`）。**只靠 data，无需 pin。**
+2. **按存盘汇率反推**：种回后重算基线 = 存盘时的值 → 外部依赖字段的存值与重算值一致（没覆盖）或不一致（真覆盖），准确判定。
+3. **在途取数自然刷新**：`createSession` 初次结算已按当前 key 发起取数（在途）；种回只是让本次基线用存盘值。稍后取数返回**权威汇率** → 重算 → 覆盖保留、校验重跑。（这正是用户提的「先反推 override → 再取回 pin 值 → 再重算校验」。）
+
+**安全护栏**：只对「其 resolver 依赖已成功种回」的字段反推（`seeded` 集合 + `dependsOnUnseededExt` `:477,490`）。存盘里没有该汇率（种不回）→ 不知旧汇率 → 仍跳过，避免把漂移误判成覆盖。
+
+> `pins`（显式带 cell 路径的汇率快照，见「中台线路 B」）仍作为可选来源支持并优先；缺省则从 data 种回。样板见 `verify-override-pins.mjs`（含「仅 data、无 pins」断言）。
+
+### 四端一致
+
+所有加载面在 `createSession` 后、`resetWatcher.seed()` 前调 `session.reconstructOverrides(data)`（只传 data）：
+
+| 加载面 | 接线位置 |
+|---|---|
+| 编辑器 Preview（React） | `ui-kit-react/ctx-react.ts` |
+| React 运行时加载器 | 同上（`reconstructOverrides: true`） |
+| Vue 运行时加载器 | `ui-kit-vue/ctx-vue.ts` |
+| HTML 运行时加载器 | `ui-kit-html/mount.ts` |
+| Angular 运行时加载器 | `formly-lc.component.ts` / `app.component.ts` |
+
+闭环：**保存**（`treeToData` 含覆盖后的值）→ **加载**（四端反推覆盖 + 种回汇率 + 权威取数刷新 + 校验重跑），存储始终是纯值树。
+
 ## 为什么不开放裸 field.onChange 副作用
 
 > 常被问：「给字段开个 onChange 事件、变化时顺手改别的数据，会不会干扰这套机制？」
