@@ -269,10 +269,20 @@ export function createSession(ruleSet, data, opts = {}) {
       // 2) 模块内部规则：在模块命名空间求值（self=模块实例；只见 inputs/局部/ctx）
       for (const r of (mod.rules || [])) {
         const id = `${ns}.${r.target}`;
-        const ftype = (mod.fields[r.target] || {}).type;
-        if (r.type === "formula")
-          cells.set(id, { id, kind: "computed", nodePath: ns, type: ftype, deps: new Set(), dependents: new Set(), state: "stale", value: null,
-            cases: [{ whenExpr: null, expr: r.expr, compute: () => evaluate(r.expr, mctx()).value }], fallback: null });
+        const fspec = mod.fields[r.target] || {};
+        const ftype = fspec.type;
+        if (r.type === "formula") {
+          // 与顶层 makeRuleCell 同款：cases 多分支 / 单 when / 无条件，归一成 [{whenExpr, overridable, compute}]（在模块上下文 mctx 求值）
+          const rawCases = r.cases || (r.when ? [{ when: r.when, expr: r.expr }] : [{ when: null, expr: r.expr }]);
+          const cases = rawCases.map((cs) => ({ whenExpr: cs.when || null, expr: cs.expr, overridable: cs.overridable, compute: () => evaluate(cs.expr, mctx()).value }));
+          cells.set(id, { id, kind: "computed", nodePath: ns, type: ftype, overridable: !!fspec.overridable, getCtx: mctx,
+            deps: new Set(), dependents: new Set(), state: "stale", value: null,
+            cases, fallback: r.fallback || null });   // 模块无 node data → 不支持 fallback:"input" 的 manual 回填（退化为 null）
+        } else if (r.type === "pipeline")
+          // 多步管道：逐步在模块上下文求值，隐式变量 value = 上一步结果
+          cells.set(id, { id, kind: "computed", nodePath: ns, type: ftype, overridable: !!fspec.overridable, steps: r.steps, getCtx: mctx,
+            deps: new Set(), dependents: new Set(), state: "stale", value: null,
+            compute: () => { let v = null; const c = mctx(); for (const s of r.steps) if (s.expr) v = evaluate(s.expr, { ...c, value: v }).value; return v; } });
         else if (r.type === "resolver")
           cells.set(id, { id, kind: "resolver", nodePath: ns, source: r.source, key: r.key, pick: r.pick ?? null, lastKey: null, pinned: null,
             deps: new Set(), dependents: new Set(), state: "stale", value: null, getCtx: mctx });
@@ -335,7 +345,7 @@ export function createSession(ruleSet, data, opts = {}) {
           cell.activeCase = -1;                        // 供 explain() 显示命中哪条分支
           for (let ci = 0; ci < cell.cases.length; ci++) {   // 首个 when 成立即停；即便将被覆盖也求 when，使 cell 依赖分支输入
             const cs = cell.cases[ci];
-            const ok = cs.whenExpr === null || evaluate(cs.whenExpr, ctxFor(cell.nodePath)).value === true;
+            const ok = cs.whenExpr === null || evaluate(cs.whenExpr, cell.getCtx ? cell.getCtx() : ctxFor(cell.nodePath)).value === true;
             if (ok) {
               ovr = (cs.overridable === undefined ? !!cell.overridable : !!cs.overridable);
               if (ovr && cell.override !== undefined) { value = coerce(cell.type, cell.override); state = "overridden"; }
