@@ -119,6 +119,19 @@ resolver 的 `key` 变化 → 置 `pending` + 发起取数 → 下游读到 `pen
 | 聚合 | `sum/avg/min/max/count(...)` 对子集合 |
 | 循环 / 查表 / 算法级 | **交给后台 resolver**——引擎只编排，复杂逻辑在 API 里（如 `commonCharge.chargeCalc` 一次返回 base/tax/fee） |
 
+### 数据源不是模块专属——顶层规则也能直接用
+
+`dataSources`（sourceId + keySchema + tolerance）是**规则集/库级的共享声明**；引用它的是 `resolver` 规则，而 resolver 规则**两个位置都能写**：
+
+| 位置 | 写法 | 引擎处理 |
+|---|---|---|
+| 顶层规则 | `ruleSet.rules` 里，`scope`=节点类型、`target`=该节点字段 | `makeRuleCell`（`incremental.js:204`） |
+| 模块内规则 | `mod.rules` 里 | `instantiateUseOnHost`（`:274`） |
+
+两者都靠同一个 `source` 字段引用，机制一致。数据源由 `compile` 把 `ruleSet.dataSources` + 各 import 库的 `dataSources` **合并成一张表**（`bff/validate.js:52-53`），顶层与模块都看得见、lint 也按这张表校验 `resolver.source`。
+
+区别只是**封装粒度**：一次性就地取值 → 写顶层 resolver（如 `verify-reconstruct-override.mjs` 直接把汇率取到 `Deal.fxRate`）；要复用 / 多实例 / 独立治理 → 封进模块（如 `fxConvert` 挂到每个 ChargeItem）。**想直接在某字段上取数，不用为它建模块。**
+
 ## 为什么这对本项目是对的选择
 
 - **有界状态 + 求稳态**：一张信用证表单是有界的字段树，用户改一处、系统算到稳态即可——
