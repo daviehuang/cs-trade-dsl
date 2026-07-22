@@ -35,6 +35,22 @@ export function UiRenderer({ ir, ctx }: { ir: UINode[]; ctx: EngineCtx }) {
   return <div style={{ display: 'contents' }} onBlur={() => ctx.commitEdit?.()}>{ir.map((n, i) => <UINodeView key={i} node={n} ctx={ctx} />)}</div>;
 }
 
+// 文本类输入：输入过程只改本地草稿，焦点离开（或回车）才提交到引擎（commit-on-blur）——
+//   避免每次击键就 setInput 引发 computed 级联/联动重置；未编辑时显示引擎值（含计算/覆盖结果）。
+function CommitInput({ path, value, commit, className, title, type }: {
+  path: string; value: string; commit: (v: string) => void; className?: string; title?: string; type?: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const v = draft ?? value;                                   // 编辑中显示草稿；否则显示引擎值
+  const doCommit = () => { if (draft != null && draft !== value) commit(draft); setDraft(null); };
+  return (
+    <input type={type} className={className} title={title} value={v} data-path={path} data-value={v}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={doCommit}
+      onKeyDown={(e) => { if (e.key === 'Enter') { doCommit(); (e.target as HTMLInputElement).blur(); } }} />
+  );
+}
+
 // 仅控件（无 label 外壳）——供表格单元格复用。
 function fieldControl(node: FieldUI, ctx: EngineCtx): React.ReactNode {
   const v = ctx.valueOf(node.path);
@@ -51,11 +67,11 @@ function fieldControl(node: FieldUI, ctx: EngineCtx): React.ReactNode {
       </select>
     );
   if (node.control === 'party-lookup') return <PartyLookup node={node} ctx={ctx} />;
-  if (node.control === 'date') return <input type="date" value={v} data-path={node.path} data-value={v} onChange={(e) => set(e.target.value)} />;
+  if (node.control === 'date') return <CommitInput type="date" path={node.path} value={v} commit={set} />;
   if (node.control === 'select')
     // 值为空时插占位空项：避免受控 select 无匹配值时"显示第一项、模型却是空"的错位
     return <select value={v} data-path={node.path} onChange={(e) => set(e.target.value)}>{!v && <option value="">— 请选择 —</option>}{selectOptions(node.controlProps).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>;
-  return <input value={v} data-path={node.path} data-value={v} onChange={(e) => set(e.target.value)} />;
+  return <CommitInput path={node.path} value={v} commit={set} />;
 }
 
 // 当事方主数据查询控件：名称模糊查 → 候选下拉 → 选中据 key 取记录 → mapping 到同节点各字段。
@@ -116,13 +132,13 @@ function cellBody(node: CellUI, ctx: EngineCtx): React.ReactNode {
   const st = ctx.cellState(node.path);
   const txt = ctx.cellText(node.path);
   if (st === 'input')
-    return <input className="cond" value={ctx.valueOf(node.path)} title="条件可输入（守卫为假时合法录入）"
-                  onChange={(e) => ctx.onInput(node.path, e.target.value)} />;
+    return <CommitInput className="cond" path={node.path} value={ctx.valueOf(node.path)} title="条件可输入（守卫为假时合法录入）"
+                  commit={(val) => ctx.onInput(node.path, val)} />;
   if (ctx.overridableFor(node.path))    // 实时可覆盖（随命中分支变化），非静态 node.overridable
     return (
       <span className="row">
-        <input className={cx('ovr', st === 'overridden' && 'on')} value={txt} title="可人工覆盖"
-               onChange={(e) => ctx.onOverride(node.path, e.target.value)} />
+        <CommitInput className={cx('ovr', st === 'overridden' && 'on')} path={node.path} value={txt} title="可人工覆盖"
+               commit={(val) => ctx.onOverride(node.path, val)} />
         <button type="button" title="恢复计算" onClick={() => ctx.clearOverride(node.path)}>⟲</button>
       </span>
     );
