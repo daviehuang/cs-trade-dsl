@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { EngineMeta, RuleSet } from '@udsl/ui-kit-core';
+import { FormulaBody, PipelineBody } from './RulesEditor';
 
 // 域3 模块与装配（Modules & uses）：
 //   A. modules 定义：moduleId/version/inputs/context/fields/rules(resolver·formula·validation)/outputs。
@@ -125,13 +126,14 @@ function ModuleForm({ mod, dataSources, patchMod }: { mod: any; dataSources: any
 }
 
 function ModuleRules({ mod, dataSources, fieldNames, patchMod }: { mod: any; dataSources: any[]; fieldNames: string[]; patchMod: (fn: (m: any) => void) => void }) {
-  const [rt, setRt] = useState<'resolver' | 'formula' | 'validation'>('formula');
+  const [rt, setRt] = useState<'resolver' | 'formula' | 'pipeline' | 'validation'>('formula');
   const rules: any[] = mod.rules ?? [];
   const addRule = () => patchMod((m) => {
     const id = rt + (m.rules?.length ?? 0);
     const base = rt === 'resolver' ? { id, type: 'resolver', target: fieldNames[0] ?? '', source: dataSources[0]?.sourceId ?? '', key: {} }
       : rt === 'formula' ? { id, type: 'formula', target: fieldNames[0] ?? '', expr: '' }
-        : { id, type: 'validation', expr: '', severity: 'error', message: '' };
+        : rt === 'pipeline' ? { id, type: 'pipeline', target: fieldNames[0] ?? '', steps: [{ expr: '' }] }
+          : { id, type: 'validation', expr: '', severity: 'error', message: '' };
     (m.rules ??= []).push(base);
   });
   const patchRule = (i: number, p: any) => patchMod((m) => { m.rules[i] = { ...m.rules[i], ...p }; });
@@ -153,7 +155,9 @@ function ModuleRules({ mod, dataSources, fieldNames, patchMod }: { mod: any; dat
               <ResolverKey r={r} dataSources={dataSources} onChange={(key) => patchRule(i, { key })} />
             </>
           ) : r.type === 'formula' ? (
-            <input value={r.expr ?? ''} onChange={(e) => patchRule(i, { expr: e.target.value })} placeholder="expr，如 amount * rate" style={{ flex: 1, minWidth: 200 }} />
+            <div style={{ flex: 1, minWidth: 260, width: '100%' }}><FormulaBody draft={r} set={(p: any) => patchRule(i, p)} /></div>
+          ) : r.type === 'pipeline' ? (
+            <div style={{ flex: 1, minWidth: 260, width: '100%' }}><PipelineBody draft={r} set={(p: any) => patchRule(i, p)} /></div>
           ) : (
             <>
               <input value={r.expr ?? ''} onChange={(e) => patchRule(i, { expr: e.target.value })} placeholder="expr（校验），如 sanctionScore < 50" style={{ flex: 1, minWidth: 180 }} />
@@ -164,7 +168,7 @@ function ModuleRules({ mod, dataSources, fieldNames, patchMod }: { mod: any; dat
         </div>
       ))}
       <div className="ed-row">
-        <select value={rt} onChange={(e) => setRt(e.target.value as any)}><option value="formula">formula</option><option value="resolver">resolver</option><option value="validation">validation</option></select>
+        <select value={rt} onChange={(e) => setRt(e.target.value as any)}><option value="formula">formula</option><option value="pipeline">pipeline</option><option value="resolver">resolver</option><option value="validation">validation</option></select>
         <button className="primary" onClick={addRule}>加规则</button>
       </div>
     </>

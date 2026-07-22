@@ -200,7 +200,7 @@ export function RulesEditor({ ruleSet, imports, meta, addField, addRule, updateR
 }
 
 // ── formula：单 expr / when+expr / cases[] + fallback ──
-function FormulaBody({ draft, set }: any) {
+export function FormulaBody({ draft, set }: any) {
   const mode = draft.cases ? 'cases' : draft.when !== undefined ? 'when' : 'single';
   const setMode = (m: string) => {
     if (m === 'single') set({ cases: undefined, when: undefined, fallback: undefined, expr: draft.expr || '' });
@@ -277,7 +277,7 @@ function ResolverBody({ draft, set, dataSources }: any) {
   );
 }
 
-function PipelineBody({ draft, set }: any) {
+export function PipelineBody({ draft, set }: any) {
   const steps: any[] = draft.steps || [];
   const setStep = (i: number, v: string) => set({ steps: steps.map((s, k) => k === i ? { expr: v } : s) });
   return (
