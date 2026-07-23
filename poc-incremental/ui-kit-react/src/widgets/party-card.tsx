@@ -5,8 +5,8 @@
 //   3) 要渲染"编辑器排的子树布局"就用 <UiRenderer ir={node.children} ctx={ctx} />——四端布局逻辑复用，组件不重写表单。
 //   4) 事务草稿：打开弹窗时快照叶子字段值，取消→逐字段 ctx.onInput 回滚，完成→保留。
 //   5) 用 registerNodeWidget('name', 组件) 注册（见 index.ts）；PageDef 里 panel 设 widget:'name' 即启用；未注册端自动降级为默认 panel。
-import { useState } from 'react';
-import type { EngineCtx, PanelUI } from '@udsl/ui-kit-core';
+import { useRef, useState } from 'react';
+import type { EngineCtx, ForkHandle, PanelUI } from '@udsl/ui-kit-core';
 import { EgModal, UiRenderer, leafControls } from '../components';
 import { registerNodeWidget } from '../node-widgets';
 
@@ -17,16 +17,23 @@ function PartyCard({ node, ctx }: { node: PanelUI; ctx: EngineCtx }) {
   const title: string = props.title ?? node.label ?? '';
 
   const [editing, setEditing] = useState(false);
-  const [snap, setSnap] = useState<Record<string, string>>({});
+  const forkRef = useRef<ForkHandle | null>(null);
+  const [, forceFork] = useState(0);
+  const editCtx = forkRef.current ? forkRef.current.ctx : ctx;  // 编辑走 fork 副本，摘要走真 ctx
 
-  // 打开编辑：快照子树所有叶子【输入字段】当前值，供取消回滚（仅覆盖标量字段；嵌套可增删子集合的事务本期不含）。
+  // 打开编辑：开隔离事务副本——弹窗里的编辑在副本进行，主页面完全不动。
   const open = () => {
-    const s: Record<string, string> = {};
-    for (const c of node.children) for (const lf of leafControls(c)) if (lf.kind === 'field') s[lf.path] = ctx.valueOf(lf.path);
-    setSnap(s); setEditing(true);
+    const f = ctx.forkEdit ? ctx.forkEdit() : null;
+    forkRef.current = f;
+    if (f) f.ctx.onTick(() => forceFork((x) => x + 1));         // 副本更新 → 弹窗重渲染
+    setEditing(true);
   };
-  const cancel = () => { for (const [p, v] of Object.entries(snap)) ctx.onInput(p, v); setEditing(false); };  // 回滚
-  const done = () => setEditing(false);                        // 保留（编辑期已实时进引擎）
+  const cancel = () => { forkRef.current = null; setEditing(false); };  // 丢弃副本 = 主页面零变化
+  const done = () => {                                          // 完成：把副本里各字段值应用回主会话
+    const f = forkRef.current;
+    if (f) f.commit(node.children.flatMap((c) => leafControls(c)).filter((l) => l.kind === 'field').map((l) => l.path));
+    forkRef.current = null; setEditing(false);
+  };
 
   return (
     <div className="eg-panel panel v-party eg-party-card">
@@ -42,8 +49,8 @@ function PartyCard({ node, ctx }: { node: PanelUI; ctx: EngineCtx }) {
       </div>
       {editing && (
         <EgModal title={`${title} · 编辑`} onCancel={cancel} onSave={done}>
-          {/* 弹窗内容 = 编辑器排的完整 party 布局（node.children），四端渲染逻辑复用 */}
-          <UiRenderer ir={node.children} ctx={ctx} />
+          {/* 弹窗内容 = 编辑器排的完整 party 布局（node.children）；用 fork 副本 ctx，改动不进主页面直到「完成」 */}
+          <UiRenderer ir={node.children} ctx={editCtx} />
         </EgModal>
       )}
     </div>

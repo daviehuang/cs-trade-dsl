@@ -3,7 +3,7 @@
 //   异步 resolver 完成 / 增量更新 → 引擎 onUpdate → 值版本++ → useSyncExternalStore 重渲染 →
 //   所有 cell 重新读引擎，显示 resolved/pending/error。这是 Angular 端 markForCheck 修复的 React 等价物。
 import { useState, useSyncExternalStore } from 'react';
-import { CreateSession, EngineCtx, ExplainCell, ResetRule, RuleSet, ResolveFn, Session, SessionState, attachResetWatcher, makeCtx } from '@udsl/ui-kit-core';
+import { CreateSession, EngineCtx, ExplainCell, ResetRule, RuleSet, ResolveFn, Session, SessionState, attachResetWatcher, makeCtx, treeToData } from '@udsl/ui-kit-core';
 
 export interface EngineStore {
   ctx: EngineCtx;
@@ -67,7 +67,10 @@ function createStore(opts: UseEngineOpts): EngineStore {
     const resetWatcher = attachResetWatcher(session, opts.resetRules, { onStructChange: rebuild });  // 联动重置（计划 ②）；删行走 rebuild，二次确认默认走浏览器 confirm
     resetWatcher.seed();                                         // 记录加载后真值基线（不触发，尊重既有数据）
     watcherRun = resetWatcher.run; watcherCommit = resetWatcher.commit;   // 此后每次 onUpdate 触发 when 边沿 + watch 值变化
-    const built = makeCtx(session, () => session.getState(), rebuild);
+    // 隔离编辑事务用：据【当前数据】现建副本会话（弹窗编辑在副本里进行，主会话不受影响；见 ctx.forkEdit）。
+    const forkFactory = (onUpdate: () => void): Session =>
+      opts.createSession(opts.ruleSet, treeToData(session.getState().tree), { resolve: opts.resolve, imports: opts.imports, onUpdate });
+    const built = makeCtx(session, () => session.getState(), rebuild, forkFactory);
     return { ...base, ctx: built.ctx, getState: () => session.getState(), explain: () => session.explain() };
   } catch (e: any) {
     // 建会话失败（常见：某 import ref 未解析）——不崩溃，返回错误态供渲染层提示。

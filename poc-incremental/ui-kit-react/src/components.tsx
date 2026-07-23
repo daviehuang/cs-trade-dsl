@@ -3,7 +3,7 @@
 //   不在 React 里存值。复用与 Angular 同名的 CSS class（styles.css），两框架视觉一致。
 import React, { useRef, useState } from 'react';
 import {
-  CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, TabsUI, UINode, ValidationsUI, buildNewItem, selectOptions,
+  CellUI, CollectionUI, EngineCtx, FieldUI, ForkHandle, GroupUI, PanelUI, TabsUI, UINode, ValidationsUI, buildNewItem, selectOptions,
 } from '@udsl/ui-kit-core';
 import { getLookupService, LookupCandidate } from './lookup';
 import { getNodeWidget } from './node-widgets';
@@ -206,24 +206,41 @@ export function EgModal({ title, onCancel, onSave, children }: { title: string; 
 }
 
 function EgCollection({ node, ctx }: { node: CollectionUI; ctx: EngineCtx }) {
-  // 弹窗编辑的事务草稿：打开时快照本行输入值；取消→逐字段回滚（新增行→removeChild 丢弃）。
+  // 弹窗编辑：优先隔离事务（fork 副本会话，编辑期主页面完全不动，完成才同步、取消零变化）；
+  //   无 fork 能力则回退旧「快照 + 逐字段回滚」。新增行仍走实时（addChild + 取消 removeChild）。
   const [editing, setEditing] = useState<{ path: string; isNew: boolean } | null>(null);
   const snapRef = useRef<Record<string, string>>({});
+  const forkRef = useRef<ForkHandle | null>(null);
+  const [, forceFork] = useState(0);
 
-  // ── 弹窗编辑模式：摘要行 + 「编辑」弹窗（v1 行内叶子字段；深层嵌套增删的事务超出范围）──
+  // ── 弹窗编辑模式：摘要行 + 「编辑」弹窗 ──
   if (node.layout === 'modal') {
     const snapshot = (group: UINode) => {
       const snap: Record<string, string> = {};
       for (const lf of leafControls(group)) if (lf.kind === 'field') snap[lf.path] = ctx.valueOf(lf.path);
       return snap;
     };
-    const openEdit = (it: { nodePath: string; group: UINode }) => { snapRef.current = snapshot(it.group); setEditing({ path: it.nodePath, isNew: false }); };
-    const openAdd = () => { const path = ctx.addChild(node.parentPath, node.collName, buildNewItem(node, ctx)); snapRef.current = {}; setEditing({ path, isNew: true }); };
+    const editItem = editing ? node.items.find((it) => it.nodePath === editing.path) : null;
+    const editCtx = forkRef.current ? forkRef.current.ctx : ctx;   // 编辑走 fork 副本，其余走真 ctx
+    const openEdit = (it: { nodePath: string; group: UINode }) => {
+      const f = ctx.forkEdit ? ctx.forkEdit() : null;              // 开隔离事务副本
+      forkRef.current = f;
+      if (f) f.ctx.onTick(() => forceFork((x) => x + 1));          // 副本更新（如小计重算）→ 弹窗重渲染
+      else snapRef.current = snapshot(it.group);                   // 回退旧快照
+      setEditing({ path: it.nodePath, isNew: false });
+    };
+    const openAdd = () => { const path = ctx.addChild(node.parentPath, node.collName, buildNewItem(node, ctx)); snapRef.current = {}; forkRef.current = null; setEditing({ path, isNew: true }); };
     const cancel = () => {
-      if (editing) { if (editing.isNew) ctx.removeChild(editing.path); else for (const [p, v] of Object.entries(snapRef.current)) ctx.onInput(p, v); }
+      if (forkRef.current) forkRef.current = null;                 // fork：丢弃即回滚（主会话从未被动过）
+      else if (editing) { if (editing.isNew) ctx.removeChild(editing.path); else for (const [p, v] of Object.entries(snapRef.current)) ctx.onInput(p, v); }
       setEditing(null);
     };
-    const editItem = editing ? node.items.find((it) => it.nodePath === editing.path) : null;
+    const done = () => {
+      const f = forkRef.current;
+      if (f && editItem) f.commit(leafControls(editItem.group).filter((l) => l.kind === 'field').map((l) => l.path));  // 副本 → 主会话
+      forkRef.current = null;
+      setEditing(null);
+    };
     const cols = node.columns ?? [];
     return (
       <div className={cx('eg-collection coll modal', node.className)}>
@@ -250,8 +267,8 @@ function EgCollection({ node, ctx }: { node: CollectionUI; ctx: EngineCtx }) {
               })}
             </tbody></table>}
         {editItem && (
-          <EgModal title={`${node.title} · ${editing!.isNew ? '新增' : '编辑'}`} onCancel={cancel} onSave={() => setEditing(null)}>
-            <UINodeView node={editItem.group} ctx={ctx} />
+          <EgModal title={`${node.title} · ${editing!.isNew ? '新增' : '编辑'}`} onCancel={cancel} onSave={done}>
+            <UINodeView node={editItem.group} ctx={editCtx} />
           </EgModal>
         )}
       </div>

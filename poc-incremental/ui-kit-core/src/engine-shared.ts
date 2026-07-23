@@ -23,6 +23,17 @@ export interface EngineCtx {
   evalExpr(base: string, expr: string): any;
   /** 注册「引擎更新」监听（让框架在异步取数后重渲染）。返回注销函数。 */
   onTick(cb: () => void): () => void;
+  /** 打开一个隔离编辑事务（fork 副本会话）：弹窗编辑在副本里进行、主会话完全不受影响；
+   *  「完成」调 commit(paths) 把这些字段的值应用回主会话，「取消」直接丢弃副本（不调 commit）。
+   *  宿主未提供 fork 能力时返回 null（调用方回退旧行为）。 */
+  forkEdit?(): ForkHandle | null;
+}
+
+/** 隔离编辑事务句柄（弹窗事务）：ctx 是副本会话的 ctx（供弹窗渲染/编辑）；commit 应用回主会话。 */
+export interface ForkHandle {
+  ctx: EngineCtx;
+  /** 把 paths 这些字段的值从副本会话应用回主会话（「完成」时调）。 */
+  commit(paths: string[]): void;
 }
 
 /** 新增子记录时组装初值对象：先取静态模板，再按 newItemInit 逐字段在【集合所属节点】作用域求值覆盖。

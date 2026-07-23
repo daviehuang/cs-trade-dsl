@@ -8,6 +8,8 @@ export function makeCtx(
   session: Session,
   getState: () => SessionState,
   rebuild: () => void,
+  /** 隔离编辑用：据当前数据现建一个 fork 副本会话（onUpdate 回调驱动弹窗重渲染）。宿主提供后才有 ctx.forkEdit。 */
+  forkFactory?: (onUpdate: () => void) => Session,
 ): { ctx: EngineCtx; notify: () => void } {
   const listeners = new Set<() => void>();
   const text = (c?: Cell) => (!c ? '—' : c.state === 'pending' ? '⏳ 计算中' : c.state === 'error' ? '✗ 错误' : (c.value ?? '—'));
@@ -25,6 +27,23 @@ export function makeCtx(
     validationsFor: (p) => getState().validations.filter((v) => v.node === p && v.state === 'resolved'),
     evalExpr: (base, expr) => { try { return session.evalAt(base, expr); } catch { return undefined; } },  // 求值失败（如引用 pending 字段）→ undefined，调用方回退
     onTick: (cb) => { listeners.add(cb); return () => listeners.delete(cb); },
+    forkEdit: () => {
+      if (!forkFactory) return null;
+      let notify = () => {};
+      const fs = forkFactory(() => notify());                   // 副本会话：onUpdate → 通知（驱动弹窗重渲染）
+      const built = makeCtx(fs, () => fs.getState(), () => {}); // 副本 ctx（弹窗内一般不增删结构，rebuild 无操作）
+      notify = built.notify;
+      return {
+        ctx: built.ctx,
+        commit: (paths) => {                                    // 「完成」：把副本里这些字段的值应用回主会话
+          for (const p of paths) {
+            const v = built.ctx.valueOf(p);
+            try { session.setInput(p, v); }                     // 普通输入
+            catch { try { session.setOverride(p, v); } catch { /* 纯 computed：跳过 */ } }  // 可覆盖字段
+          }
+        },
+      };
+    },
   };
   return { ctx, notify: () => listeners.forEach((f) => f()) };
 }
