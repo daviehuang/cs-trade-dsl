@@ -615,7 +615,14 @@ export function createSession(ruleSet, data, opts = {}) {
     const parentPath = m[1], collName = m[2], idx = +m[3];
     const removed = subtreePaths(childPath).map((p) => [p, nodes.get(p).type]);
     nodes.get(parentPath).data[collName][idx] = null;      // 墓碑：保持其它兄弟下标不变
-    for (const c of cellsInSubtree(childPath)) { c.dead = true; cells.delete(c.id); dirty.delete(c.id); } // 含模块命名空间 cell，避免回收遗漏
+    const doomed = cellsInSubtree(childPath);              // 含模块命名空间 cell，避免回收遗漏
+    // 先从【存活 cell】的依赖图里摘除对将删 cell 的引用（上游的 dependents / 下游的 deps），再删——
+    //   否则残留悬挂 id：上游 cell 日后变化时会把已删 id 加进 dirty，settle 取 cells.get() 得 undefined 崩溃。
+    for (const c of doomed) {
+      for (const d of c.deps) cells.get(d)?.dependents.delete(c.id);
+      for (const dep of c.dependents) cells.get(dep)?.deps.delete(c.id);
+    }
+    for (const c of doomed) { c.dead = true; cells.delete(c.id); dirty.delete(c.id); }
     for (const [p, t] of removed) {
       proxies.delete(p);
       nodes.delete(p);
