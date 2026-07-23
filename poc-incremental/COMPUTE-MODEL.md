@@ -382,6 +382,44 @@ case-when 字段分流 / slot 递归清字段 / children 删行带重建）与 `
 > 边界：watcher 是**纯 UI 便利，BFF 不感知**（中台不知道「某字段本应被重置」）。
 > 若某重置是合规硬要求、须服务器可验证，改把该字段建成计算字段（`fallback:"input"` 或公式）进 DAG。两者可共存。
 
+## 自定义 UI 组件：包装模型节点（注册表 + widget）
+
+默认渲染是 input 级（text/select/date…，四端 `switch(control)`）。若要把**一个模型节点/槽位子树**换成
+自定义展示 + 行为（如 CustomerParty「折叠摘要 + 编辑弹窗」），用**节点组件注册表**——而**不破坏「引擎是唯一真相源」**。
+
+### 机制
+
+- **声明**：给重定基到槽位的 panel 加 `widget`（组件名）+ `widgetProps`（JSON 配置），`children` 是编辑器排好的完整子树。
+  ```jsonc
+  { "kind":"panel", "at":"buyer", "widget":"party-card",
+    "widgetProps": { "summary":["name","address"] }, "children": [ ...party 全字段... ] }
+  ```
+- **水化**：`hydrate`（`ui-kit-core/src/hydrate.ts` panel 分支）把 `widget`/`widgetProps` 透传进 `PanelUI`，
+  并带上 `nodePath`（子树基路径，如 `root.buyer`）。
+- **渲染**：`EgPanel`（`ui-kit-react/src/components.tsx`）命中 `getNodeWidget(node.widget)` 就委托该组件，
+  否则渲默认 panel。未注册 / 其余三端 → **降级默认 panel**（不报错）。
+- **注册**：宿主 `registerNodeWidget('name', 组件)`（`ui-kit-react/src/node-widgets.ts`）。PageDef 只写**名字 + JSON 配置**，
+  组件**代码在宿主**——PageDef 保持纯数据可序列化、四端通用。
+
+### 不变量（与 compute-model 一致）
+
+自定义组件是**表现层**，不改数据流地基：
+
+- **值永远经 `ctx` 走引擎**：读 `ctx.valueOf(path)`、写 `ctx.onInput(path,v)`；组件自身只用 `useState` 存 **UI 态**
+  （展开/折叠、草稿快照），**不存业务值**。
+- **children 用 `UiRenderer` 渲**（复用四端布局逻辑，组件不重写表单）。
+- **事务草稿**（可选）：打开编辑时快照叶子字段值，取消→逐字段 `ctx.onInput` 回滚，完成→保留——
+  复用集合 `layout:'modal'` 的 `EgModal` + 快照回滚。
+- **BFF 不感知**：展示/行为纯前端；需服务器可验证的逻辑仍走引擎规则（formula/validation/resolver）。
+
+### 样板与编辑器
+
+- 内置样板 `PartyCard`（`ui-kit-react/src/widgets/party-card.tsx`）：摘要只读 + 「编辑」按钮 + 弹窗（编辑器布局）+ 事务草稿；
+  `index.ts` 内置 `registerNodeWidget('party-card', PartyCard)`，随包即用，也是后人开发自定义组件的抄写范本。
+- 页面编辑器 panel 属性栏可选 `widget`（下拉来自 `nodeWidgetNames()`）+ 编辑 `widgetProps`（`editor-react/src/PageCanvas.tsx`）。
+- 边界：React 优先，其余三端降级；草稿回滚仅覆盖**叶子标量字段**（party 内可增删子集合的事务本期不含）。
+  控件级扩展（`party-lookup` 那种单字段自定义控件）目前仍是四端 `switch(control)` 硬编码，可后续按同款注册表模式收敛。
+
 ## 术语澄清（避免混淆）
 
 - **「dataflow（数据流）」** 是个宽泛词：Excel 是 dataflow，Flink 也是 dataflow。
