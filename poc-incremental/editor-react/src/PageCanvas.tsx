@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { EngineMeta, PageDef, ResetRule } from '@udsl/ui-kit-core';
+import { nodeWidgetNames } from '@udsl/ui-kit-react';
 import { Addr, childTypeOf, resolveAddr, readPayload, payloadToNode, labelOf } from './layout-addr';
 
 // 页面画布（拖拽式搭建）：右侧结构块画布。从规则集树拖字段/槽位/集合到容器放置区；
@@ -321,6 +322,13 @@ function Inspector({ node, addr, type, meta, patch }: any) {
         <label>variant<select value={n.variant ?? 'form'} onChange={(e) => patch(a, { variant: e.target.value })}><option>form</option><option>cards</option><option>flow</option><option>stats</option><option>party</option></select></label>
         <label>grid<select value={n.grid ?? ''} onChange={(e) => patch(a, { grid: e.target.value })}><option value="">（无）</option><option>form</option><option>cards</option><option>row</option><option>col</option></select></label>
         <label>at（重定基槽位/路径）<input value={n.at ?? ''} onChange={(e) => patch(a, { at: e.target.value })} placeholder="如 applicant / root.applicant" /></label>
+        <label>自定义组件 widget<select value={n.widget ?? ''} onChange={(e) => patch(a, { widget: e.target.value || undefined, widgetProps: e.target.value ? n.widgetProps : undefined })}>
+          <option value="">（无 = 默认面板）</option>{nodeWidgetNames().map((w) => <option key={w} value={w}>{w}</option>)}</select></label>
+        {n.widget && <label style={{ gridColumn: '1 / -1' }}>widgetProps（JSON，如 {'{'}"summary":["name","address"]{'}'}）
+          {/* 非受控：defaultValue+key 保留原文避免打字被清空；合法 JSON 才回写，非法忽略 */}
+          <input key={'wp-' + a.join('.')} defaultValue={JSON.stringify(n.widgetProps ?? {})}
+            placeholder={'{ "summary": ["name","address"], "title": "买家" }'}
+            onChange={(e) => { try { patch(a, { widgetProps: JSON.parse(e.target.value) }); } catch { /* 非法 JSON：暂不回写 */ } }} /></label>}
       </div>}
 
       {n.kind === 'group' && <div className="ed-grid">

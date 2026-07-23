@@ -18,3 +18,8 @@ export function registerNodeWidget(name: string, widget: NodeWidget): void {
 export function getNodeWidget(name: string): NodeWidget | undefined {
   return registry.get(name);
 }
+
+/** 已注册的自定义组件名清单（供页面编辑器下拉选择）。 */
+export function nodeWidgetNames(): string[] {
+  return [...registry.keys()];
+}
