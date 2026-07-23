@@ -8,7 +8,6 @@ export function makeCtx(
   session: Session,
   getState: () => SessionState,
   rebuild: () => void,
-  onCommit?: () => void,                                 // 焦点离开输入框时调用（驱动 resetRules 的 watch 值变化触发）
 ): { ctx: EngineCtx; notify: () => void } {
   const listeners = new Set<() => void>();
   const text = (c?: Cell) => (!c ? '—' : c.state === 'pending' ? '⏳ 计算中' : c.state === 'error' ? '✗ 错误' : (c.value ?? '—'));
@@ -26,7 +25,6 @@ export function makeCtx(
     validationsFor: (p) => getState().validations.filter((v) => v.node === p && v.state === 'resolved'),
     evalExpr: (base, expr) => { try { return session.evalAt(base, expr); } catch { return undefined; } },  // 求值失败（如引用 pending 字段）→ undefined，调用方回退
     onTick: (cb) => { listeners.add(cb); return () => listeners.delete(cb); },
-    commitEdit: () => onCommit?.(),
   };
   return { ctx, notify: () => listeners.forEach((f) => f()) };
 }

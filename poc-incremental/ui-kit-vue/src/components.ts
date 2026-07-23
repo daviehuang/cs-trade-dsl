@@ -39,13 +39,13 @@ function egField(node: FieldUI, ctx: EngineCtx): VNode {
       h('option', { value: 'manual', selected: v === 'manual' }, 'manual（人工录入）'),
     ]);
   else if (node.control === 'date')
-    control = h('input', { type: 'date', value: v, 'data-path': node.path, 'data-value': v, onInput: set });
+    control = h('input', { type: 'date', value: v, 'data-path': node.path, 'data-value': v, onChange: set });  // change=失焦提交（commit-on-blur）
   else if (node.control === 'select')
     control = h('select', { value: v, onChange: set, 'data-path': node.path },
       [...(v ? [] : [h('option', { value: '', selected: true }, '— 请选择 —')]),
        ...selectOptions(node.controlProps).map((o) => h('option', { value: o.value, selected: o.value === v }, o.label))]);
   else
-    control = h('input', { value: v, 'data-path': node.path, 'data-value': v, onInput: set });
+    control = h('input', { value: v, 'data-path': node.path, 'data-value': v, onChange: set });  // change=失焦提交（commit-on-blur）
   return h('label', { class: cx('eg-field l', node.className) }, [node.label, control]);
 }
 
@@ -55,11 +55,11 @@ function egCell(node: CellUI, ctx: EngineCtx): VNode {
   let body: VNode;
   if (st === 'input')
     body = h('input', { class: 'cond', value: ctx.valueOf(node.path), 'data-path': node.path, title: '条件可输入（守卫为假时合法录入）',
-      onInput: (e: Event) => ctx.onInput(node.path, (e.target as HTMLInputElement).value) });
+      onChange: (e: Event) => ctx.onInput(node.path, (e.target as HTMLInputElement).value) });  // change=失焦提交
   else if (ctx.overridableFor(node.path))    // 实时可覆盖（随命中分支变化）
     body = h('span', { class: 'row' }, [
       h('input', { class: cx('ovr', st === 'overridden' && 'on'), value: txt, 'data-path': node.path, title: '可人工覆盖',
-        onInput: (e: Event) => ctx.onOverride(node.path, (e.target as HTMLInputElement).value) }),
+        onChange: (e: Event) => ctx.onOverride(node.path, (e.target as HTMLInputElement).value) }),  // change=失焦提交
       h('button', { type: 'button', title: '恢复计算', onClick: () => ctx.clearOverride(node.path) }, '⟲'),
     ]);
   else

@@ -30,9 +30,7 @@ function leafControls(node: UINode): (FieldUI | CellUI)[] {
 
 /** 顶层渲染入口：UINode[] → React 树。 */
 export function UiRenderer({ ir, ctx }: { ir: UINode[]; ctx: EngineCtx }) {
-  // onBlur 在 React 中冒泡（focusout）：任一子输入失焦即 commitEdit → 驱动 resetRules 的 watch（值变化）触发。
-  //   display:contents 使包裹 div 不产生盒子、不影响布局。
-  return <div style={{ display: 'contents' }} onBlur={() => ctx.commitEdit?.()}>{ir.map((n, i) => <UINodeView key={i} node={n} ctx={ctx} />)}</div>;
+  return <>{ir.map((n, i) => <UINodeView key={i} node={n} ctx={ctx} />)}</>;
 }
 
 // 文本类输入：输入过程只改本地草稿，焦点离开（或回车）才提交到引擎（commit-on-blur）——

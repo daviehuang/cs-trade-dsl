@@ -54,18 +54,20 @@ function createStore(opts: UseEngineOpts): EngineStore {
 
   try {
     let watcherRun = () => {};                                  // 后绑定：session 建成后指向 resetWatcher.run
+    let watcherCommit = () => {};                               // 同上 → resetWatcher.commit（watch 值变化触发）
     const session = opts.createSession(opts.ruleSet, structuredClone(opts.data), {
       resolve: opts.resolve,
       imports: opts.imports,
-      onUpdate: () => { watcherRun(); valueVer++; fire(); },     // 值刷新（含异步取数完成）→ 先跑联动重置
+      // 值刷新（含异步取数完成）→ when 边沿 + watch 值变化触发。输入已 commit-on-blur，故 onUpdate 只在失焦提交时到来，watch 天然在失焦判定。
+      onUpdate: () => { watcherRun(); watcherCommit(); valueVer++; fire(); },
     });
     // 加载后重建覆盖态：从已存字段值反推人工覆盖（只非外部依赖字段）。纯计算字段同步即可判定；外部依赖字段自动跳过。
     if (opts.reconstructOverrides) { try { session.reconstructOverrides(structuredClone(opts.data), { skipExternalDependent: true }); } catch { /* 忽略 */ } }
     const rebuild = () => { structVer++; fire(); };             // 结构刷新（增删子记录 → 重建 UI-IR）
     const resetWatcher = attachResetWatcher(session, opts.resetRules, { onStructChange: rebuild });  // 联动重置（计划 ②）；删行走 rebuild，二次确认默认走浏览器 confirm
     resetWatcher.seed();                                         // 记录加载后真值基线（不触发，尊重既有数据）
-    watcherRun = resetWatcher.run;                               // 此后每次 onUpdate 边沿触发清空/删行
-    const built = makeCtx(session, () => session.getState(), rebuild, () => resetWatcher.commit());  // blur → watch 值变化触发
+    watcherRun = resetWatcher.run; watcherCommit = resetWatcher.commit;   // 此后每次 onUpdate 触发 when 边沿 + watch 值变化
+    const built = makeCtx(session, () => session.getState(), rebuild);
     return { ...base, ctx: built.ctx, getState: () => session.getState(), explain: () => session.explain() };
   } catch (e: any) {
     // 建会话失败（常见：某 import ref 未解析）——不崩溃，返回错误态供渲染层提示。

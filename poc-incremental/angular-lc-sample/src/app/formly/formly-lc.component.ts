@@ -71,7 +71,7 @@ const BFF_URL = 'http://localhost:8787/api/settle';
         </div>
       }
 
-      <form [formGroup]="form" (focusout)="onCommit()">
+      <form [formGroup]="form">
         <formly-form [form]="form" [fields]="fields" [model]="model"></formly-form>
       </form>
 
@@ -146,7 +146,6 @@ export class FormlyLcComponent implements OnInit {
   private ctx!: EngineCtx;
   private notify: () => void = () => {};
   private resetWatch: { seed: () => void; run: () => void; commit: () => void } | null = null;  // 联动重置 watcher（计划 ②）
-  onCommit(): void { this.resetWatch?.commit(); }   // 焦点离开输入框 → watch 值变化触发
   private importsReg: Record<string, RuleSet> = {};
   private meta: EngineMeta | null = null;
   bffHtml = '';
@@ -183,7 +182,7 @@ export class FormlyLcComponent implements OnInit {
           imports,
           // 异步取数/增量更新 → 先跑联动重置 → notify() 让各字段组件 markForCheck（穿透 formly 的 OnPush 子树）。
           //   run() 内清空会再触发 onUpdate（被重入守卫吞掉），故用 getState() 取重置后最新态。
-          onUpdate: (s) => { this.resetWatch?.run(); this.state = this.session ? this.session.getState() : s; this.notify(); },
+          onUpdate: (s) => { this.resetWatch?.run(); this.resetWatch?.commit(); this.state = this.session ? this.session.getState() : s; this.notify(); },
         });
         // 加载后重建覆盖态：从已存字段值反推人工覆盖（外部依赖字段从 data 汇率种回 resolver，无需 pins）。须在 seed 前，使基线含覆盖。
         try { this.session.reconstructOverrides(structuredClone(data)); } catch { /* 忽略 */ }

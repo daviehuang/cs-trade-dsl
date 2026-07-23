@@ -40,6 +40,6 @@ const pending = computed(() => { void version.value; return getState().anyPendin
            : `⛔ PageDef ${errorCount} 个错误 —— 已回退模型自动布局` }}
       </span>
     </div>
-    <div style="display:contents" @focusout="ctx.commitEdit && ctx.commitEdit()"><UiRenderer :ir="ir" :ctx="ctx" /></div>
+    <UiRenderer :ir="ir" :ctx="ctx" />
   </div>
 </template>

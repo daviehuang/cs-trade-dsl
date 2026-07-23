@@ -23,8 +23,6 @@ export interface EngineCtx {
   evalExpr(base: string, expr: string): any;
   /** 注册「引擎更新」监听（让框架在异步取数后重渲染）。返回注销函数。 */
   onTick(cb: () => void): () => void;
-  /** 输入提交（焦点离开输入框）——驱动 resetRules 的 watch（值变化）触发在 blur 时判定，而非输入过程中。 */
-  commitEdit?(): void;
 }
 
 /** 新增子记录时组装初值对象：先取静态模板，再按 newItemInit 逐字段在【集合所属节点】作用域求值覆盖。

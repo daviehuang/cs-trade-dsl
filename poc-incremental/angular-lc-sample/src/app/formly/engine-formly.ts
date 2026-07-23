@@ -174,7 +174,7 @@ export function buildRootFields(state: SessionState, ruleSet: any, imports: any,
           </select>
         }
         @case ('date') {
-          <input type="date" [value]="v()" (input)="set($any($event.target).value)" />
+          <input type="date" [value]="v()" (change)="set($any($event.target).value)" />
         }
         @case ('select') {
           <select [value]="v()" (change)="set($any($event.target).value)">
@@ -182,7 +182,7 @@ export function buildRootFields(state: SessionState, ruleSet: any, imports: any,
             @for (o of opts(); track o.value) { <option [value]="o.value">{{ o.label }}</option> }
           </select>
         }
-        @default { <input [value]="v()" (input)="set($any($event.target).value)" /> }
+        @default { <input [value]="v()" (change)="set($any($event.target).value)" /> }
       }
     </label>`,
   styles: [`
@@ -205,10 +205,10 @@ export class EgFieldType extends TickAwareType {
   template: `
     <label class="l">{{ props.label }}
       @if (st()==='input') {
-        <input class="cond" [value]="val()" (input)="inp($any($event.target).value)" title="条件可输入（守卫为假时合法录入）" />
+        <input class="cond" [value]="val()" (change)="inp($any($event.target).value)" title="条件可输入（守卫为假时合法录入）" />
       } @else if (ovridable()) {
         <span class="row">
-          <input class="ovr" [class.on]="st()==='overridden'" [value]="txt()" (input)="ovr($any($event.target).value)" title="可人工覆盖" />
+          <input class="ovr" [class.on]="st()==='overridden'" [value]="txt()" (change)="ovr($any($event.target).value)" title="可人工覆盖" />
           <button type="button" (click)="rv()" title="恢复计算">⟲</button>
         </span>
       } @else {

@@ -45,18 +45,20 @@ export function useEngineSession(opts: UseEngineOpts): EngineSession {
   try {
     let notify = () => {};
     let watcherRun = () => {};                            // 后绑定：session 建成后指向 resetWatcher.run
+    let watcherCommit = () => {};                         // 同上 → resetWatcher.commit（watch 值变化触发）
     const session = opts.createSession(opts.ruleSet, structuredClone(opts.data), {
       resolve: opts.resolve,
       imports: opts.imports,
-      onUpdate: () => { watcherRun(); notify(); },        // 值刷新（含异步取数完成）→ 先跑联动重置
+      // when 边沿 + watch 值变化；输入 commit-on-blur，故 onUpdate 只在失焦提交时到来，watch 天然在失焦判定。
+      onUpdate: () => { watcherRun(); watcherCommit(); notify(); },
     });
     // 加载后重建覆盖态：从已存字段值反推人工覆盖（外部依赖字段从 data 汇率种回 resolver）。须在 seed 前，使基线含覆盖。
     if (opts.reconstructOverrides) { try { session.reconstructOverrides(structuredClone(opts.data)); } catch { /* 忽略 */ } }
     const rebuild = () => { structVersion.value++; };    // 结构刷新（增删子记录 → 重建 UI-IR）
     const resetWatcher = attachResetWatcher(session, opts.resetRules, { onStructChange: rebuild });  // 联动重置（计划 ②）；删行走 rebuild，二次确认默认走浏览器 confirm
     resetWatcher.seed();                                  // 记录加载后真值基线（不触发，尊重既有数据）
-    watcherRun = resetWatcher.run;
-    const built = makeCtx(session, () => session.getState(), rebuild, () => resetWatcher.commit());  // blur → watch 值变化触发
+    watcherRun = resetWatcher.run; watcherCommit = resetWatcher.commit;
+    const built = makeCtx(session, () => session.getState(), rebuild);
     notify = built.notify;
     built.ctx.onTick(() => { version.value++; });        // 样本级响应式：每 tick 递增
     return { ctx: built.ctx, getState: () => session.getState(), structVersion, version };
