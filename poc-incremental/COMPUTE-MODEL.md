@@ -334,14 +334,34 @@ if (!withinTolerance(p.value, auth, tol))
   否则界面残留「幽灵行」，其绑定路径指向已删 cell → 读空/编辑抛 `not an input`。
   故 `attachResetWatcher(session, rules, onStructChange)` 第三参由四端 store 传入自己的 rebuild。
 
+**两种触发（`ResetRule` 二选一）**：
+- **`when`**（布尔边沿）：`when` 表达式由**假变真**时触发（记忆上次真值，仅 `false→true` 动）。
+- **`watch`**（值变化）：`watch` 表达式的**值发生任意变化**即触发（记忆上次值，如 `watch: trxCCY` → 切币种就清空金额）。加载首值仅记基线、不触发。
+
 **运行时如何生效**：四端 store（`ctx-react` / `ctx-vue` / html `mount` / Angular formly 组件）在建会话时
 `attachResetWatcher(session, pageDef.resetRules, rebuild)` 接线一次——
-- `seed()`：加载后记录各 `when` 的真值**基线，不触发**（尊重既有数据，不误清加载记录）；
-- `run()`：每次 `onUpdate` 对每个匹配节点求 `when`，仅 **`false→true` 边沿**重置 `targets`；
+- `seed()`：加载后记录各规则 `when` 真值 / `watch` 值的**基线，不触发**（尊重既有数据，不误清加载记录）；
+- `run()`：跑 **when 规则**（`false→true` 边沿）；`commit()`：跑 **watch 规则**（值变化）；四端 `onUpdate` 里
+  依次调 `run(); commit();`——因输入已 **commit-on-blur**（见下），`onUpdate` 只在**失焦提交**时到来，
+  故重置与计算天然在失焦判定，**不在输入过程中**；
 - 重入守卫：清值/删行自身会再触发 `onUpdate`，被守卫吞掉，杜绝乒乓。
 
-回归见 `verify-resetwatcher.mjs`（边沿触发 / 非电平 / 重入不死循环 / seed 不误清 / 类型作用域逐节点 /
-case-when 字段分流 / slot 递归清字段 / children 删行带重建）。
+回归见 `verify-resetwatcher.mjs`（when 边沿 / 非电平 / 重入不死循环 / seed 不误清 / 类型作用域逐节点 /
+case-when 字段分流 / slot 递归清字段 / children 删行带重建）与 `verify-reset-watch.mjs`（watch 值变化 /
+输入中不触发-失焦才触发 / 同值不触发 / 无关字段不触发）。
+
+### 输入提交时机：commit-on-blur（焦点离开才写引擎）
+
+**文本类输入在打字过程中只改本地/DOM 值，焦点离开（或按回车）才 `ctx.onInput` 写进引擎**——避免每次击键就
+`setInput` 引发 computed 级联 / 联动重置的连锁反应。原子控件（select / 币种 / 日期等）仍即时提交（它们不是"打字"）。
+
+- **React**：`CommitInput` 组件（本地草稿 state + `onBlur`/Enter 提交）——React 的 `onChange` 实为 input 事件（每击键），故须显式草稿。
+- **Vue / HTML / Angular**：文本框绑**原生 `change` 事件**（`onChange`/`onchange`/`(change)`）——原生 `change` 本就是"值改变 + 失焦/回车"才触发，天然 commit-on-blur。
+- **连带效果**：输入不再逐击键 `setInput` → `onUpdate` 只在**失焦提交**时到来 → `run()`（when）+ `commit()`（watch）
+  都在失焦判定，联动重置与计算级联都不再打断输入。这也是上面 watcher 从 focusout 接线简化为「onUpdate 里跑 commit」的前提。
+
+> 取舍：依赖某输入的计算值（合计/净额等）在你打字时**不实时更新**，失焦后才更新——这正是"值变化的时机 = 焦点离开输入框"。
+> 若某字段要保留实时计算，需按字段做成可选（当前是全局 commit-on-blur）。
 
 **二次确认（`ResetRule.confirm`）**：删 children / 重置 slot 不可逆，给规则加 `confirm` 即在重置前弹确认框，
 用户确认后才执行：
