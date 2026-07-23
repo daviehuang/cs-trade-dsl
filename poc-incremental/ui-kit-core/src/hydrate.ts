@@ -43,6 +43,7 @@ function hydrateNode(n: PageNode, base: string, h: H): UINode {
       return {
         kind: 'panel', label: n.title, badge: n.badge, variant: n.variant, tone: n.tone,
         gridClass: n.grid ? gridClass(n.grid) : undefined,
+        widget: n.widget, widgetProps: n.widgetProps, nodePath: childBase,   // 自定义组件：名 + 配置 + 子树基路径（如 root.buyer）
         children: n.children.map((c) => withSpan(hydrateNode(c, childBase, h), n.grid, c.kind)),
         className: n.className,
       };

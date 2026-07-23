@@ -120,3 +120,13 @@
 .eg-tabs .eg-tab:hover { background: #eaf0f8; }
 .eg-tabs .eg-tab.on { background: #fff; color: #1d5e96; border-color: #e6ebf2; }
 .eg-tabs .eg-tab-body { padding: 14px; display: grid; gap: 12px; }
+
+/* 自定义节点组件样板 party-card：折叠摘要 + 编辑按钮 */
+.eg-party-card .ph { justify-content: space-between; }
+.eg-party-card .ph .edit { background: #eef4ff; border: 1px solid #cfe0f7; color: #2563eb; border-radius: 7px; padding: 3px 12px; cursor: pointer; font-size: 16px; white-space: nowrap; }
+.eg-party-card .ph .edit:hover { background: #e0ebfb; }
+.eg-party-summary { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.eg-party-summary .sum-item { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+.eg-party-summary .sum-item .k { font-size: 14px; color: #94a3b8; }
+.eg-party-summary .sum-item .v { font-size: 18px; color: #1e293b; font-family: ui-monospace, Consolas, monospace; }
+.eg-party-summary .muted { color: #94a3b8; }

@@ -43,6 +43,10 @@ export interface PanelUI {
   variant?: string;           // 'form' | 'cards' | 'flow' | 'stats' | 'party'
   tone?: string;              // 'bank' | 'cust'
   gridClass?: string;         // 内部子节点的布局 class（已解析）
+  /** 自定义节点组件名（宿主 registerNodeWidget 注册）。命中则该子树交自定义组件渲染，否则默认 panel。 */
+  widget?: string;
+  widgetProps?: Record<string, any>;   // 传给自定义组件的配置（如 summary 字段清单）
+  nodePath?: string;          // 子树基路径（如 root.buyer）：组件拼 summary 字段路径用
   children: UINode[];
   className?: string;
 }

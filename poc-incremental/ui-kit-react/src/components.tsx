@@ -6,6 +6,7 @@ import {
   CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, TabsUI, UINode, ValidationsUI, buildNewItem, selectOptions,
 } from '@udsl/ui-kit-core';
 import { getLookupService, LookupCandidate } from './lookup';
+import { getNodeWidget } from './node-widgets';
 
 const cx = (...xs: (string | undefined | false)[]) => xs.filter(Boolean).join(' ');
 
@@ -21,8 +22,8 @@ export function UINodeView({ node, ctx }: { node: UINode; ctx: EngineCtx }) {
   }
 }
 
-// 收集一个子树里的叶子 field/cell UINode（供表格模式按列渲染裸控件）。
-function leafControls(node: UINode): (FieldUI | CellUI)[] {
+// 收集一个子树里的叶子 field/cell UINode（供表格模式按列渲染裸控件；自定义组件做草稿快照也复用）。
+export function leafControls(node: UINode): (FieldUI | CellUI)[] {
   if (node.kind === 'field' || node.kind === 'cell') return [node];
   if (node.kind === 'group' || node.kind === 'panel') return node.children.flatMap(leafControls);
   return [];
@@ -189,7 +190,7 @@ const leafText = (lf: FieldUI | CellUI, ctx: EngineCtx): string =>
   lf.kind === 'cell' ? ctx.cellText(lf.path) : (ctx.valueOf(lf.path) || '—');
 
 // 自包含模态框（渲染 kit 自带，不依赖编辑器 Modal）：背景点击 = 取消。
-function EgModal({ title, onCancel, onSave, children }: { title: string; onCancel: () => void; onSave: () => void; children: React.ReactNode }) {
+export function EgModal({ title, onCancel, onSave, children }: { title: string; onCancel: () => void; onSave: () => void; children: React.ReactNode }) {
   return (
     <div className="eg-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
       <div className="eg-modal-card" role="dialog">
@@ -303,6 +304,8 @@ function EgCollection({ node, ctx }: { node: CollectionUI; ctx: EngineCtx }) {
 }
 
 function EgPanel({ node, ctx }: { node: PanelUI; ctx: EngineCtx }) {
+  // 自定义节点组件：panel 设了 widget 且宿主已注册 → 该子树交自定义组件渲染；未注册 → 降级默认 panel。
+  if (node.widget) { const W = getNodeWidget(node.widget); if (W) return <>{W({ node, ctx })}</>; }
   const variant = node.variant || 'form';
   return (
     <div className={cx('eg-panel panel', 'v-' + variant, node.tone && 'tone-' + node.tone, node.className)}>

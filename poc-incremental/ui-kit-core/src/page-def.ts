@@ -49,6 +49,11 @@ export interface PanelNode extends BaseNode {
   grid?: 'form' | 'cards' | 'row' | 'col';
   /** 重定基：槽位名（相对当前节点，如 'applicant'）或绝对节点路径（'root.applicant'）。 */
   at?: string;
+  /** 自定义节点组件名：设了且宿主已 registerNodeWidget(name) → 该 panel 子树交给自定义组件渲染（自管展示/行为）。
+   *   未设=默认 panel；设了但未注册（或不支持的端）→ 降级为默认 panel。组件通过 ctx 读写引擎、UiRenderer 渲 children。 */
+  widget?: string;
+  /** 传给自定义组件的配置（如 { summary:["name","address"], title:"买家" }）；纯 JSON，随 PageDef 序列化。 */
+  widgetProps?: Record<string, any>;
   children: PageNode[];
 }
 
