@@ -1,6 +1,7 @@
 // 中性 UI-IR：hydrate(PageDef) / buildRootIR(自动布局) 都产出 UINode 树。
 //   每个框架适配器只需写一个哑渲染器（switch(node.kind)），把 UINode 映射成自己的控件。
 //   逻辑（路径重定基、集合按 live state 展开、控件种类判定、栅格/span-all）只在 core 写一次。
+import { SessionState } from './engine-types';
 
 export type UINode =
   | FieldUI
@@ -65,6 +66,9 @@ export interface CollectionUI {
   /** 新增一行时按表达式求初值：{字段: 表达式}，在 parentPath（集合所属节点）作用域求值（预填剩余额等）。 */
   newItemInit?: Record<string, string>;
   items: { nodePath: string; group: UINode }[];
+  /** 按给定 path 水化「新增行」的编辑 group（弹窗新增走隔离事务：先在副本 addChild 得副本 path，
+   *  再用副本 state 在该 path 上水化 group、用副本 ctx 渲染；主会话此刻无此行）。传 state 覆盖默认（主）状态以取到副本行的字段 spec。 */
+  newItemGroup?: (itemPath: string, state?: SessionState) => UINode;
   className?: string;
 }
 

@@ -29,11 +29,17 @@ export interface EngineCtx {
   forkEdit?(): ForkHandle | null;
 }
 
-/** 隔离编辑事务句柄（弹窗事务）：ctx 是副本会话的 ctx（供弹窗渲染/编辑）；commit 应用回主会话。 */
+/** 隔离编辑事务句柄（弹窗事务）：ctx 是副本会话的 ctx（供弹窗渲染/编辑）；commit/commitAdd 应用回主会话。 */
 export interface ForkHandle {
   ctx: EngineCtx;
-  /** 把 paths 这些字段的值从副本会话应用回主会话（「完成」时调）。 */
+  /** 副本会话状态（新增行时按副本 spec 水化新行 group 用）。 */
+  getState(): SessionState;
+  /** 把 paths 这些字段的值从副本会话应用回主会话（编辑现有行「完成」时调）。 */
   commit(paths: string[]): void;
+  /** 在【副本】里新增一行，返回副本里该行的 path（新增走隔离事务：主会话此刻不加行）。 */
+  addChild(parent: string, coll: string, obj: any): string;
+  /** 「完成新增」：把副本里 forkPath 这行的数据真正加到主会话（此时主会话才结构变化 + 级联）。 */
+  commitAdd(parent: string, coll: string, forkPath: string): void;
 }
 
 /** 新增子记录时组装初值对象：先取静态模板，再按 newItemInit 逐字段在【集合所属节点】作用域求值覆盖。

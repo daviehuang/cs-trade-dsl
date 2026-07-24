@@ -76,6 +76,9 @@ function hydrateNode(n: PageNode, base: string, h: H): UINode {
         layout, columns,
         newItemTemplate: () => (n.newItem ? structuredClone(n.newItem) : (COLL_TEMPLATE[n.name]?.() ?? {})),
         newItemInit: n.newItemInit,
+        // 弹窗新增（隔离事务）：在给定 path 上水化新行 group；传副本 state 才能按副本里的行取到字段 spec。
+        newItemGroup: (itemPath, stOverride) =>
+          hydrateGroup(n.itemTemplate, itemPath, groupGrid, stOverride ? { state: stOverride, meta: h.meta } : h),
         items, className: n.className,
       };
     }

@@ -206,22 +206,24 @@ export function EgModal({ title, onCancel, onSave, children }: { title: string; 
 }
 
 function EgCollection({ node, ctx }: { node: CollectionUI; ctx: EngineCtx }) {
-  // 弹窗编辑：优先隔离事务（fork 副本会话，编辑期主页面完全不动，完成才同步、取消零变化）；
-  //   无 fork 能力则回退旧「快照 + 逐字段回滚」。新增行仍走实时（addChild + 取消 removeChild）。
-  const [editing, setEditing] = useState<{ path: string; isNew: boolean } | null>(null);
+  // 弹窗编辑/新增：优先隔离事务（fork 副本会话，编辑期主页面完全不动，完成才同步、取消零变化）；
+  //   无 fork 能力则回退旧「编辑=快照+逐字段回滚，新增=实时 addChild + 取消 removeChild」。
+  const [editing, setEditing] = useState<{ path?: string; forkPath?: string; isNew: boolean } | null>(null);
   const snapRef = useRef<Record<string, string>>({});
   const forkRef = useRef<ForkHandle | null>(null);
+  const addGroupRef = useRef<UINode | null>(null);               // 新增行的编辑 group（副本里水化，主会话此刻无此行）
   const [, forceFork] = useState(0);
 
-  // ── 弹窗编辑模式：摘要行 + 「编辑」弹窗 ──
+  // ── 弹窗编辑模式：摘要行 + 「编辑 / 新增」弹窗 ──
   if (node.layout === 'modal') {
     const snapshot = (group: UINode) => {
       const snap: Record<string, string> = {};
       for (const lf of leafControls(group)) if (lf.kind === 'field') snap[lf.path] = ctx.valueOf(lf.path);
       return snap;
     };
-    const editItem = editing ? node.items.find((it) => it.nodePath === editing.path) : null;
-    const editCtx = forkRef.current ? forkRef.current.ctx : ctx;   // 编辑走 fork 副本，其余走真 ctx
+    const editRow = editing && !editing.isNew ? node.items.find((it) => it.nodePath === editing.path) : null;
+    const group = editing?.isNew ? addGroupRef.current : editRow?.group;   // 新增取副本水化的 group，编辑取主 IR 的行 group
+    const editCtx = forkRef.current ? forkRef.current.ctx : ctx;   // 编辑/新增走 fork 副本，其余走真 ctx
     const openEdit = (it: { nodePath: string; group: UINode }) => {
       const f = ctx.forkEdit ? ctx.forkEdit() : null;              // 开隔离事务副本
       forkRef.current = f;
@@ -229,16 +231,33 @@ function EgCollection({ node, ctx }: { node: CollectionUI; ctx: EngineCtx }) {
       else snapRef.current = snapshot(it.group);                   // 回退旧快照
       setEditing({ path: it.nodePath, isNew: false });
     };
-    const openAdd = () => { const path = ctx.addChild(node.parentPath, node.collName, buildNewItem(node, ctx)); snapRef.current = {}; forkRef.current = null; setEditing({ path, isNew: true }); };
+    const openAdd = () => {
+      const f = ctx.forkEdit ? ctx.forkEdit() : null;
+      if (f && node.newItemGroup) {                               // 新增也走隔离事务：行只落副本，主会话此刻不动
+        const forkPath = f.addChild(node.parentPath, node.collName, buildNewItem(node, f.ctx));
+        forkRef.current = f;
+        addGroupRef.current = node.newItemGroup(forkPath, f.getState());   // 用副本 state 水化新行 group
+        f.ctx.onTick(() => forceFork((x) => x + 1));
+        setEditing({ forkPath, isNew: true });
+      } else {                                                    // 回退：无 fork → 实时加行（旧行为）
+        const path = ctx.addChild(node.parentPath, node.collName, buildNewItem(node, ctx));
+        forkRef.current = null; addGroupRef.current = null; snapRef.current = {};
+        setEditing({ path, isNew: true });
+      }
+    };
     const cancel = () => {
-      if (forkRef.current) forkRef.current = null;                 // fork：丢弃即回滚（主会话从未被动过）
-      else if (editing) { if (editing.isNew) ctx.removeChild(editing.path); else for (const [p, v] of Object.entries(snapRef.current)) ctx.onInput(p, v); }
+      if (forkRef.current) forkRef.current = null;                 // fork：丢弃即回滚（含副本里的新行——主会话从未被动过）
+      else if (editing) { if (editing.isNew && editing.path) ctx.removeChild(editing.path); else for (const [p, v] of Object.entries(snapRef.current)) ctx.onInput(p, v); }
+      addGroupRef.current = null;
       setEditing(null);
     };
     const done = () => {
       const f = forkRef.current;
-      if (f && editItem) f.commit(leafControls(editItem.group).filter((l) => l.kind === 'field').map((l) => l.path));  // 副本 → 主会话
-      forkRef.current = null;
+      if (f && editing) {
+        if (editing.isNew && editing.forkPath) f.commitAdd(node.parentPath, node.collName, editing.forkPath);         // 新增：副本行 → 主会话真加行
+        else if (editRow) f.commit(leafControls(editRow.group).filter((l) => l.kind === 'field').map((l) => l.path));  // 编辑：字段值 → 主会话
+      }
+      forkRef.current = null; addGroupRef.current = null;
       setEditing(null);
     };
     const cols = node.columns ?? [];
@@ -266,9 +285,9 @@ function EgCollection({ node, ctx }: { node: CollectionUI; ctx: EngineCtx }) {
                 );
               })}
             </tbody></table>}
-        {editItem && (
-          <EgModal title={`${node.title} · ${editing!.isNew ? '新增' : '编辑'}`} onCancel={cancel} onSave={done}>
-            <UINodeView node={editItem.group} ctx={editCtx} />
+        {editing && group && (
+          <EgModal title={`${node.title} · ${editing.isNew ? '新增' : '编辑'}`} onCancel={cancel} onSave={done}>
+            <UINodeView node={group} ctx={editCtx} />
           </EgModal>
         )}
       </div>
