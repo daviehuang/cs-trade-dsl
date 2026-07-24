@@ -277,6 +277,9 @@ interface ForkHandle {
 主页面重建碰不到它；而 fork 隔离又保证编辑期主会话不变→主页面根本不重建，浮层稳定存在；
 弹窗体则由**副本的 `onTick`** 独立重渲染（配合失焦提交做个焦点保护即可）。
 
+> **要在一个 SPA 页面里同时开多个 form？** 每个 `mountEngineSession` 是**独立会话、互不干扰**，可放心多开——
+> 但有几处"全局/共享"要心里有数（尤其别复用整包 loader），见 **§13**。
+
 ---
 
 ## 9. 把机制移植到 Vue / Angular（配方）
@@ -362,6 +365,49 @@ Vue/Angular 目前 widget 面板降级为默认 panel。要让它们也支持自
 - [ ] PageDef 里 `widget` + `widgetProps` + `children`；`at` 指到目标节点
 - [ ] 在未注册该 widget 的端打开页面，确认**降级为默认 panel、不报错**
 - [ ] 该端构建通过（`ui-kit-*` + 加载器 tsc/vite）
+- [ ] 若 SPA 内多实例：各 form 独立 container + 各自 `mountEngineSession`，**别复用整包 loader**（见 §13）
+
+---
+
+## 13. 在 SPA 里嵌入多个表单实例（多 form 并存）
+
+**结论：用 kit 的 `mountEngineSession` 多开——数据/计算层完全隔离，不冲突。** 每个 form 一个独立
+`<div>` container + 独立 `mountEngineSession(...)`，放心并存。三条隔离保证（都在代码里）：
+
+- **引擎会话零共享状态**：`createSession(ruleSet, data, opts)`（`src/incremental.js`）内部 cells / 依赖图 / 订阅
+  全是**函数内 local**，模块顶层只有一个不可变 `Symbol`。每次调用是一份全新的隔离引擎。
+- **每个 mount 独立**：`mountEngineSession` 渲染进你给的 `container`，`notify` / `onTick` / `session` 都在各自闭包里；
+  form A 更新只触发 A 的 `render()`，碰不到 B。
+- **焦点恢复是 scoped 的**：`restoreFocus` 用 `container.querySelector([data-path=…])` 限定在自己的 container 内，
+  且 `captureFocus` 有 `!container.contains(activeElement)` 兜底——所以**即便两个 form 字段路径重名**
+  （都是 `root.buyer.name`），也绝不会跨 form 抢焦点。
+
+```ts
+// SPA 里嵌多个 form —— 各自独立 container + 独立会话
+const h1 = mountEngineSession({ container: document.querySelector('#formA')!, createSession,
+  ruleSet: rsA, imports, data: dataA, resolve, buildIR: irA });
+const h2 = mountEngineSession({ container: document.querySelector('#formB')!, createSession,
+  ruleSet: rsB, imports, data: dataB, resolve, buildIR: irB });
+// 卸载各自 destroy：
+h1.destroy(); h2.destroy();
+```
+
+### 但有 3 处"全局/共享"要心里有数
+
+| 共享点 | 会冲突吗 | 说明 / 建议 |
+|--------|:---:|------|
+| **widget 注册表** `registerNodeWidget` | 否（设计如此） | 模块级全局 `Map`，所有 form **只读共享**同一批组件定义。启动时注册一次即可；别为某个 form 单独覆盖同名 widget——那会影响所有 form。 |
+| **party-card 弹窗浮层挂 `document.body`** | 逻辑不冲突，**视觉会叠加** | HTML kit 唯一的全局 DOM 副作用。多个 form 各开 party 弹窗时，多个全屏 backdrop 都 append 到 body 会层叠（各自的 fork / onCancel 独立，数据不串，但观感乱）。建议：业务上一次只开一个编辑弹窗，或给浮层加实例级 `z-index` / 挂到各自容器。 |
+| **整包 `runtime-loader-html`（demo 应用）** | ⚠ **会冲突** | 它是"整页单例"：`getElementById('app')`、注入固定 id `#feat` / `#view` / `#status`、模块顶层直接启动并维护单个 `handle`。**不是设计来一页开多份的**——多实例会因固定 id 互相覆盖。 |
+
+### 一句话区分对错姿势
+
+- ✅ **对**：SPA 里嵌多 form → 直接用 **kit 的 `mountEngineSession`**，每个给独立 container。隔离干净。
+- ❌ **错**：把整个 **`runtime-loader-html`（带固定 `#app` / `#feat` 的整页 demo）** 复制多份塞进 SPA——
+  那一层假设自己独占页面。它只是"演示加载器"，不是可复用的 form 组件。
+
+> React 端同理：每个 `useEngineSession(...)` 是独立会话（各自的外部 store），多个表单组件并存互不干扰；
+> 同样别去复用整包的 `runtime-loader` / `editor-react` 顶层应用。
 
 ---
 
