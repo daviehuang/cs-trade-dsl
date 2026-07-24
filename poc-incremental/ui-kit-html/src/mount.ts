@@ -1,7 +1,7 @@
 // 原生 HTML 会话管理：建引擎 Session → 首渲染 → 订阅更新重渲染（值刷新 + 结构变化都全量重建）。
 //   与 React 的 useEngineSession / Angular 的 markForCheck 等价——异步 resolver 完成（无 DOM 事件）
 //   时引擎 onUpdate → notify → onTick → 重渲染。全量重建后按 data-path 恢复输入焦点与光标位置。
-import { CreateSession, EngineCtx, ResetRule, RuleSet, ResolveFn, SessionState, UINode, attachResetWatcher, makeCtx } from '@udsl/ui-kit-core';
+import { CreateSession, EngineCtx, ResetRule, RuleSet, ResolveFn, SessionState, UINode, attachResetWatcher, makeCtx, treeToData } from '@udsl/ui-kit-core';
 import { renderUINode } from './render';
 
 export interface MountOpts {
@@ -71,7 +71,10 @@ export function mountEngineSession(opts: MountOpts): MountHandle {
     const resetWatcher = attachResetWatcher(session, opts.resetRules, { onStructChange: () => render() });  // 联动重置（计划 ②）；删行 → 重渲染，二次确认默认走浏览器 confirm
     resetWatcher.seed();                              // 记录加载后真值基线（不触发，尊重既有数据）
     watcherRun = resetWatcher.run; watcherCommit = resetWatcher.commit;
-    const built = makeCtx(session, () => session.getState(), () => render());  // 增删子记录 → 结构重建
+    // 隔离编辑事务用：据【当前数据】现建副本会话（弹窗编辑在副本里进行，主会话不受影响；见 ctx.forkEdit）。
+    const forkFactory = (onUpdate: () => void) =>
+      opts.createSession(opts.ruleSet, treeToData(session.getState().tree), { resolve: opts.resolve, imports: opts.imports, onUpdate });
+    const built = makeCtx(session, () => session.getState(), () => render(), forkFactory);  // 增删子记录 → 结构重建
     notify = built.notify;
     built.ctx.onTick(() => render());                 // 值刷新也重渲染（受控 DOM 从引擎取值）
     handle = { ctx: built.ctx, getState: () => session.getState(), refresh: render, destroy: () => container.replaceChildren() };

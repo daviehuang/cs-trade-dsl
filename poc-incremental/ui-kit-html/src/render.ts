@@ -4,11 +4,12 @@
 import {
   CellUI, CollectionUI, EngineCtx, FieldUI, GroupUI, PanelUI, UINode, ValidationsUI, buildNewItem, selectOptions,
 } from '@udsl/ui-kit-core';
+import { getNodeWidget } from './node-widgets';
 
 const cx = (...xs: (string | undefined | false)[]) => xs.filter(Boolean).join(' ');
 
-/** 极简元素工厂：h(tag, {class,oninput,...属性}, ...子节点)。 */
-function h(tag: string, attrs: Record<string, any> = {}, ...kids: (Node | string | null | undefined)[]): HTMLElement {
+/** 极简元素工厂：h(tag, {class,oninput,...属性}, ...子节点)。自定义组件（如 party-card）也复用。 */
+export function h(tag: string, attrs: Record<string, any> = {}, ...kids: (Node | string | null | undefined)[]): HTMLElement {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (v == null || v === false) continue;
@@ -91,6 +92,8 @@ function egValidations(node: ValidationsUI, ctx: EngineCtx): HTMLElement | null 
 }
 
 function egPanel(node: PanelUI, ctx: EngineCtx): HTMLElement {
+  // 自定义节点组件：命中注册表则整棵子树交它渲染（自管 summary/弹窗/事务）；未注册 → 降级默认 panel。
+  if (node.widget) { const W = getNodeWidget(node.widget); if (W) return W({ node, ctx }); }
   const variant = node.variant || 'form';
   return h('div', { class: cx('eg-panel panel', 'v-' + variant, node.tone && 'tone-' + node.tone, node.className) },
     h('div', { class: 'ph' }, h('span', { class: 'ttl' }, node.label), node.badge ? h('span', { class: 'badge' }, node.badge) : null),
